@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ScamSense</title>
 <meta name="description" content="ScamSense checks your email and messages for scams and explains them in plain language.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src https://gmail.googleapis.com https://api.anthropic.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src https://gmail.googleapis.com https://api.anthropic.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0E7C7B">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="vendor/jspdf.umd.min.js" defer></script>
 <style>
 /* Layout: one phone-width column, app header on top, tab bar fixed at the bottom. */
 :root{
@@ -50,6 +51,25 @@ header{flex-wrap:wrap}
 .langpick{margin-left:auto}
 .langpick select{width:auto;max-width:150px;padding:6px 8px;font-size:.85rem;font-weight:700;border-radius:999px;border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.example-box{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--brand-soft);border-radius:12px;padding:12px}
+.example-box b{display:block}
+.examplenote{background:var(--warn-bg);border-radius:10px;padding:8px 12px;margin:0}
+.linkbtn{all:unset;cursor:pointer;color:var(--brand);font-weight:700;text-decoration:underline}
+input[type=file]{padding:10px;background:var(--surface)}
+.thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.thumb{position:relative;margin:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.thumb img{display:block;width:100%;aspect-ratio:9/16;object-fit:cover}
+.thumb figcaption{font-size:.72rem;padding:4px 6px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb-x{position:absolute;top:4px;right:4px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.6);color:#fff;font-size:1.1rem;cursor:pointer}
+.sendlist{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:12px}
+.sendlist li{display:flex;flex-direction:column;gap:4px;padding:10px 12px;border:1px solid var(--line);border-radius:12px}
+.sendlist li::marker{font-weight:800;color:var(--brand)}
+.sendlist li.best{border:2px solid var(--brand);background:var(--brand-soft)}
+.besttag{align-self:flex-start;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;background:var(--brand);color:var(--brand-ink);border-radius:999px;padding:3px 8px}
+.modal-bg{position:fixed;inset:0;background:rgba(5,20,24,.55);z-index:20;display:flex;align-items:flex-end;justify-content:center;padding:12px max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.modal{background:var(--surface);color:var(--ink);border-radius:20px;padding:20px;width:100%;max-width:560px;max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
+@media (min-width:640px){.modal-bg{align-items:center}}
+.modal-ok{width:56px;height:56px;border-radius:50%;background:var(--safe-bg);color:var(--safe);display:grid;place-items:center;font-size:1.8rem;font-weight:800}
 .org-card{border:2px solid var(--brand);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .org-head b{display:block;font-family:var(--display);font-size:1.2rem}
 .org-role{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--brand)}
@@ -1061,6 +1081,9 @@ function renderScammed(){
   const chk=(k)=>`<label class="checkrow"><input type="checkbox" value="${k}" ${s.what.includes(k)?"checked":""}> ${t("w_"+k)}</label>`;
   view.innerHTML=`<button class="btn ghost backbtn" id="back">${t("back")}</button>
   <section class="card"><h2>🆘 ${t("s_title")}</h2><p class="muted small" style="margin:0">${t("s_sub")}</p>
+    <div class="example-box"><div><b>${tr("See how it works","Vea cómo funciona")}</b><span class="small">${tr("Fill in a made-up case: a fake \"Chase Fraud Department\" call, with sample screenshots.","Llene un caso inventado: una llamada falsa del \"Departamento de Fraude de Chase\", con capturas de ejemplo.")}</span></div>
+      <button class="btn ghost sm" id="sexample">${tr("Try an example","Probar un ejemplo")}</button></div>
+    ${scamExample?`<p class="small examplenote">${tr("This is an example case. Change anything, or tap Clear to start your own.","Este es un caso de ejemplo. Cambie lo que quiera, o toque Borrar para empezar el suyo.")} <button class="linkbtn" id="sclear">${tr("Clear","Borrar")}</button></p>`:""}
     <div class="field"><label for="sh">${t("s_how")}</label><select id="sh"><option value=""></option>${["email","text","call","web","social","person"].map(k=>opt(k,"c_"+k,s.how)).join("")}</select></div>
     <fieldset class="field checks"><legend>${t("s_what")}</legend>${["paid","bank","ssn","pass","remote"].map(chk).join("")}</fieldset>
     <div class="field"><label for="sm">${t("s_method")}</label><select id="sm"><option value=""></option>${["credit","debit","bank","wire","app","gift","crypto","cashmail","courier","none"].map(k=>opt(k,"m_"+k,s.method)).join("")}</select></div>
@@ -1074,13 +1097,193 @@ function renderScammed(){
     <p class="small muted" style="margin:0">🔒 ${tr("Only the last 4 digits. Never type a full card or account number into any app.","Solo los últimos 4 dígitos. Nunca escriba el número completo en ninguna app.")}</p>
     <div class="field"><label for="sc">${t("s_contact")}</label><input id="sc" value="${esc(s.contact)}"></div>
     <div class="field"><label for="ss">${t("s_story")}</label><textarea id="ss" dir="auto" placeholder="${esc(t("s_story_ph"))}">${esc(s.story)}</textarea></div>
-    <button class="btn primary" id="sgo">${t("s_go")}</button></section><section id="splan" aria-live="polite"></section>`;
+    <div class="field"><label for="sf">${tr("Screenshots or photos (optional)","Capturas o fotos (opcional)")}</label>
+      <input id="sf" type="file" accept="image/*" multiple>
+      <span class="small muted">${tr("Add texts, call logs, emails, receipts, or gift cards. They stay on this device and go into your PDF report.","Agregue textos, llamadas, correos, recibos o tarjetas. Se quedan en este dispositivo y van en su reporte PDF.")}</span>
+      <div class="thumbs" id="thumbs"></div></div>
+    <button class="btn primary" id="sgo">${tr("Make my plan and report (PDF)","Crear mi plan y reporte (PDF)")}</button></section><section id="splan" aria-live="polite"></section>`;
   document.getElementById("back").onclick=()=>go("help");
-  document.getElementById("sgo").onclick=buildPlan;
+  document.getElementById("sgo").onclick=()=>buildPlan(true);
+  document.getElementById("sexample").onclick=loadExample;
+  const sclr=document.getElementById("sclear");if(sclr)sclr.onclick=()=>{scamExample=false;evidence=[];scamState={how:"",what:[],method:"",amt:"",date:"",pretend:"",org:"",bank:"",bankName:"",last4:"",contact:"",story:""};renderScammed()};
+  document.getElementById("sf").onchange=e=>{addEvidenceFiles([...e.target.files]);e.target.value=""};
+  renderThumbs();
   document.getElementById("sp").addEventListener("input",e=>{const so=document.getElementById("so");const k=detectOrg(e.target.value);if(k&&!so.value)so.value=k});
   document.getElementById("sl4").addEventListener("input",e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,4)});
 }
-function buildPlan(){
+/* ================= Evidence (screenshots) + example case + PDF report ================= */
+let evidence=[];      // [{src:dataURL(jpeg), cap:string, w, h}] kept in memory only, never saved
+let scamExample=false;
+function wrapLines(ctx,text,maxW){const words=String(text).split(" ");const lines=[];let cur="";
+  words.forEach(w=>{const tst=cur?cur+" "+w:w;if(ctx.measureText(tst).width>maxW&&cur){lines.push(cur);cur=w}else cur=tst});if(cur)lines.push(cur);return lines}
+function stampExample(ctx,W,H){ctx.save();ctx.translate(W/2,H/2);ctx.rotate(-Math.PI/7);ctx.fillStyle="rgba(200,30,30,.18)";ctx.font="bold 110px Helvetica,Arial";ctx.textAlign="center";ctx.fillText("EXAMPLE",0,30);ctx.restore()}
+function phoneCanvas(draw){const W=540,H=960;const c=document.createElement("canvas");c.width=W;c.height=H;const x=c.getContext("2d");
+  x.fillStyle="#ffffff";x.fillRect(0,0,W,H);x.fillStyle="#111";x.font="600 22px Helvetica,Arial";x.fillText("3:21",28,40);x.fillText("▮▮▮ 5G",W-120,40);
+  draw(x,W,H);stampExample(x,W,H);return {src:c.toDataURL("image/jpeg",.85),w:W,h:H}}
+function sampleShots(){
+  const sms=phoneCanvas((x,W)=>{
+    x.fillStyle="#f2f2f7";x.fillRect(0,60,W,110);x.fillStyle="#9aa0a6";x.beginPath();x.arc(W/2,100,26,0,7);x.fill();
+    x.fillStyle="#111";x.font="600 22px Helvetica,Arial";x.textAlign="center";x.fillText("+1 (469) 555-0182",W/2,152);x.textAlign="left";
+    x.fillStyle="#8e8e93";x.font="18px Helvetica,Arial";x.textAlign="center";x.fillText("Text Message · Yesterday 2:58 PM",W/2,205);x.textAlign="left";
+    let y=230;const bubble=(t,me)=>{x.font="24px Helvetica,Arial";const ls=wrapLines(x,t,330);const h=ls.length*31+26;const bw=Math.max(...ls.map(l=>x.measureText(l).width))+36;
+      const bx=me?W-bw-24:24;x.fillStyle=me?"#0a84ff":"#e9e9eb";x.beginPath();x.roundRect(bx,y,bw,h,22);x.fill();x.fillStyle=me?"#fff":"#111";ls.forEach((l,i)=>x.fillText(l,bx+18,y+36+i*31));y+=h+18};
+    bubble("Chase Fraud Alert: Did you attempt a Zelle payment of $1,250.00 to MARK R? Reply YES or NO.",false);
+    bubble("NO",true);
+    bubble("Thank you. A fraud specialist will call you shortly to secure your account. Do not log in until then.",false);
+    bubble("Your verification code is 482915. Do not share this code with anyone.",false);
+  });
+  const calls=phoneCanvas((x,W)=>{
+    x.fillStyle="#111";x.font="bold 40px Helvetica,Arial";x.fillText("Recents",28,120);
+    const row=(y,name,sub,time,red)=>{x.fillStyle=red?"#d70015":"#111";x.font="600 26px Helvetica,Arial";x.fillText(name,28,y);x.fillStyle="#8e8e93";x.font="20px Helvetica,Arial";x.fillText(sub,28,y+30);x.textAlign="right";x.fillText(time,W-28,y+12);x.textAlign="left";x.fillStyle="#e5e5ea";x.fillRect(28,y+52,W-56,2)};
+    row(190,"CHASE FRAUD DEPT","+1 (800) 555-0144 · 23 min","Yesterday");
+    row(280,"CHASE FRAUD DEPT","+1 (800) 555-0144 · 6 min","Yesterday");
+    row(370,"+1 (469) 555-0182","Missed","Yesterday",true);
+    row(460,"Sara (daughter)","mobile","Monday");
+    x.fillStyle="#fff4e5";x.beginPath();x.roundRect(28,560,W-56,150,16);x.fill();x.fillStyle="#7a4b00";x.font="20px Helvetica,Arial";
+    wrapLines(x,"Note: caller ID can be faked. The name \"CHASE FRAUD DEPT\" was shown, but the call did not come from Chase.",W-96).forEach((l,i)=>x.fillText(l,48,600+i*28));
+  });
+  const pay=phoneCanvas((x,W)=>{
+    x.fillStyle="#1f7a3e";x.beginPath();x.arc(W/2,190,54,0,7);x.fill();x.strokeStyle="#fff";x.lineWidth=10;x.beginPath();x.moveTo(W/2-24,190);x.lineTo(W/2-6,210);x.lineTo(W/2+28,170);x.stroke();
+    x.fillStyle="#111";x.textAlign="center";x.font="600 30px Helvetica,Arial";x.fillText("Transfer sent",W/2,300);x.font="bold 64px Helvetica,Arial";x.fillText("$1,250.00",W/2,380);
+    x.font="22px Helvetica,Arial";x.fillStyle="#555";x.fillText("Yesterday at 3:21 PM",W/2,420);x.textAlign="left";
+    const kv=(y,k,v)=>{x.fillStyle="#8e8e93";x.font="20px Helvetica,Arial";x.fillText(k,40,y);x.fillStyle="#111";x.font="600 22px Helvetica,Arial";x.textAlign="right";x.fillText(v,W-40,y);x.textAlign="left";x.fillStyle="#e5e5ea";x.fillRect(40,y+18,W-80,2)};
+    kv(500,"To","ACCOUNT PROTECTION");kv(560,"Phone","(469) 555-0182");kv(620,"From","Checking ••4421");kv(680,"Method","Zelle");kv(740,"Confirmation","ZK7Q2M9P1");
+  });
+  return [Object.assign(sms,{cap:tr("Text message that started the scam (fake fraud alert, then a real security code).","Texto que inició la estafa (alerta falsa y luego un código real).")}),
+          Object.assign(calls,{cap:tr("Call log: the caller ID showed \"CHASE FRAUD DEPT\", but caller ID can be faked.","Registro de llamadas: decía \"CHASE FRAUD DEPT\", pero el identificador se puede falsificar.")}),
+          Object.assign(pay,{cap:tr("Payment receipt: $1,250 sent by Zelle to \"ACCOUNT PROTECTION\".","Recibo: $1,250 enviados por Zelle a \"ACCOUNT PROTECTION\".")})];
+}
+function loadExample(){
+  const y=new Date(Date.now()-864e5).toISOString().slice(0,10);
+  scamState={how:"call",what:["paid","bank","pass"],method:"bank",amt:"1,250",date:y,pretend:"Chase Fraud Department",org:"chase",bank:"chase",bankName:"",last4:"4421",
+    contact:"Text from +1 (469) 555-0182; calls from +1 (800) 555-0144 (caller ID showed \"CHASE FRAUD DEPT\")",
+    story:tr("I got a text that looked like a Chase fraud alert asking if I sent $1,250 by Zelle. I replied NO. A few minutes later a man called. My phone showed \"CHASE FRAUD DEPT\". He said hackers were in my account and he needed to \"verify\" me, so I read him the code that was texted to me. He then said I had to move my money to a \"protected account\" and told me to send $1,250 by Zelle to ACCOUNT PROTECTION. I did. Later I called the number on the back of my card and Chase said they never called me.",
+      "Recibí un texto que parecía una alerta de fraude de Chase preguntando si envié $1,250 por Zelle. Respondí NO. Minutos después me llamó un hombre. Mi teléfono decía \"CHASE FRAUD DEPT\". Dijo que había hackers en mi cuenta y que necesitaba \"verificarme\", así que le leí el código que me llegó por texto. Luego dijo que debía mover mi dinero a una \"cuenta protegida\" y me pidió enviar $1,250 por Zelle a ACCOUNT PROTECTION. Lo hice. Después llamé al número del reverso de mi tarjeta y Chase dijo que nunca me llamaron.")};
+  evidence=sampleShots();scamExample=true;renderScammed();toast(tr("Example case filled in. Scroll down and tap the button to make the report.","Caso de ejemplo listo. Baje y toque el botón para crear el reporte."));
+}
+async function addEvidenceFiles(files){
+  for(const f of files){
+    if(!/^image\//.test(f.type))continue;
+    try{const url=URL.createObjectURL(f);const img=await new Promise((ok,no)=>{const i=new Image();i.onload=()=>ok(i);i.onerror=no;i.src=url});
+      const sc=Math.min(1,1100/Math.max(img.width,img.height));const c=document.createElement("canvas");c.width=Math.round(img.width*sc);c.height=Math.round(img.height*sc);
+      c.getContext("2d").drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);
+      evidence.push({src:c.toDataURL("image/jpeg",.82),w:c.width,h:c.height,cap:f.name});}catch(e){toast(tr("That picture couldn't be added.","No se pudo agregar esa imagen."))}
+  }
+  renderThumbs();
+}
+function renderThumbs(){const el=document.getElementById("thumbs");if(!el)return;
+  el.innerHTML=evidence.map((e,i)=>`<figure class="thumb"><img src="${e.src}" alt=""><figcaption>${esc(e.cap)}</figcaption><button type="button" class="thumb-x" data-x="${i}" aria-label="${tr("Remove","Quitar")}">×</button></figure>`).join("");
+  el.querySelectorAll("[data-x]").forEach(b=>b.onclick=()=>{evidence.splice(+b.dataset.x,1);renderThumbs()});}
+
+/* Where to send the report, best option first */
+function sendList(s,bankNm){
+  const L=[];const o=ORGS[s.bank];
+  if(s.bank||["credit","debit","bank"].includes(s.method)) L.push({name:bankNm||tr("Your bank or card company","Su banco o tarjeta"),
+    lines:o?o.lines:[],web:o&&o.w,note:o&&o.en?tr(o.en,o.es):"",
+    when:tr("Today, right away. This is your best chance to stop or reverse the payment.","Hoy, de inmediato. Es su mejor oportunidad de detener o revertir el pago."),
+    how:tr("Call first and tell them it's fraud. Then send or bring the letter in this report and ask for a case number.","Llame primero y diga que es fraude. Luego envíe o lleve la carta de este reporte y pida un número de caso.")});
+  const pm={app:[tr("The payment app (PayPal, Venmo, or Cash App)","La app de pago (PayPal, Venmo o Cash App)"),tr("Report the payment inside the app and ask them to reverse it.","Reporte el pago dentro de la app y pida revertirlo.")],
+    gift:[tr("The gift card company","La compañía de la tarjeta de regalo"),tr("Call the number on the back of the card. Say a scammer has the number and PIN. Keep the card and receipt.","Llame al número del reverso. Diga que un estafador tiene el número y el PIN. Guarde la tarjeta y el recibo.")],
+    wire:[tr("Western Union or MoneyGram","Western Union o MoneyGram"),tr("Call right away and ask them to stop the transfer.","Llame de inmediato y pida detener el envío.")],
+    crypto:[tr("The crypto exchange or Bitcoin ATM company","La plataforma de cripto o la empresa del cajero"),tr("Report the transaction as fraud and ask them to reverse it.","Reporte la transacción como fraude y pida revertirla.")],
+    cashmail:["U.S. Postal Inspection Service",tr("Call 1-877-876-2455 right away. They may stop the package.","Llame al 1-877-876-2455 de inmediato. Pueden detener el paquete."),"1-877-876-2455"],
+    courier:[tr("The delivery company (FedEx, UPS, or other)","La empresa de envíos (FedEx, UPS u otra)"),tr("Call right away and ask them to stop the package.","Llame de inmediato y pida detener el paquete.")]}[s.method];
+  if(pm) L.push({name:pm[0],lines:pm[2]?[["","",pm[2]]]:[],when:tr("Today, right away.","Hoy, de inmediato."),how:pm[1]});
+  L.push({name:tr("Federal Trade Commission (FTC)","Comisión Federal de Comercio (FTC)"),web:"https://reportfraud.ftc.gov",
+    when:tr("Today or this week.","Hoy o esta semana."),how:tr("Fill in the online form using page 1 of this report. Save the FTC report number they give you; your bank or police may ask for it.","Llene el formulario en línea con la página 1 de este reporte. Guarde el número de reporte de la FTC; su banco o la policía pueden pedirlo.")});
+  L.push({name:tr("Your local police (non-emergency line)","Su policía local (línea que no es de emergencia)"),
+    when:tr("This week.","Esta semana."),how:tr("Bring a printed copy of this report and your screenshots. Ask for a police report number. Some banks ask for one.","Lleve una copia impresa de este reporte y sus capturas. Pida un número de reporte policial. Algunos bancos lo piden.")});
+  if(["email","text","web","social"].includes(s.how)||["crypto","wire"].includes(s.method)||parseFloat(String(s.amt).replace(/[^\d.]/g,""))>=1000)
+    L.push({name:tr("FBI Internet Crime Complaint Center (IC3)","Centro de Denuncias de Delitos en Internet del FBI (IC3)"),web:"https://www.ic3.gov",
+      when:tr("This week.","Esta semana."),how:tr("File online. Include the phone numbers, websites, and payment details from this report.","Presente la denuncia en línea con los números, sitios y datos de pago de este reporte.")});
+  if(s.org&&s.org!==s.bank&&ORGS[s.org]){const g=ORGS[s.org];L.push({name:orgName(s.org,s.pretend)||tr("The company they pretended to be","La empresa que suplantaron"),lines:g.lines,web:g.w,mail:g.mail,
+    when:tr("This week.","Esta semana."),how:g.en?tr(g.en,g.es):tr("Report that someone is pretending to be them.","Reporte que alguien se hace pasar por ellos.")});}
+  if(s.what.includes("ssn")) L.push({name:"IdentityTheft.gov",web:"https://www.identitytheft.gov",when:tr("Today.","Hoy."),
+    how:tr("Get a recovery plan, then freeze your credit for free: Equifax 1-800-685-1111, Experian 1-888-397-3742, TransUnion 1-888-909-8872.","Reciba un plan de recuperación y congele su crédito gratis: Equifax 1-800-685-1111, Experian 1-888-397-3742, TransUnion 1-888-909-8872.")});
+  L.push({name:tr("National Elder Fraud Hotline (age 60+)","Línea Nacional de Fraude contra Mayores (60+)"),lines:[["","","1-833-372-8311"]],
+    when:tr("Anytime you want help.","Cuando necesite ayuda."),how:tr("A free case manager can help you file these reports.","Un especialista gratuito le ayuda a presentar estos reportes.")});
+  return L;
+}
+function sendListHTML(L){
+  return `<ol class="sendlist">${L.map((x,i)=>`<li class="${i===0?"best":""}">${i===0?`<span class="besttag">${tr("Best first step","Mejor primer paso")}</span>`:""}
+    <b>${esc(x.name)}</b><span class="small"><b>${tr("When","Cuándo")}:</b> ${esc(x.when)}</span><span class="small">${esc(x.how)}</span>
+    ${x.note&&!x.how.includes(x.note)?`<span class="small muted">${esc(x.note)}</span>`:""}
+    <span class="contact-acts">${(x.lines||[]).map(l=>`<a class="btn ghost sm" href="tel:${l[2].replace(/[^\d]/g,"")}">📞 ${esc(l[2])}${l[0]?` · ${esc(tr(l[0],l[1]))}`:""}</a>`).join("")}
+    ${x.web?`<a class="btn ghost sm" href="${x.web}" target="_blank" rel="noopener">${esc(x.web.replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""))} ↗</a>`:""}${x.mail?`<span class="btn ghost sm" style="user-select:all">✉ ${esc(x.mail)}</span>`:""}</span></li>`).join("")}</ol>`;
+}
+
+/* PDF report (built on this device with jsPDF; nothing is uploaded) */
+const pdfSafe=s=>String(s==null?"":s).replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[•]/g,"-").replace(/[—–]/g,"-").replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,"");
+function makeReportPDF(P){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"letter"});
+  const W=612,H=792,M=50,CW=W-2*M;let y=0;
+  const teal=[14,124,123],ink=[14,59,67],muted=[90,110,115],red=[180,35,24];
+  const newPage=()=>{doc.addPage();y=M};
+  const need=h=>{if(y+h>H-60)newPage()};
+  const text=(s,{size=11,bold=false,color=ink,indent=0,gap=4}={})=>{doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);doc.setTextColor(...color);
+    String(pdfSafe(s)).split("\n").forEach(par=>{const ls=par?doc.splitTextToSize(par,CW-indent):[""];ls.forEach(l=>{need(size*1.35);doc.text(l,M+indent,y+size);y+=size*1.35})});y+=gap};
+  const h2=s=>{need(40);y+=8;doc.setFillColor(...teal);doc.rect(M,y,4,18,"F");text(s,{size:14,bold:true,indent:12,gap:6})};
+  // header band
+  doc.setFillColor(...teal);doc.rect(0,0,W,78,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text(pdfSafe(tr("Scam Report","Reporte de estafa")),M,44);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(pdfSafe(`${tr("Prepared with ScamSense","Preparado con ScamSense")} · ${new Date().toLocaleString(uiLang()==="es"?"es-US":"en-US")}`),M,62);
+  y=100;
+  if(P.example){doc.setFillColor(253,231,228);doc.setDrawColor(...red);doc.roundedRect(M,y,CW,40,6,6,"FD");doc.setTextColor(...red);doc.setFont("helvetica","bold");doc.setFontSize(11);
+    doc.text(pdfSafe(tr("EXAMPLE REPORT: a made-up case for demonstration. Not a real report.","REPORTE DE EJEMPLO: caso inventado para demostración. No es un reporte real.")),M+12,y+24);y+=56;}
+  h2(tr("1. Case summary","1. Resumen del caso"));
+  P.summary.forEach(([k,v])=>{need(18);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...muted);doc.text(pdfSafe(k),M,y+10);
+    doc.setFont("helvetica","normal");doc.setTextColor(...ink);const ls=doc.splitTextToSize(pdfSafe(v||"-"),CW-170);ls.forEach((l,i)=>{need(14);doc.text(l,M+170,y+10);y+=14});y+=4;doc.setDrawColor(225,232,231);doc.line(M,y,M+CW,y);y+=6});
+  h2(tr("2. What happened","2. Qué pasó"));text(P.story||"-");
+  h2(tr("3. Where to send this report (best option first)","3. A dónde enviar este reporte (mejor opción primero)"));
+  text(tr("Online forms like ReportFraud.ftc.gov and IC3.gov ask you to type the details in. Use page 1 of this report to fill them in, and write each case number in section 6.","Los formularios en línea como ReportFraud.ftc.gov e IC3.gov piden escribir los datos. Use la página 1 de este reporte y anote cada número de caso en la sección 6."),{size:10,color:muted});
+  P.send.forEach((x,i)=>{need(70);const top=y;
+    text(`${i+1}. ${x.name}${i===0?"   ["+tr("BEST FIRST STEP","MEJOR PRIMER PASO")+"]":""}`,{size:12,bold:true,color:i===0?teal:ink,gap:2});
+    text(`${tr("When","Cuándo")}: ${x.when}`,{size:10,indent:14,gap:1});text(x.how,{size:10,indent:14,gap:1});
+    const c=[...(x.lines||[]).map(l=>`${tr("Phone","Teléfono")}: ${l[2]}${l[0]?" ("+tr(l[0],l[1])+(l[3]?", "+l[3]:"")+")":""}`),x.web?`${tr("Website","Sitio")}: ${x.web}`:"",x.mail?`Email: ${x.mail}`:""].filter(Boolean);
+    c.forEach(z=>text(z,{size:10,indent:14,gap:1,color:teal}));y+=6;});
+  text(tr("Never pay anyone who offers to recover your money for a fee. No real agency charges to recover money.","Nunca pague a quien ofrezca recuperar su dinero a cambio de un pago. Ninguna agencia real cobra por eso."),{size:10,bold:true,color:red});
+  if(P.evidence.length){const colW=(CW-20)/2;const e0=P.evidence[0];need(Math.min(colW/e0.w,300/e0.h)*e0.h+90);
+    h2(tr("4. Evidence (screenshots)","4. Pruebas (capturas de pantalla)"));let col=0,rowH=0;
+    P.evidence.forEach((e,i)=>{const sc=Math.min(colW/e.w,300/e.h);const iw=e.w*sc,ih=e.h*sc;const capLines=doc.splitTextToSize(pdfSafe(`${tr("Figure","Figura")} ${i+1}. ${e.cap}`),colW);const bh=ih+capLines.length*12+16;
+      if(col===0)need(bh);const x=M+col*(colW+20);
+      doc.setDrawColor(213,226,224);doc.rect(x,y,iw,ih);doc.addImage(e.src,"JPEG",x,y,iw,ih);
+      doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...muted);capLines.forEach((l,j)=>doc.text(l,x,y+ih+12+j*12));
+      rowH=Math.max(rowH,bh);col++;if(col===2){col=0;y+=rowH+8;rowH=0}});
+    if(col===1)y+=rowH+8;}
+  const n=P.evidence.length?5:4;
+  if(P.bankLetter){newPage();h2(`${n}. ${tr("Letter to","Carta para")} ${P.bankNm}`);text(P.bankLetter,{size:11});}
+  if(P.orgLetter){need(120);h2(`${P.bankLetter?n+".b":n+"."} ${tr("Report to","Reporte para")} ${P.orgNm}`);text(P.orgLetter,{size:11});}
+  h2(`${P.bankLetter||P.orgLetter?n+1:n}. ${tr("Case numbers (fill in as you report)","Números de caso (anótelos al reportar)")}`);
+  const cols=[tr("Where","Dónde"),tr("Date","Fecha"),tr("Case / report number","Número de caso"),tr("Person you spoke with","Persona con quien habló")];
+  const cw=[170,70,140,CW-380];const row=(vals,head)=>{need(26);let x=M;doc.setFont("helvetica",head?"bold":"normal");doc.setFontSize(9);doc.setTextColor(...(head?muted:ink));
+    vals.forEach((v,i)=>{doc.setDrawColor(200,210,208);doc.rect(x,y,cw[i],24);doc.text(doc.splitTextToSize(pdfSafe(v),cw[i]-8)[0]||"",x+4,y+15);x+=cw[i]});y+=24};
+  row(cols,true);P.send.slice(0,6).forEach(x=>row([x.name,"","",""]));
+  // footer on every page
+  const pages=doc.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...muted);
+    doc.text(pdfSafe(tr("Prepared with ScamSense. Facts as reported by the person filing. Keep this report and your screenshots.","Preparado con ScamSense. Hechos según la persona que reporta. Guarde este reporte y sus capturas.")),M,H-28);
+    doc.text(`${i} / ${pages}`,W-M,H-28,{align:"right"});}
+  return doc;
+}
+let lastPdf=null;
+function showReportModal(P){
+  let doc;try{doc=makeReportPDF(P)}catch(e){toast(tr("The PDF couldn't be made on this device. Use Copy or Save as file instead.","No se pudo crear el PDF en este dispositivo. Use Copiar o Guardar archivo."));return}
+  const fname=`ScamSense-Report-${P.date||new Date().toISOString().slice(0,10)}${P.example?"-EXAMPLE":""}.pdf`;
+  const blob=doc.output("blob");if(lastPdf)URL.revokeObjectURL(lastPdf);lastPdf=URL.createObjectURL(blob);
+  const dl=()=>{const a=document.createElement("a");a.href=lastPdf;a.download=fname;document.body.appendChild(a);a.click();a.remove()};
+  dl();
+  const top=P.send.slice(0,3);
+  const m=document.createElement("div");m.className="modal-bg";m.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
+    <div class="modal-ok" aria-hidden="true">✓</div><h2 id="mtitle">${tr("Your report is ready","Su reporte está listo")}</h2>
+    <p class="small muted" style="margin:0">${esc(fname)} ${tr("was downloaded to this device.","se descargó en este dispositivo.")}${P.example?" <b>"+tr("(Example case)","(Caso de ejemplo)")+"</b>":""}</p>
+    <div class="row"><a class="btn primary" href="${lastPdf}" target="_blank" rel="noopener">${tr("Open report","Abrir reporte")}</a><button class="btn ghost" id="mdl">${tr("Download again","Descargar otra vez")}</button></div>
+    <p class="label" style="margin-top:4px">${tr("Send it here, in this order","Envíelo aquí, en este orden")}</p>${sendListHTML(top)}
+    <p class="small muted" style="margin:0">${tr("The full list, letters, and a case-number log are inside the report.","La lista completa, las cartas y el registro de números de caso están en el reporte.")}</p>
+    <button class="btn ghost" id="mclose">${tr("Close","Cerrar")}</button></div>`;
+  document.body.appendChild(m);
+  const close=()=>{m.remove();document.removeEventListener("keydown",onKey)};const onKey=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",onKey);
+  m.onclick=e=>{if(e.target===m)close()};m.querySelector("#mclose").onclick=close;m.querySelector("#mdl").onclick=dl;m.querySelector("#mclose").focus();
+}
+
+function buildPlan(makePdf){
   const g=id=>document.getElementById(id).value.trim();
   scamState={how:g("sh"),what:[...view.querySelectorAll(".checks input:checked")].map(x=>x.value),method:g("sm"),amt:g("sa"),date:g("sd"),pretend:g("sp"),org:g("so")||detectOrg(g("sp")),bank:g("sb"),bankName:g("sbn"),last4:g("sl4").replace(/\D/g,"").slice(0,4),contact:g("sc"),story:g("ss")};
   if(!scamState.bank&&ORGS[scamState.org]&&ORGS[scamState.org].kind==="bank"&&(scamState.what.includes("bank")||["debit","bank","credit"].includes(scamState.method)))scamState.bank=scamState.org;
@@ -1152,6 +1355,11 @@ function buildPlan(){
     `${tr("Reported to","Reportado a")}: ______________________   ${tr("Case number","Número de caso")}: ______________`
   ].join("\n");
   const li=a=>a.map(x=>`<li>${esc(x)}</li>`).join("");
+  const sendL=sendList(s,bankNm);
+  const P={example:scamExample,date:s.date,story:s.story,bankNm,orgNm:orgName(s.org,s.pretend),bankLetter,orgLetter,send:sendL,evidence:evidence.slice(),
+    summary:[[tr("Date of scam","Fecha"),s.date],[tr("How it started","Cómo empezó"),s.how?t("c_"+s.how):""],[tr("Pretended to be","Se hicieron pasar por"),[orgName(s.org,""),s.pretend].filter(Boolean).join(" / ")],
+      [tr("My bank or card","Mi banco o tarjeta"),bankNm+(s.last4?` (${tr("ending in","termina en")} ${s.last4})`:"")],[tr("What happened","Qué pasó"),s.what.map(w=>t("w_"+w)).join("; ")],
+      [tr("Payment method","Forma de pago"),s.method?t("m_"+s.method):""],[tr("Amount","Cantidad"),s.amt?amount:""],[tr("Scammer's contact details","Contacto del estafador"),s.contact],[tr("Screenshots attached","Capturas adjuntas"),String(evidence.length)]]};
   document.getElementById("splan").innerHTML=`<div class="card plan">
     <h2>${t("plan_title")}</h2>
     ${(s.bank||s.org)?`<div class="plan-block"><p class="label">${tr("Call these first","Llame primero a estos")}</p>
@@ -1160,7 +1368,8 @@ function buildPlan(){
       <p class="small muted" style="margin:0">${tr("These numbers come from each organization's official website. Always call the real number, never one the scammer gave you.","Estos números vienen del sitio oficial de cada organización. Llame siempre al número real, nunca a uno que le dio el estafador.")}</p></div>`:""}
     <div class="plan-block urgent"><p class="label">${t("plan_now")}</p><ol>${li(now)}</ol></div>
     ${protect.length?`<div class="plan-block"><p class="label">${t("plan_protect")}</p><ol>${li(protect)}</ol></div>`:""}
-    <div class="plan-block"><p class="label">${t("plan_report")}</p><div class="contacts">${[...new Set([...report,...extra])].map(contactHTML).join("")}</div></div>
+    <div class="plan-block"><p class="label">${tr("3. Where to send your report (best option first)","3. A dónde enviar su reporte (mejor opción primero)")}</p>${sendListHTML(sendL)}
+      <button class="btn primary" id="pdfagain">📄 ${tr("Download my report (PDF)","Descargar mi reporte (PDF)")}</button></div>
     <p class="small warnline">⚠️ ${t("recovery_warn")}</p>
     ${bankLetter?`<div class="plan-block"><p class="label">${tr("Letter to ","Carta para ")}${esc(bankNm)}</p><textarea id="bankletter" class="reporttxt" dir="auto">${esc(bankLetter)}</textarea>
       <div class="row"><button class="btn ghost" data-copy="bankletter">${t("copy")}</button></div></div>`:""}
@@ -1182,7 +1391,9 @@ function buildPlan(){
     try{const out=await callClaude(`You help scam victims write a clear, factual report for their bank, the FTC, the FBI (IC3), and police. Write in ${LANGS[langCode()].ai}. Use short sentences. Include a short timeline. Don't invent facts; write "unknown" where a detail is missing. Plain text only, no markdown.`,document.getElementById("reporttxt").value,900);
       document.getElementById("reporttxt").value+="\n\n"+tr("AI SUMMARY","RESUMEN DE IA")+":\n"+out.trim();}catch(e){toast(e.message==="no-key"?t("paste_key"):e.message)}
     aib.disabled=false;aib.textContent=t("ai_summary")};
+  document.getElementById("pdfagain").onclick=()=>showReportModal(P);
   plan.scrollIntoView({behavior:"smooth",block:"start"});
+  if(makePdf) showReportModal(P);
 }
 
 /* ----- Family helper (preview with sample data) ----- */
