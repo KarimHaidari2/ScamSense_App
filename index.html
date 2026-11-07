@@ -46,7 +46,16 @@ body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:18p
 header{display:flex;align-items:center;gap:12px}
 header svg{width:40px;height:44px;flex:none}
 header h1{font-family:var(--display);font-weight:800;font-size:1.6rem;margin:0;line-height:1}
-.status{margin-left:auto;font-size:.8rem;font-weight:700;padding:6px 10px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}
+header{flex-wrap:wrap}
+.langpick{margin-left:auto}
+.langpick select{width:auto;max-width:150px;padding:6px 8px;font-size:.85rem;font-weight:700;border-radius:999px;border:2px solid var(--brand);background:var(--brand-soft);color:var(--brand)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.org-card{border:2px solid var(--brand);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.org-head b{display:block;font-family:var(--display);font-size:1.2rem}
+.org-role{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--brand)}
+.org-line{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;padding:10px;border-radius:10px;background:var(--brand-soft);color:var(--ink);text-decoration:none}
+.org-line b{white-space:nowrap}
+.status{font-size:.8rem;font-weight:700;padding:6px 10px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}
 .status.on{background:var(--brand-soft);color:var(--brand)}
 h2{font-family:var(--display);font-weight:600;font-size:1.35rem;margin:0}
 h3{margin:0}
@@ -185,6 +194,7 @@ code{font-size:.85em;background:var(--bg);border:1px solid var(--line);border-ra
       <polyline points="46,96 56,106 76,86" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <h1>ScamSense</h1>
+    <label class="langpick"><span class="sr">Language</span><select id="langtop" aria-label="Language / Idioma"></select></label>
     <span class="status" id="status">Not connected</span>
   </header>
 
@@ -990,7 +1000,7 @@ async function runPause(){
 }
 
 /* I was scammed: a recovery plan built from the FTC's guidance (consumer.ftc.gov/articles/what-do-if-you-were-scammed) */
-let scamState={how:"",what:[],method:"",amt:"",date:"",pretend:"",contact:"",story:""};
+let scamState={how:"",what:[],method:"",amt:"",date:"",pretend:"",org:"",bank:"",bankName:"",last4:"",contact:"",story:""};
 const CONTACTS={
   ftc:{n:"FTC: ReportFraud.ftc.gov",w:"https://reportfraud.ftc.gov",en:"Report any scam. The FTC shares reports with law enforcement.",es:"Reporte cualquier estafa. La FTC comparte los reportes con las autoridades."},
   ic3:{n:"FBI: IC3.gov",w:"https://www.ic3.gov",en:"Report online, email, text, and crypto scams to the FBI.",es:"Reporte al FBI estafas por internet, correo, texto y criptomonedas."},
@@ -1002,6 +1012,48 @@ const CONTACTS={
   experian:{n:"Experian credit freeze",p:"1-888-397-3742",w:"https://www.experian.com/freeze/center.html",en:"Free. Do all three bureaus.",es:"Gratis. Hágalo en las tres agencias."},
   transunion:{n:"TransUnion credit freeze",p:"1-888-909-8872",w:"https://www.transunion.com/credit-freeze",en:"Free. Do all three bureaus.",es:"Gratis. Hágalo en las tres agencias."}
 };
+/* Fraud contacts checked on each organization's official website on Nov 7, 2026. */
+const ORGS={
+  chase:{n:"Chase",kind:"bank",re:/\bchase\b|jp ?morgan/i,lines:[["Checking, savings, debit card","Cuenta de cheques, ahorros, débito","1-800-935-9935","option 8"],["Credit card","Tarjeta de crédito","1-800-955-9060","option 2"]],w:"https://www.chase.com/digital/resources/privacy-security/security/report-fraud"},
+  bofa:{n:"Bank of America",kind:"bank",re:/bank of america|\bbofa\b/i,lines:[["ATM, debit, check, Zelle","Cajero, débito, cheque, Zelle","800-432-1000"],["Credit card","Tarjeta de crédito","800-732-9194"],["Wire transfer","Transferencia","877-337-8357"]],w:"https://web.bankofamerica.com/en/security/report-suspicious-activity"},
+  wells:{n:"Wells Fargo",kind:"bank",re:/wells ?fargo/i,lines:[["Checking, savings, debit, identity theft","Cheques, ahorros, débito, robo de identidad","1-800-869-3557"],["Zelle, online transfers, clicked a link or shared a code","Zelle, transferencias, hizo clic en un enlace o dio un código","1-866-867-5568"]],w:"https://www.wellsfargo.com/privacy-security/fraud/report/"},
+  capone:{n:"Capital One",kind:"bank",re:/capital ?one/i,lines:[],w:"https://www.capitalone.com/help-center/fraud-disputes/report-fraud/",
+    en:"Report fraud in the Capital One app or website, or call the number on the back of your card.",es:"Reporte el fraude en la app o sitio de Capital One, o llame al número del reverso de su tarjeta."},
+  bankother:{n:"",kind:"bank",re:/credit union|\bbank\b/i,lines:[],
+    en:"Call the fraud number on the back of your card, on your bank statement, or on your bank's official website. Never use a number the scammer gave you.",es:"Llame al número de fraude en el reverso de su tarjeta, en su estado de cuenta o en el sitio oficial de su banco. Nunca use un número que le dio el estafador."},
+  amazon:{n:"Amazon",kind:"company",re:/amazon/i,lines:[],w:"https://www.amazon.com/reportascam",mail:"reportascam@amazon.com",
+    en:"Amazon says it will never ask for payment over the phone or email. Report the scam at amazon.com/reportascam. If you paid, also call your bank or card company.",es:"Amazon dice que nunca pide pagos por teléfono ni correo. Reporte la estafa en amazon.com/reportascam. Si pagó, llame también a su banco o tarjeta."},
+  apple:{n:"Apple",kind:"company",re:/apple|icloud|itunes/i,lines:[],w:"https://support.apple.com/102568",mail:"reportphishing@apple.com",
+    en:"Forward scam emails (or screenshots of scam texts) to reportphishing@apple.com. Apple says never use Apple Gift Cards to pay other people.",es:"Reenvíe correos de estafa (o capturas de textos) a reportphishing@apple.com. Apple dice que nunca use tarjetas de regalo de Apple para pagarle a otras personas."},
+  microsoft:{n:"Microsoft",kind:"company",re:/microsoft|windows|outlook support/i,lines:[],w:"https://microsoft.com/reportascam",
+    en:"Microsoft says it won't call you to offer tech support unless you contacted it first. Report the scam at microsoft.com/reportascam.",es:"Microsoft dice que no le llama para ofrecer soporte técnico a menos que usted lo haya contactado primero. Reporte la estafa en microsoft.com/reportascam."},
+  paymentapp:{n:"PayPal, Venmo, or Cash App",kind:"company",re:/paypal|venmo|cash ?app/i,lines:[],
+    en:"Report the payment inside the app (open Help or the payment, then report it) and ask them to reverse it. Don't call a number from a search ad or from the scammer.",es:"Reporte el pago dentro de la app (abra Ayuda o el pago y repórtelo) y pida revertirlo. No llame a números de anuncios ni del estafador."},
+  ssa:{n:"Social Security (SSA)",kind:"gov",re:/social security|\bssa\b/i,lines:[["Social Security Fraud Hotline (OIG), Mon–Fri 10 AM–2 PM ET","Línea de fraude del Seguro Social (OIG), lun–vie 10 AM–2 PM ET","1-800-269-0271"]],w:"https://oig.ssa.gov",
+    en:"Report Social Security impersonators to the Office of the Inspector General.",es:"Reporte a quienes se hacen pasar por el Seguro Social a la Oficina del Inspector General."},
+  medicare:{n:"Medicare",kind:"gov",re:/medicare|medicaid/i,lines:[["1-800-MEDICARE","1-800-MEDICARE","1-800-633-4227"],["HHS fraud hotline (1-800-HHS-TIPS)","Línea de fraude de HHS (1-800-HHS-TIPS)","1-800-447-8477"]],w:"https://tips.oig.hhs.gov",
+    en:"If someone asked for your Medicare number, report it to 1-800-MEDICARE.",es:"Si alguien le pidió su número de Medicare, repórtelo al 1-800-MEDICARE."},
+  irs:{n:"IRS (report to TIGTA)",kind:"gov",re:/\birs\b|internal revenue|tax/i,lines:[["TIGTA (IRS impersonation)","TIGTA (suplantación del IRS)","800-366-4484"]],w:"https://www.tigta.gov",
+    en:"Report IRS impersonators to the Treasury Inspector General for Tax Administration (TIGTA).",es:"Reporte a quienes se hacen pasar por el IRS al Inspector General del Tesoro (TIGTA)."},
+  insurance:{n:"",kind:"insurance",re:/insurance|state farm|geico|progressive|allstate|aetna|humana|united ?health|blue cross/i,lines:[],
+    en:"Call the number on your insurance card or policy, or your own agent. Tell them someone pretended to be them, and ask them to note your account.",es:"Llame al número de su tarjeta o póliza de seguro, o a su agente. Diga que alguien se hizo pasar por ellos y pida que lo anoten en su cuenta."},
+  other:{n:"",kind:"company",re:null,lines:[],
+    en:"Contact the real company using a number or website you find yourself (on a bill, your account, or the official website). Tell them someone is pretending to be them.",es:"Contacte a la empresa real con un número o sitio que usted mismo encuentre (en una factura, su cuenta o el sitio oficial). Dígales que alguien se hace pasar por ellos."}
+};
+const ORG_LABEL={chase:"Chase",bofa:"Bank of America",wells:"Wells Fargo",capone:"Capital One",bankother:["Another bank or credit union","Otro banco o cooperativa"],
+  amazon:"Amazon",apple:"Apple",microsoft:"Microsoft",paymentapp:"PayPal, Venmo, or Cash App",ssa:["Social Security","Seguro Social"],medicare:"Medicare",irs:"IRS",
+  insurance:["An insurance company","Una compañía de seguros"],other:["Another company or person","Otra empresa o persona"]};
+const orgLabel=k=>{const l=ORG_LABEL[k];return Array.isArray(l)?tr(l[0],l[1]):l};
+function detectOrg(txt){if(!txt)return "";for(const k of Object.keys(ORGS)){if(ORGS[k].re&&ORGS[k].re.test(txt))return k}return ""}
+function orgName(k,custom){return (ORGS[k]&&ORGS[k].n)||custom||orgLabel(k)||""}
+function orgCardHTML(k,custom,role){
+  const o=ORGS[k];if(!o)return "";
+  const nm=orgName(k,custom);
+  return `<div class="org-card"><div class="org-head"><span class="org-role">${esc(role)}</span><b>${esc(nm)}</b></div>
+    ${o.lines.map(l=>`<a class="org-line" href="tel:${l[2].replace(/[^\d]/g,"")}"><span>${esc(tr(l[0],l[1]))}${l[3]?` <span class="muted">(${esc(l[3])})</span>`:""}</span><b>📞 ${esc(l[2])}</b></a>`).join("")}
+    ${o.en?`<p class="small" style="margin:0">${esc(tr(o.en,o.es))}</p>`:""}
+    <div class="contact-acts">${o.w?`<a class="btn ghost sm" href="${o.w}" target="_blank" rel="noopener">${tr("Official website","Sitio oficial")} ↗</a>`:""}${o.mail?`<span class="btn ghost sm" style="cursor:text;user-select:all">✉ ${esc(o.mail)}</span>`:""}</div></div>`;
+}
 function contactHTML(k){const c=CONTACTS[k];return `<div class="contact"><div><b>${esc(c.n)}</b><span class="small muted">${esc(tr(c.en,c.es))}</span></div>
   <div class="contact-acts">${c.p?`<a class="btn ghost sm" href="tel:${c.p.replace(/[^\d]/g,"")}">📞 ${esc(c.p)}</a>`:""}${c.w?`<a class="btn ghost sm" href="${c.w}" target="_blank" rel="noopener">${tr("Website","Sitio web")} ↗</a>`:""}</div></div>`}
 function renderScammed(){
@@ -1014,18 +1066,28 @@ function renderScammed(){
     <div class="field"><label for="sm">${t("s_method")}</label><select id="sm"><option value=""></option>${["credit","debit","bank","wire","app","gift","crypto","cashmail","courier","none"].map(k=>opt(k,"m_"+k,s.method)).join("")}</select></div>
     <div class="two"><div class="field"><label for="sa">${t("s_amt")}</label><input id="sa" inputmode="decimal" placeholder="$500" value="${esc(s.amt)}"></div>
       <div class="field"><label for="sd">${t("s_date")}</label><input id="sd" type="date" value="${esc(s.date||today)}"></div></div>
-    <div class="field"><label for="sp">${t("s_pretend")}</label><input id="sp" placeholder="${esc(t("s_pretend_ph"))}" value="${esc(s.pretend)}"></div>
+    <div class="field"><label for="so">${t("s_pretend")}</label><select id="so"><option value=""></option>${Object.keys(ORGS).map(k=>`<option value="${k}" ${s.org===k?"selected":""}>${esc(orgLabel(k))}</option>`).join("")}</select></div>
+    <div class="field" id="spwrap"><label for="sp">${tr("Name they used (optional)","Nombre que usaron (opcional)")}</label><input id="sp" placeholder="${esc(t("s_pretend_ph"))}" value="${esc(s.pretend)}"></div>
+    <div class="field"><label for="sb">${tr("Your bank or card company (where the money or details came from)","Su banco o tarjeta (de donde salió el dinero o los datos)")}</label><select id="sb"><option value="">${tr("Not needed / I didn't pay","No aplica / no pagué")}</option>${["chase","bofa","wells","capone","bankother","paymentapp"].map(k=>`<option value="${k}" ${s.bank===k?"selected":""}>${esc(orgLabel(k))}</option>`).join("")}</select></div>
+    <div class="two"><div class="field"><label for="sbn">${tr("Bank name (if other)","Nombre del banco (si es otro)")}</label><input id="sbn" value="${esc(s.bankName||"")}"></div>
+      <div class="field"><label for="sl4">${tr("Last 4 digits of card or account","Últimos 4 dígitos de tarjeta o cuenta")}</label><input id="sl4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234" value="${esc(s.last4||"")}"></div></div>
+    <p class="small muted" style="margin:0">🔒 ${tr("Only the last 4 digits. Never type a full card or account number into any app.","Solo los últimos 4 dígitos. Nunca escriba el número completo en ninguna app.")}</p>
     <div class="field"><label for="sc">${t("s_contact")}</label><input id="sc" value="${esc(s.contact)}"></div>
     <div class="field"><label for="ss">${t("s_story")}</label><textarea id="ss" dir="auto" placeholder="${esc(t("s_story_ph"))}">${esc(s.story)}</textarea></div>
     <button class="btn primary" id="sgo">${t("s_go")}</button></section><section id="splan" aria-live="polite"></section>`;
   document.getElementById("back").onclick=()=>go("help");
   document.getElementById("sgo").onclick=buildPlan;
+  document.getElementById("sp").addEventListener("input",e=>{const so=document.getElementById("so");const k=detectOrg(e.target.value);if(k&&!so.value)so.value=k});
+  document.getElementById("sl4").addEventListener("input",e=>{e.target.value=e.target.value.replace(/\D/g,"").slice(0,4)});
 }
 function buildPlan(){
   const g=id=>document.getElementById(id).value.trim();
-  scamState={how:g("sh"),what:[...view.querySelectorAll(".checks input:checked")].map(x=>x.value),method:g("sm"),amt:g("sa"),date:g("sd"),pretend:g("sp"),contact:g("sc"),story:g("ss")};
+  scamState={how:g("sh"),what:[...view.querySelectorAll(".checks input:checked")].map(x=>x.value),method:g("sm"),amt:g("sa"),date:g("sd"),pretend:g("sp"),org:g("so")||detectOrg(g("sp")),bank:g("sb"),bankName:g("sbn"),last4:g("sl4").replace(/\D/g,"").slice(0,4),contact:g("sc"),story:g("ss")};
+  if(!scamState.bank&&ORGS[scamState.org]&&ORGS[scamState.org].kind==="bank"&&(scamState.what.includes("bank")||["debit","bank","credit"].includes(scamState.method)))scamState.bank=scamState.org;
   const s=scamState;const E=uiLang()==="es";
   const now=[],protect=[],report=["ftc"],extra=[];
+  const bankNm=s.bank?orgName(s.bank,s.bankName)||tr("my bank","mi banco"):"";
+  const acct=s.last4?tr(` ending in ${s.last4}`,` que termina en ${s.last4}`):"";
   const M={
     credit:tr("Call your credit card company now using the number on the back of your card. Say a scammer tricked you, ask them to cancel the charge and refund you, and ask for a new card. Federal law protects you from unauthorized credit card charges.","Llame ya a la compañía de su tarjeta de crédito al número en el reverso. Diga que un estafador le engañó, pida cancelar el cargo, un reembolso y una tarjeta nueva. La ley federal le protege de cargos no autorizados."),
     debit:tr("Call your bank now using the number on the back of your card. Ask them to reverse the payment, refund you, and replace your card.","Llame ya a su banco al número en el reverso de su tarjeta. Pida revertir el pago, un reembolso y una tarjeta nueva."),
@@ -1037,7 +1099,8 @@ function buildPlan(){
     cashmail:tr("Call the U.S. Postal Inspection Service right away at 1-877-876-2455. They may be able to stop a package that hasn't been delivered yet.","Llame de inmediato al Servicio de Inspección Postal al 1-877-876-2455. Pueden detener un paquete que aún no se ha entregado."),
     courier:tr("Call the delivery company (FedEx, UPS, or other) right away and ask them to stop the package. If someone picked up cash at your home, call your local police.","Llame de inmediato a la empresa de envíos (FedEx, UPS u otra) y pida detener el paquete. Si alguien recogió efectivo en su casa, llame a la policía local.")
   };
-  if(s.what.includes("paid")||(s.method&&s.method!=="none")){ if(M[s.method]) now.push(M[s.method]); }
+  if(s.bank) now.push(tr(`Call ${bankNm} now using the number above or on the back of your card. Lock your card or account and ask them to stop the payment.`,`Llame ya a ${bankNm} al número de arriba o del reverso de su tarjeta. Bloquee su tarjeta o cuenta y pida detener el pago.`));
+  if(s.what.includes("paid")||(s.method&&s.method!=="none")){ if(M[s.method]&&!(s.bank&&["credit","debit","bank"].includes(s.method))) now.push(M[s.method]); }
   if(s.method==="cashmail") report.push("usps");
   if(s.what.includes("bank")) now.push(tr("Call your bank or card company and tell them a scammer has your account or card details. Ask for new numbers and watch your statements.","Llame a su banco o tarjeta y diga que un estafador tiene sus datos. Pida números nuevos y revise sus estados de cuenta."));
   if(s.what.includes("remote")) protect.push(tr("Disconnect the computer or phone from the internet. Update or install security software, run a scan, and delete anything it flags. Then change your passwords from a different device and turn on two-step sign-in.","Desconecte la computadora o el teléfono de internet. Actualice o instale un antivirus, haga un escaneo y borre lo que encuentre. Luego cambie sus contraseñas desde otro dispositivo y active la verificación en dos pasos."));
@@ -1049,16 +1112,38 @@ function buildPlan(){
   now.push(tr("Write down everything while you remember: dates, phone numbers, names they used, and how you paid. Keep receipts and screenshots.","Anote todo mientras lo recuerda: fechas, números, nombres que usaron y cómo pagó. Guarde recibos y capturas de pantalla."));
   const methodName=s.method?t("m_"+s.method):tr("(how you paid)","(cómo pagó)");
   const amount=s.amt?(/^\$/.test(s.amt)?s.amt:"$"+s.amt):tr("(amount)","(cantidad)");
-  const who=s.pretend||tr("(who they pretended to be)","(de quién se hicieron pasar)");
-  const script=E
+  const who=s.pretend||orgName(s.org,"")||tr("(who they pretended to be)","(de quién se hicieron pasar)");
+
+  const scriptBank=bankNm?(E
+    ?`Hola, llamo para reportar un fraude en mi cuenta${acct}. El ${s.date||"(fecha)"}, alguien que se hizo pasar por ${who} me engañó${s.what.includes("bank")?" y obtuvo los datos de mi cuenta o tarjeta":""}${s.amt?` y envié ${amount} por ${methodName}`:""}. Por favor, bloqueen mi tarjeta o cuenta, detengan o reviertan cualquier pago no autorizado y emitan una tarjeta nueva. ¿Me puede dar un número de caso?`
+    :`Hi, I'm calling to report fraud on my account${acct}. On ${s.date||"(date)"}, someone pretending to be ${who} tricked me${s.what.includes("bank")?" and got my account or card details":""}${s.amt?`, and I sent ${amount} by ${methodName}`:""}. Please lock my card or account, stop or reverse any unauthorized payments, and send me a new card. Can I get a case number?`):"";
+  const script=scriptBank||(E
     ?`Hola, llamo para reportar un fraude. El ${s.date||"(fecha)"}, envié ${amount} por ${methodName} a alguien que se hizo pasar por ${who}. Fue una estafa. Quiero reportarlo y pedir que detengan o reviertan el pago y me devuelvan el dinero. ¿Me puede dar un número de caso? ¿Qué más necesito hacer?`
-    :`Hi, I'm calling to report fraud. On ${s.date||"(date)"}, I sent ${amount} by ${methodName} to someone pretending to be ${who}. It was a scam. I'd like to report it and ask you to stop or reverse the payment and refund me. Can I get a case or reference number? What else do I need to do?`;
+    :`Hi, I'm calling to report fraud. On ${s.date||"(date)"}, I sent ${amount} by ${methodName} to someone pretending to be ${who}. It was a scam. I'd like to report it and ask you to stop or reverse the payment and refund me. Can I get a case or reference number? What else do I need to do?`);
+  const letter=(to,subject,body)=>[`${tr("To","Para")}: ${to}`,`${tr("Subject","Asunto")}: ${subject}`,`${tr("Date","Fecha")}: ${new Date().toLocaleDateString()}`,"",...body,"",tr("Sincerely,","Atentamente,"),"______________________",tr("Phone","Teléfono")+": ______________"].join("\n");
+  const bankLetter=bankNm?letter(`${bankNm} ${tr("Fraud Department","Departamento de Fraude")}`,tr(`Fraud report, account or card${acct}`,`Reporte de fraude, cuenta o tarjeta${acct}`),[
+    tr(`I am reporting fraud on my account or card${acct}.`,`Reporto un fraude en mi cuenta o tarjeta${acct}.`),
+    tr(`On ${s.date||"(date)"}, someone pretending to be ${who} contacted me by ${s.how?t("c_"+s.how).toLowerCase():"(how)"}.`,`El ${s.date||"(fecha)"}, alguien que se hizo pasar por ${who} me contactó por ${s.how?t("c_"+s.how).toLowerCase():"(medio)"}.`),
+    s.what.length?tr("What happened: ","Qué pasó: ")+s.what.map(w=>t("w_"+w)).join("; ")+".":"",
+    s.amt?tr(`Amount: ${amount}, paid by ${methodName}.`,`Cantidad: ${amount}, pagada por ${methodName}.`):"",
+    s.contact?tr(`The scammer used: ${s.contact}.`,`El estafador usó: ${s.contact}.`):"",
+    "",tr("I am asking you to:","Les pido:"),
+    tr("1. Block my card or account and issue new numbers.","1. Bloquear mi tarjeta o cuenta y emitir números nuevos."),
+    tr("2. Stop or reverse any unauthorized payments and refund me.","2. Detener o revertir pagos no autorizados y devolverme el dinero."),
+    tr("3. Add a fraud alert to my account.","3. Agregar una alerta de fraude a mi cuenta."),
+    tr("4. Give me a case or claim number in writing.","4. Darme un número de caso o reclamo por escrito.")].filter(x=>x!=="")):"";
+  const orgLetter=(s.org&&s.org!==s.bank)?letter(`${orgName(s.org,s.pretend)||tr("The company","La empresa")}`,tr("Someone is pretending to be you","Alguien se hace pasar por ustedes"),[
+    tr(`On ${s.date||"(date)"}, someone pretending to be ${orgName(s.org,s.pretend)||who} contacted me by ${s.how?t("c_"+s.how).toLowerCase():"(how)"}.`,`El ${s.date||"(fecha)"}, alguien que se hizo pasar por ${orgName(s.org,s.pretend)||who} me contactó por ${s.how?t("c_"+s.how).toLowerCase():"(medio)"}.`),
+    s.contact?tr(`They used this phone, email, or website: ${s.contact}.`,`Usaron este teléfono, correo o sitio: ${s.contact}.`):"",
+    s.story?tr("What happened: ","Qué pasó: ")+s.story:"",
+    "",tr("Please investigate, note my account if I have one with you, and take down the fake contact.","Por favor investiguen, anoten mi cuenta si tengo una con ustedes y eliminen el contacto falso.")].filter(x=>x!=="")):"";
   const reportTxt=[
     tr("SCAM REPORT (case file)","REPORTE DE ESTAFA (expediente)"),
     `${tr("Prepared","Preparado")}: ${new Date().toLocaleString()}`,"",
     `${tr("Date of scam","Fecha de la estafa")}: ${s.date||"-"}`,
     `${tr("How it started","Cómo empezó")}: ${s.how?t("c_"+s.how):"-"}`,
-    `${tr("Pretended to be","Se hicieron pasar por")}: ${s.pretend||"-"}`,
+    `${tr("Pretended to be","Se hicieron pasar por")}: ${[orgName(s.org,""),s.pretend].filter(Boolean).join(" / ")||"-"}`,
+    `${tr("My bank or card company","Mi banco o tarjeta")}: ${bankNm||"-"}${s.last4?` (${tr("ending in","termina en")} ${s.last4})`:""}`,
     `${tr("Scammer's contact details","Datos de contacto del estafador")}: ${s.contact||"-"}`,
     `${tr("What happened","Qué pasó")}: ${s.what.map(w=>t("w_"+w)).join("; ")||"-"}`,
     `${tr("Payment method","Forma de pago")}: ${s.method?t("m_"+s.method):"-"}`,
@@ -1069,10 +1154,18 @@ function buildPlan(){
   const li=a=>a.map(x=>`<li>${esc(x)}</li>`).join("");
   document.getElementById("splan").innerHTML=`<div class="card plan">
     <h2>${t("plan_title")}</h2>
+    ${(s.bank||s.org)?`<div class="plan-block"><p class="label">${tr("Call these first","Llame primero a estos")}</p>
+      ${s.bank?orgCardHTML(s.bank,s.bankName,tr("Your bank: report the fraud and lock your card","Su banco: reporte el fraude y bloquee su tarjeta")):""}
+      ${s.org&&s.org!==s.bank?orgCardHTML(s.org,s.pretend,tr("Who they pretended to be: report the impersonation","De quién se hicieron pasar: reporte la suplantación")):""}
+      <p class="small muted" style="margin:0">${tr("These numbers come from each organization's official website. Always call the real number, never one the scammer gave you.","Estos números vienen del sitio oficial de cada organización. Llame siempre al número real, nunca a uno que le dio el estafador.")}</p></div>`:""}
     <div class="plan-block urgent"><p class="label">${t("plan_now")}</p><ol>${li(now)}</ol></div>
     ${protect.length?`<div class="plan-block"><p class="label">${t("plan_protect")}</p><ol>${li(protect)}</ol></div>`:""}
     <div class="plan-block"><p class="label">${t("plan_report")}</p><div class="contacts">${[...new Set([...report,...extra])].map(contactHTML).join("")}</div></div>
     <p class="small warnline">⚠️ ${t("recovery_warn")}</p>
+    ${bankLetter?`<div class="plan-block"><p class="label">${tr("Letter to ","Carta para ")}${esc(bankNm)}</p><textarea id="bankletter" class="reporttxt" dir="auto">${esc(bankLetter)}</textarea>
+      <div class="row"><button class="btn ghost" data-copy="bankletter">${t("copy")}</button></div></div>`:""}
+    ${orgLetter?`<div class="plan-block"><p class="label">${tr("Report to ","Reporte para ")}${esc(orgName(s.org,s.pretend)||tr("the company","la empresa"))}</p><textarea id="orgletter" class="reporttxt" dir="auto">${esc(orgLetter)}</textarea>
+      <div class="row"><button class="btn ghost" data-copy="orgletter">${t("copy")}</button></div></div>`:""}
     <div class="plan-block"><p class="label">${t("plan_script")}</p><div class="script" id="script" dir="auto">${esc(script)}</div>
       <div class="row"><button class="btn ghost" data-copy="script">${t("copy")}</button><button class="btn ghost" id="readscript">${t("read_aloud")}</button></div></div>
     <div class="plan-block"><p class="label">${t("plan_report_txt")}</p><textarea id="reporttxt" class="reporttxt" dir="auto">${esc(reportTxt)}</textarea>
@@ -1165,7 +1258,12 @@ function renderSettings(){
 
 /* ----- navigation ----- */
 const TAB_OF={today:"today",check:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
+function fillLangTop(){const el=document.getElementById("langtop");if(!el)return;
+  const short={en:"🌐 EN",es:"🌐 ES",zh:"🌐 中文",tl:"🌐 TL",vi:"🌐 VI",ar:"🌐 AR",ko:"🌐 KO",fa:"🌐 FA"};
+  el.innerHTML=Object.keys(LANGS).map(k=>`<option value="${k}" ${langCode()===k?"selected":""}>${short[k]} · ${LANGS[k].name}</option>`).join("");
+  el.onchange=()=>{saveCfg(Object.assign(cfg(),{lang:el.value}));applyLang();const h=location.hash.slice(1);go(TAB_OF[h]?h:"today")}}
 function applyLang(){
+  fillLangTop();
   document.documentElement.lang=uiLang()==="es"?"es":"en";
   document.querySelectorAll("nav.tabs [data-tab]").forEach(b=>b.querySelector("span").textContent=t("tab_"+b.dataset.tab));
   setStatus();if(Reader.active)updatePlayer();
