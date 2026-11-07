@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ScamSense</title>
+<meta name="description" content="ScamSense checks your email and messages for scams and explains them in plain language.">
+<meta name="theme-color" content="#0E7C7B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ScamSense">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+/* Layout: one phone-width column, app header on top, tab bar fixed at the bottom. */
+:root{
+  --bg:#F3F7F6; --surface:#FFFFFF; --ink:#0E3B43; --muted:#4F6B70; --line:#D5E2E0;
+  --brand:#0E7C7B; --brand-ink:#FFFFFF; --brand-soft:#E2F1F0; --amber:#F2A541;
+  --safe:#1F7A3E; --safe-bg:#E4F4E9; --warn:#9A5B00; --warn-bg:#FFF2DC; --scam:#B42318; --scam-bg:#FDE7E4;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0B1F23; --surface:#11292E; --ink:#E6F2F0; --muted:#9DB8B9; --line:#24444A;
+  --brand:#3FBFBC; --brand-ink:#0B1F23; --brand-soft:#15393C;
+  --safe:#6FD394; --safe-bg:#12321F; --warn:#F5B95A; --warn-bg:#3A2A0E; --scam:#FF8A7E; --scam-bg:#3D1714; color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:center;z-index:9;width:max-content;max-width:90vw}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.5;-webkit-text-size-adjust:100%}
+.app{max-width:620px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) max(16px,env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
+header{display:flex;align-items:center;gap:12px}
+header svg{width:40px;height:44px;flex:none}
+header h1{font-family:var(--display);font-weight:800;font-size:1.6rem;margin:0;line-height:1}
+.status{margin-left:auto;font-size:.8rem;font-weight:700;padding:6px 10px;border-radius:999px;background:var(--line);color:var(--muted);white-space:nowrap}
+.status.on{background:var(--brand-soft);color:var(--brand)}
+h2{font-family:var(--display);font-weight:600;font-size:1.35rem;margin:0}
+h3{margin:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.muted{color:var(--muted)}
+.small{font-size:.9rem}
+.label{font-size:.78rem;letter-spacing:.07em;text-transform:uppercase;font-weight:700;color:var(--muted);margin:0}
+.btn{font:inherit;font-weight:700;font-size:1.05rem;border:0;border-radius:12px;padding:14px 18px;cursor:pointer;text-align:center;text-decoration:none;display:inline-flex;justify-content:center;align-items:center;gap:8px}
+.btn[disabled]{opacity:.55;cursor:default}
+.primary{background:var(--brand);color:var(--brand-ink)}
+.ghost{background:transparent;color:var(--ink);border:2px solid var(--line)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>.btn{flex:1 1 160px}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+input,textarea,select{width:100%;font:inherit;font-size:1rem;color:var(--ink);background:var(--bg);border:2px solid var(--line);border-radius:12px;padding:12px}
+textarea{min-height:150px;resize:vertical}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:700}
+.privacy{display:flex;gap:10px;background:var(--brand-soft);border-radius:12px;padding:12px 14px;font-size:.95rem}
+.privacy b{color:var(--brand)}
+
+/* Daily report */
+.hero{display:flex;flex-direction:column;gap:10px}
+.hero .big{font-family:var(--display);font-weight:800;font-size:1.7rem;line-height:1.15;margin:0;text-wrap:balance}
+.counts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.count{border-radius:12px;padding:10px;text-align:center}
+.count b{display:block;font-family:var(--display);font-size:1.7rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.count span{font-size:.85rem;font-weight:700}
+.c-scam{background:var(--scam-bg);color:var(--scam)} .c-warn{background:var(--warn-bg);color:var(--warn)} .c-safe{background:var(--safe-bg);color:var(--safe)}
+.progress{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--brand);transition:width .3s}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.chip{font:inherit;font-size:.9rem;font-weight:700;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.item{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.item>button{all:unset;box-sizing:border-box;width:100%;padding:14px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;cursor:pointer}
+.item>button:focus-visible{outline:3px solid var(--amber);outline-offset:-3px}
+.dot{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:800;color:#fff;font-size:1.1rem}
+.d-scam{background:var(--scam)} .d-warn{background:var(--warn)} .d-safe{background:var(--safe)}
+@media (prefers-color-scheme: dark){.dot{color:#0B1F23}}
+.item .who{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .subj{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .why{font-size:.92rem;color:var(--muted);margin-top:2px}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 8px;margin-right:6px}
+.p-scam{background:var(--scam-bg);color:var(--scam)} .p-warn{background:var(--warn-bg);color:var(--warn)} .p-safe{background:var(--safe-bg);color:var(--safe)}
+.detail{padding:0 14px 16px;display:flex;flex-direction:column;gap:12px}
+.detail ul,.detail ol{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:5px}
+.ai-box{background:var(--brand-soft);border-radius:12px;padding:12px}
+.ai-box p{margin:4px 0 0}
+
+/* Verdict block (Check tab) */
+.verdict{border-radius:14px;padding:16px;display:flex;gap:12px;align-items:flex-start}
+.verdict h3{font-family:var(--display);font-size:1.4rem;line-height:1.15}
+.verdict p{margin:4px 0 0}
+.v-scam{background:var(--scam-bg)} .v-scam h3{color:var(--scam)}
+.v-warn{background:var(--warn-bg)} .v-warn h3{color:var(--warn)}
+.v-safe{background:var(--safe-bg)} .v-safe h3{color:var(--safe)}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{font:inherit;font-weight:700;font-size:.95rem;border:0;border-radius:9px;padding:10px 4px;background:transparent;color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface)}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));z-index:5}
+nav.tabs .in{display:grid;grid-template-columns:repeat(3,1fr);width:100%;max-width:620px}
+nav.tabs button{font:inherit;font-size:.82rem;font-weight:700;border:0;background:none;color:var(--muted);padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer;border-radius:10px}
+nav.tabs button svg{width:26px;height:26px}
+nav.tabs button[aria-current="page"]{color:var(--brand)}
+.toast{background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;font-size:.95rem;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+details summary{cursor:pointer;font-weight:700}
+.steps{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px}
+code{font-size:.85em;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 5px;word-break:break-all}
+.empty{text-align:center;color:var(--muted);padding:24px 8px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <svg viewBox="0 0 120 130" aria-hidden="true">
+      <polygon points="22,34 28,4 48,22" fill="#0E7C7B"/><polygon points="98,34 92,4 72,22" fill="#0E7C7B"/>
+      <rect x="20" y="14" width="80" height="108" rx="40" fill="#0E7C7B"/>
+      <path d="M30,70 C30,96 44,112 60,116 C76,112 90,96 90,70 Z" fill="#139A98"/>
+      <circle cx="45" cy="52" r="16" fill="#FFFFFF"/><circle cx="75" cy="52" r="16" fill="#FFFFFF"/>
+      <circle cx="45" cy="52" r="8.5" fill="#F2A541"/><circle cx="75" cy="52" r="8.5" fill="#F2A541"/>
+      <circle cx="45" cy="52" r="3.8" fill="#0E3B43"/><circle cx="75" cy="52" r="3.8" fill="#0E3B43"/>
+      <polygon points="54,70 66,70 60,82" fill="#F2A541"/>
+      <polyline points="46,96 56,106 76,86" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>ScamSense</h1>
+    <span class="status" id="status">Not connected</span>
+  </header>
+
+  <main id="view"></main>
+</div>
+
+<nav class="tabs" aria-label="Main">
+  <div class="in">
+    <button data-tab="today" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>Today</button>
+    <button data-tab="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.9-5.4A8 8 0 1 1 21 12z"/><path d="M12 8v4M12 15.5v.5"/></svg>Check</button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+  </div>
+</nav>
+
+<script>
+"use strict";
+/* ================= storage (this device only) ================= */
+const S={
+  get(k,d){try{const v=localStorage.getItem("ss_"+k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem("ss_"+k,JSON.stringify(v))}catch(e){}},
+  del(k){try{localStorage.removeItem("ss_"+k)}catch(e){}}
+};
+const cfg=()=>Object.assign({clientId:"",apiKey:"",model:"claude-haiku-5-5",aiMode:"risky",days:1,max:50},S.get("cfg",{}));
+
+/* ================= scam signal rules (run on this device) ================= */
+const RULES=[
+  {re:/gift ?cards?|itunes card|google play card|steam card|apple card balance/i, pts:5, why:"Asks for payment by gift card. Real companies, police, and the government never ask for gift cards.", type:"payment"},
+  {re:/bitcoin|crypto(currency)?|\busdt\b|btc atm|bitcoin atm|wire transfer|western union|moneygram/i, pts:4, why:"Mentions crypto or a wire transfer. Money sent this way is almost impossible to get back.", type:"payment"},
+  {re:/\b(zelle|venmo|cash ?app)\b/i, pts:1, why:"Mentions an instant payment app, which scammers like because payments can't be undone.", type:"payment"},
+  {re:/verification code|one[- ]time (pass)?code|6[- ]digit code|security code|\bOTP\b|pin number/i, pts:5, why:"Asks for a code. Never share a code sent to your phone, even with your bank.", type:"account"},
+  {re:/(enter|confirm|verify|update|provide|send)( your)? (password|social security|ssn|account number|routing number|medicare number|card number|billing information|payment information)/i, pts:5, why:"Asks you to give private information like a password, card, or Social Security number.", type:"account"},
+  {re:/within 24 hours|within 48 hours|immediately|right away|act now|urgent|final notice|final warning|as soon as possible/i, pts:2, why:"Uses pressure to rush you. Scammers want you to act before you think.", type:"pressure"},
+  {re:/suspend|suspension|will be locked|has been locked|frozen|deactivat|closed permanently|late fee|unusual (sign[- ]in|activity)/i, pts:2, why:"Threatens to lock or close something, or says there was unusual activity, to scare you.", type:"pressure"},
+  {re:/\barrest|warrant|lawsuit|legal action|deport|\bjail\b|\bbail\b/i, pts:3, why:"Mentions arrest, legal action, or bail. This is a common way to scare people into paying.", type:"threat"},
+  {re:/don'?t tell|do not tell|keep (this|it) (a )?secret|between (us|you and me)/i, pts:4, why:"Asks you to keep it secret. Scammers don't want family to stop you.", type:"family"},
+  {re:/\bgrand(ma|pa|mother|father)\b|\bit'?s me\b|this is your (grand)?(son|daughter)|my new number/i, pts:2, why:"Claims to be a family member, maybe from a new number. Call them on the number you already have.", type:"family"},
+  {re:/you('ve| have)? won|\bwinner\b|lottery|sweepstakes|claim your (prize|reward)|unclaimed (funds|inheritance)/i, pts:4, why:"Says you won something. You can't win a contest you didn't enter.", type:"prize"},
+  {re:/refund department|call (us|our|this number|now)|call .{0,30}\(?\d{3}\)?[-. ]\d{3}[-. ]\d{4}|1-8(00|88|77|66|55|44|33)/i, pts:2, why:"Gives you a phone number to call. Use the number on your card or the company's real website instead.", type:"callback"},
+  {re:/anydesk|teamviewer|ultraviewer|remote access|screen ?share/i, pts:5, why:"Asks you to install remote access software. That gives a stranger control of your device.", type:"tech"},
+  {re:/unpaid toll|toll (balance|payment|violation)|package (could not|can'?t|cannot) be delivered|redelivery|customs fee|incomplete (address|shipping)/i, pts:3, why:"Unpaid toll or missed delivery. These fake messages are very common right now.", type:"toll"},
+  {re:/auto[- ]?renew(al|ed)? .{0,40}\$\d|subscription (has been )?renewed|invoice #|charged \$\d|purchase of \$\d|did not (make|authorize) this/i, pts:2, why:"Claims a charge or renewal you may not recognize, to get you to call or click.", type:"callback"}
+];
+const TYPES={payment:"payment scam",account:"account takeover scam",pressure:"pressure scam",threat:"fake police or government scam",family:"family emergency scam",prize:"fake prize scam",callback:"fake refund or support scam",tech:"tech support scam",toll:"fake toll or delivery scam",sender:"fake sender (impersonation)",link:"fake link (phishing)"};
+
+const BRANDS={
+  "amazon":["amazon.com","amazon.co.uk","amazon.ca","amazonses.com","amazonaws.com"],
+  "paypal":["paypal.com","paypal.co.uk"],
+  "apple":["apple.com","icloud.com","itunes.com","me.com"],
+  "microsoft":["microsoft.com","outlook.com","live.com","office.com","office365.com","microsoftonline.com","hotmail.com"],
+  "netflix":["netflix.com"],
+  "chase":["chase.com","jpmorgan.com","jpmchase.com"],
+  "wells fargo":["wellsfargo.com"],
+  "bank of america":["bankofamerica.com","bofa.com","ealerts.bankofamerica.com"],
+  "usps":["usps.com","usps.gov"],
+  "fedex":["fedex.com"],
+  "ups":["ups.com"],
+  "irs":["irs.gov","treasury.gov"],
+  "social security":["ssa.gov"],
+  "medicare":["medicare.gov","cms.gov","hhs.gov"],
+  "geek squad":["bestbuy.com","geeksquad.com"],
+  "norton":["norton.com","nortonlifelock.com","gen.digital"],
+  "mcafee":["mcafee.com"],
+  "coinbase":["coinbase.com"],
+  "venmo":["venmo.com"],
+  "walmart":["walmart.com"],
+  "costco":["costco.com"],
+  "docusign":["docusign.com","docusign.net"],
+  "facebook":["facebook.com","facebookmail.com","meta.com"],
+  "instagram":["instagram.com","mail.instagram.com"],
+  "google":["google.com","accounts.google.com","youtube.com"],
+  "txtag":["txtag.org"],"e-zpass":["e-zpassny.com","ezpassnj.com","e-zpass.com"],"pikepass":["pikepass.com","oktollpay.com"]
+};
+const FREE_MAIL=/^(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|aol|icloud|me|proton|protonmail|gmx|mail|zoho)\.(com|net|me|org)$/;
+const BAD_TLD=/\.(xyz|top|info|click|live|shop|online|site|icu|ru|cn|buzz|cyou|rest|sbs|cfd|monster|zip|mov)$/;
+const SHORT=/^(bit\.ly|tinyurl\.com|t\.co|rb\.gy|is\.gd|cutt\.ly|ow\.ly|shorturl\.at|tiny\.cc|s\.id)$/;
+const RISKY_FILE=/\.(html?|shtml|zip|rar|7z|exe|scr|iso|img|js|vbs|bat|cmd|msi|lnk|svg)$/i;
+
+function baseDomain(h){h=(h||"").toLowerCase().replace(/^www\./,"");const p=h.split(".");if(p.length<=2)return h;const two=p.slice(-2).join(".");if(/^(co|com|org|net|gov|ac)\.[a-z]{2}$/.test(two))return p.slice(-3).join(".");return two}
+function legitFor(brand,host){host=(host||"").toLowerCase();return BRANDS[brand].some(d=>host===d||host.endsWith("."+d))}
+function unleet(s){return s.toLowerCase().replace(/0/g,"o").replace(/1/g,"l").replace(/3/g,"e").replace(/5/g,"s").replace(/rn/g,"m").replace(/vv/g,"w")}
+function lookalikeBrand(host){
+  const label=unleet(host.replace(/\.[a-z.]+$/,"").replace(/[^a-z0-9.-]/g,"")); const flat=label.replace(/[^a-z]/g,"");
+  for(const b of Object.keys(BRANDS)){const key=b.replace(/[^a-z]/g,""); if(key.length<4)continue;
+    if(flat.includes(key)&&!legitFor(b,host)) return b;}
+  return null;
+}
+function hostOf(u){try{const x=new URL(u.startsWith("http")?u:"https://"+u);return x.hostname.toLowerCase()}catch(e){return ""}}
+const BNAME={paypal:"PayPal",usps:"USPS",ups:"UPS",fedex:"FedEx",irs:"IRS",txtag:"TxTag","e-zpass":"E-ZPass",mcafee:"McAfee",docusign:"DocuSign",pikepass:"PikePass"};
+function cap(s){return BNAME[s]||s.replace(/\b\w/g,c=>c.toUpperCase())}
+
+function textSignals(t){
+  const reasons=[],types={};let score=0;
+  RULES.forEach(r=>{if(r.re.test(t)){score+=r.pts;reasons.push(r.why);types[r.type]=(types[r.type]||0)+r.pts}});
+  const urls=t.match(/\b(?:https?:\/\/|www\.)[^\s)<>"']+|\b[a-z0-9-]+\.(?:xyz|top|info|click|live|shop|online|site|icu|ru|cn|buzz|cyou|sbs|cfd)(?:\/[^\s]*)?/gi)||[];
+  return {score,reasons,types,urls};
+}
+function linkSignals(links,add){
+  const seen=new Set();
+  links.forEach(l=>{
+    const host=l.host||hostOf(l.href); if(!host||seen.has(host))return; seen.add(host);
+    const lb=lookalikeBrand(host);
+    if(BAD_TLD.test(host)) add(4,`A link goes to "${host}", an unusual web address real companies don't use.`,"link");
+    else if(SHORT.test(host)) add(3,`A link is shortened ("${host}"), so you can't see where it really goes.`,"link");
+    else if(/^\d+\.\d+\.\d+\.\d+$/.test(host)) add(4,"A link is a string of numbers, not a real company website.","link");
+    else if(lb) add(5,`A link goes to "${host}". It looks like ${cap(lb)}, but it isn't ${cap(lb)}'s real website.`,"link");
+    // link text shows one website but actually goes to another
+    const shown=(l.text||"").match(/^(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?:\/|$)/i);
+    if(shown&&baseDomain(shown[1])!==baseDomain(host)) add(4,`A link says "${shown[1]}" but really goes to "${host}".`,"link");
+  });
+}
+
+/* Score any message. msg: {text, subject, fromName, fromEmail, replyTo, auth, links, attachments, listUnsub} */
+function analyze(msg){
+  const text=[msg.subject||"",msg.text||""].join("\n");
+  const base=textSignals(text);
+  let score=base.score;const reasons=base.reasons.slice();const types=Object.assign({},base.types);
+  const add=(p,w,t)=>{score+=p;reasons.push(w);types[t]=(types[t]||0)+p};
+  const links=(msg.links||[]).slice();
+  base.urls.forEach(u=>links.push({href:u,host:hostOf(u),text:""}));
+  linkSignals(links,add);
+
+  let trusted=false;
+  if(msg.fromEmail){
+    const dom=(msg.fromEmail.split("@")[1]||"").toLowerCase();
+    const name=(msg.fromName||"").toLowerCase();
+    const auth=(msg.auth||"").toLowerCase();
+    for(const b of Object.keys(BRANDS)){
+      const re=new RegExp("\\b"+b.replace(/[-]/g,"[- ]?")+"\\b","i");
+      if(re.test(name)&&!legitFor(b,dom)){
+        add(5,FREE_MAIL.test(dom)?`Says it's from ${cap(b)}, but it was sent from a personal ${dom} address.`:`Says it's from ${cap(b)}, but it was sent from "${dom}", which is not ${cap(b)}.`,"sender");break;
+      }
+    }
+    const lb=lookalikeBrand(dom); if(lb&&!FREE_MAIL.test(dom)) add(5,`The sender's address "${dom}" looks like ${cap(lb)}, but it's a fake copy.`,"sender");
+    if(/dmarc=fail/.test(auth)) add(4,"The email failed Gmail's sender check (DMARC). The sender's name may be faked.","sender");
+    else if(/spf=(fail|softfail)/.test(auth)&&/dkim=(fail|none)/.test(auth)) add(3,"The email failed Gmail's sender checks, so the sender may be faked.","sender");
+    if(msg.replyTo){const rd=(msg.replyTo.split("@")[1]||"").toLowerCase().replace(/>.*$/,""); if(rd&&baseDomain(rd)!==baseDomain(dom)) add(2,`Replies would go to a different address (${rd}) than the sender.`,"sender");}
+    const legitBrand=Object.keys(BRANDS).some(b=>legitFor(b,dom));
+    if(legitBrand&&/dmarc=pass|dkim=pass/.test(auth)) trusted=true;
+    if(trusted) score=Math.max(0,score-5);
+    else if(msg.listUnsub&&/dmarc=pass/.test(auth)&&score<8) score=Math.max(0,score-2);
+  }
+  (msg.attachments||[]).forEach(f=>{if(RISKY_FILE.test(f)) add(4,`Has an attachment "${f}" of a type often used to hide harmful files.`,"tech")});
+
+  const ranked=Object.entries(types).filter(([k])=>k!=="pressure").sort((a,b)=>b[1]-a[1]);
+  let kind=ranked.length?TYPES[ranked[0][0]]:(types.pressure?TYPES.pressure:"");
+  if(types.family&&types.payment) kind=TYPES.family;
+  if(types.toll) kind=TYPES.toll;
+  const level=score>=8?"scam":score>=4?"warn":"safe";
+  return {score,reasons:[...new Set(reasons)],kind,level,trusted};
+}
+
+/* ================= AI check (Claude) ================= */
+const AI_SYSTEM=`You are ScamSense, a scam detector that protects people, especially older adults, from scams in email, text messages, and phone calls.
+Judge the message you are given. Consider who really sent it, what it asks the reader to do (click, call, pay, share a code, install software, keep a secret), pressure or threats, payment methods (gift cards, crypto, wire, Zelle), lookalike websites, and whether the story makes sense.
+Normal newsletters, receipts and reminders from real companies are SAFE. Do not call something a scam just because it is marketing.
+Reply with ONLY a JSON object, no other text:
+{"verdict":"safe"|"suspicious"|"scam","scam_type":"short name or empty","confidence":0-100,"explanation":"2 short sentences in plain, friendly language a 75-year-old can follow","red_flags":["up to 4 short items"],"what_to_do":["2-4 short steps"]}`;
+
+async function aiCheck(item){
+  const c=cfg(); if(!c.apiKey) throw new Error("no-key");
+  const parts=[];
+  parts.push(`Channel: ${item.channel}`);
+  if(item.fromName||item.fromEmail) parts.push(`From: ${item.fromName||""} <${item.fromEmail||""}>`);
+  if(item.replyTo) parts.push(`Reply-To: ${item.replyTo}`);
+  if(item.auth) parts.push(`Sender checks: ${(item.auth.match(/(spf|dkim|dmarc)=\w+/gi)||[]).join(", ")||"unknown"}`);
+  if(item.phone) parts.push(`Caller number: ${item.phone}`);
+  if(item.subject) parts.push(`Subject: ${item.subject}`);
+  const hosts=[...new Set((item.links||[]).map(l=>l.host).filter(Boolean))].slice(0,12);
+  if(hosts.length) parts.push(`Link destinations: ${hosts.join(", ")}`);
+  if(item.attachments&&item.attachments.length) parts.push(`Attachments: ${item.attachments.join(", ")}`);
+  parts.push(`Warning signs found by on-device checks: ${item.local.reasons.length?item.local.reasons.join(" | "):"none"}`);
+  parts.push(`Message text:\n"""\n${(item.text||"").slice(0,3500)}\n"""`);
+  const body={model:c.model,max_tokens:700,system:AI_SYSTEM,messages:[{role:"user",content:parts.join("\n")}]};
+  let res,tries=0;
+  while(true){
+    res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
+    if((res.status===429||res.status===529||res.status>=500)&&tries<2){tries++;await new Promise(r=>setTimeout(r,2000*tries));continue}
+    break;
+  }
+  if(!res.ok){
+    let msg="";try{msg=(await res.json()).error.message}catch(e){}
+    if(res.status===401) throw new Error("The AI key wasn't accepted. Check it in Settings.");
+    if(res.status===404) throw new Error(`The AI model "${c.model}" wasn't found. Pick another model in Settings.`);
+    if(res.status===400&&/credit/i.test(msg)) throw new Error("Your AI account is out of credit. Add credit at console.anthropic.com.");
+    throw new Error(`AI check failed (${res.status}). ${msg}`);
+  }
+  const data=await res.json();
+  const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("");
+  const m=txt.match(/\{[\s\S]*\}/); if(!m) throw new Error("The AI gave an answer ScamSense couldn't read.");
+  const j=JSON.parse(m[0]);
+  j.verdict=({safe:"safe",suspicious:"warn",scam:"scam"})[j.verdict]||"warn";
+  return j;
+}
+function finalLevel(item){
+  if(item.ai){let v=item.ai.verdict; if(item.local.score>=8&&v==="safe") v="warn"; if(item.local.score>=14&&v==="warn") v="scam"; return v}
+  return item.local.level;
+}
+
+/* ================= Gmail (read-only, runs in this browser) ================= */
+let token=null,tokenExp=0;
+function getToken(interactive){
+  return new Promise((resolve,reject)=>{
+    const c=cfg();
+    if(!c.clientId) return reject(new Error("Add your Google Client ID in Settings first."));
+    if(!/\.apps\.googleusercontent\.com$/.test(c.clientId)) return reject(new Error("That's not a Google Client ID. It's a long code from Google Cloud that ends in .apps.googleusercontent.com, not your email."));
+    if(location.protocol==="file:") return reject(new Error("Gmail can't connect when the app is opened from a file. Open it at http://localhost:8000 or your GitHub Pages link."));
+    if(!(window.google&&google.accounts&&google.accounts.oauth2)) return reject(new Error("Google sign-in is still loading. Try again in a moment."));
+    if(token&&Date.now()<tokenExp-60000) return resolve(token);
+    const tc=google.accounts.oauth2.initTokenClient({client_id:c.clientId,scope:"https://www.googleapis.com/auth/gmail.readonly",
+      callback:(r)=>{if(r.error) return reject(new Error("Google sign-in was cancelled or failed: "+r.error)); token=r.access_token;tokenExp=Date.now()+(r.expires_in||3600)*1000;S.set("connected",true);setStatus();resolve(token)},
+      error_callback:(e)=>reject(new Error(e&&e.type==="popup_closed"?"The Google window was closed before finishing.":"Google sign-in didn't open. Allow pop-ups for this site and try again."))});
+    tc.requestAccessToken({prompt:S.get("connected",false)&&!interactive?"":"consent"});
+  });
+}
+async function gfetch(path){
+  const r=await fetch("https://gmail.googleapis.com/gmail/v1/users/me/"+path,{headers:{Authorization:"Bearer "+token}});
+  if(r.status===401){token=null;throw new Error("Google sign-in expired. Tap Scan again.")}
+  if(!r.ok) throw new Error("Gmail error "+r.status);
+  return r.json();
+}
+function b64(s){const bin=atob(s.replace(/-/g,"+").replace(/_/g,"/"));const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);return new TextDecoder("utf-8").decode(bytes)}
+function htmlToParts(html){
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  doc.querySelectorAll("style,script,head,title").forEach(n=>n.remove());
+  const links=[...doc.querySelectorAll("a[href]")].map(a=>({href:a.getAttribute("href"),text:(a.textContent||"").trim().slice(0,140)})).filter(l=>/^https?:/i.test(l.href)).map(l=>Object.assign(l,{host:hostOf(l.href)}));
+  doc.querySelectorAll("br,p,div,tr,li").forEach(n=>n.append(" "));
+  return {text:(doc.body?doc.body.textContent:"").replace(/\s+/g," ").trim(),links};
+}
+function parseGmail(m){
+  const H={};(m.payload.headers||[]).forEach(h=>{const k=h.name.toLowerCase();H[k]=H[k]?H[k]+" ; "+h.value:h.value});
+  const acc={plain:"",html:"",attachments:[]};
+  (function walk(p){ if(!p)return; if(p.parts) p.parts.forEach(walk);
+    else if(p.filename) acc.attachments.push(p.filename);
+    else if(p.body&&p.body.data){ if(p.mimeType==="text/plain") acc.plain+=b64(p.body.data)+"\n"; else if(p.mimeType==="text/html") acc.html+=b64(p.body.data); } })(m.payload);
+  let text=acc.plain.trim(),links=[];
+  if(acc.html){const h=htmlToParts(acc.html);links=h.links;if(!text)text=h.text}
+  const from=H["from"]||""; const fm=from.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>/);
+  const fromName=fm?fm[1].trim():"", fromEmail=(fm?fm[2]:from).trim().toLowerCase();
+  const rt=H["reply-to"]||""; const rtm=rt.match(/<([^>]+)>/);
+  const lb=m.labelIds||[];
+  const folder=lb.includes("SPAM")?"Spam":lb.includes("TRASH")?"Trash":lb.includes("CATEGORY_PROMOTIONS")?"Promotions":lb.includes("CATEGORY_SOCIAL")?"Social":lb.includes("CATEGORY_UPDATES")?"Updates":lb.includes("CATEGORY_FORUMS")?"Forums":lb.includes("INBOX")?"Inbox":"Archived";
+  return {id:m.id,folder,inSpam:folder==="Spam",channel:"email",source:"gmail",fromName,fromEmail,replyTo:rtm?rtm[1]:rt.trim(),subject:H["subject"]||"(no subject)",
+    date:Number(m.internalDate)||Date.now(),text:text.replace(/\s+/g," ").slice(0,6000),snippet:m.snippet||"",links,attachments:acc.attachments,
+    auth:(H["authentication-results"]||"")+" "+(H["arc-authentication-results"]||""),listUnsub:!!H["list-unsubscribe"]};
+}
+async function pool(items,n,fn){let i=0;const run=async()=>{while(i<items.length){const k=i++;await fn(items[k],k)}};await Promise.all(Array.from({length:Math.min(n,items.length)},run))}
+
+/* ================= scanning ================= */
+let scanning=false;
+async function scanGmail(){
+  if(scanning)return; scanning=true;
+  const c=cfg();
+  try{
+    renderToday({progress:{label:"Connecting to Gmail…",pct:5}});
+    await getToken(false);
+    renderToday({progress:{label:"Finding new emails…",pct:10}});
+    // Every folder: Inbox, Promotions, Social, Updates, Forums, archived, Spam and Trash. Skips only mail you sent and drafts.
+    const list=await gfetch(`messages?maxResults=${Math.min(500,c.max)}&includeSpamTrash=true&q=${encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`)}`);
+    const ids=(list.messages||[]).map(m=>m.id);
+    const items=[];let done=0;
+    await pool(ids,5,async id=>{const m=await gfetch(`messages/${id}?format=full`);items.push(parseGmail(m));done++;renderToday({progress:{label:`Reading emails on this device… ${done} of ${ids.length}`,pct:10+40*done/Math.max(1,ids.length)}})});
+    await finishScan(items,"gmail");
+  }catch(e){toast(e.message);renderToday()}
+  finally{scanning=false}
+}
+async function finishScan(items,source){
+  const c=cfg();
+  items.forEach(it=>{it.local=analyze(it)});
+  const wantsAI=c.apiKey&&c.aiMode!=="off";
+  const aiList=wantsAI?items.filter(it=>c.aiMode==="all"||it.local.score>=2||it.local.reasons.length):[];
+  let done=0,aiErr=null;
+  await pool(aiList,3,async it=>{
+    try{it.ai=await aiCheck(it)}catch(e){it.aiError=e.message;aiErr=e.message}
+    done++;renderToday({progress:{label:`AI is checking risky messages… ${done} of ${aiList.length}`,pct:50+50*done/Math.max(1,aiList.length)}});
+  });
+  items.forEach(it=>{it.level=finalLevel(it)});
+  const order={scam:0,warn:1,safe:2};
+  items.sort((a,b)=>order[a.level]-order[b.level]||b.date-a.date);
+  const report={at:Date.now(),source,days:c.days,ai:!!wantsAI,aiChecked:aiList.length,items};
+  S.set("report",report);
+  const hist=S.get("history",[]);hist.push({at:report.at,checked:items.length,scam:items.filter(i=>i.level==="scam").length,warn:items.filter(i=>i.level==="warn").length});S.set("history",hist.slice(-90));
+  if(aiErr) toast(aiErr);
+  renderToday();
+}
+
+/* ================= demo inbox (made-up emails for trying the app) ================= */
+const DEMO=[
+ {fromName:"PayPal Service",fromEmail:"service@paypa1-security.com",subject:"Your account has been limited",auth:"spf=softfail dkim=none dmarc=fail",
+  text:"We noticed unusual sign-in activity on your PayPal account. Your account will be locked within 24 hours unless you verify your billing information.",links:[{text:"www.paypal.com/verify",href:"https://paypa1-security.com/login"}]},
+ {fromName:"Geek Squad Billing",fromEmail:"geeksquad.renewal2026@gmail.com",subject:"Invoice #GS-88412 auto-renewal $399.99",auth:"spf=pass dkim=pass dmarc=pass",
+  text:"Your Geek Squad protection plan auto-renewed for $399.99. If you did not authorize this, call our refund department at 1-888-555-0199 within 24 hours to cancel.",links:[],attachments:["Invoice_GS88412.html"]},
+ {fromName:"USPS",fromEmail:"track@usps-redelivery.top",subject:"Package could not be delivered",auth:"spf=fail dkim=none dmarc=fail",
+  text:"Your package could not be delivered due to an incomplete address. Update your address and pay a $1.99 redelivery fee today.",links:[{text:"Update address",href:"https://usps-redelivery.top/track"}]},
+ {fromName:"Grandson Alex",fromEmail:"alex.help.now@outlook.com",subject:"Grandma please help",auth:"spf=pass dkim=pass dmarc=pass",
+  text:"Grandma it's me, I lost my phone so this is my new email. I'm in trouble and need $1,500 for bail. Please don't tell Mom. Can you buy Target gift cards and send me the numbers?",links:[]},
+ {fromName:"Amazon.com",fromEmail:"shipment-tracking@amazon.com",subject:"Your package was delivered",auth:"spf=pass dkim=pass dmarc=pass",listUnsub:true,
+  text:"Your package with Bounty Paper Towels was delivered to your front door. Track your package in Your Orders.",links:[{text:"Your Orders",href:"https://www.amazon.com/gp/your-account/order-history"}]},
+ {fromName:"Saint Francis Health",fromEmail:"reminders@saintfrancis.com",subject:"Appointment reminder: Tuesday 9:30 AM",auth:"spf=pass dkim=pass dmarc=pass",
+  text:"This is a reminder of your appointment with Dr. Patel on Tuesday at 9:30 AM. Please arrive 15 minutes early.",links:[]},
+ {fromName:"Chase",fromEmail:"no.reply.alerts@chase.com",subject:"Your monthly statement is ready",auth:"spf=pass dkim=pass dmarc=pass",listUnsub:true,
+  text:"Your statement for your account ending in 4421 is ready. Sign in to chase.com or the Chase Mobile app to view it.",links:[{text:"chase.com",href:"https://www.chase.com/"}]}
+];
+async function loadDemo(){
+  const now=Date.now();
+  const items=DEMO.map((d,i)=>Object.assign({id:"demo"+i,channel:"email",source:"demo",replyTo:"",attachments:[],links:[],listUnsub:false,date:now-i*3600e3*2},JSON.parse(JSON.stringify(d))));
+  items.forEach(it=>it.links.forEach(l=>l.host=hostOf(l.href)));
+  renderToday({progress:{label:"Checking the demo inbox…",pct:40}});
+  await finishScan(items,"demo");
+}
+
+/* ================= UI ================= */
+const view=document.getElementById("view");
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const LV={scam:{pill:"p-scam",dot:"d-scam",icon:"!",word:"Scam",title:"Scam: do not respond"},warn:{pill:"p-warn",dot:"d-warn",icon:"?",word:"Suspicious",title:"Suspicious: be careful"},safe:{pill:"p-safe",dot:"d-safe",icon:"✓",word:"Safe",title:"Looks safe"}};
+const ADVICE={
+  scam:["Don't click links, open attachments, call numbers, or reply.","Don't send money, gift cards, or codes.","If you're worried, contact the company or person yourself using a number you already trust.","Report it: in Gmail tap ⋮ then \"Report phishing\". Forward scam texts to 7726. Report at ReportFraud.ftc.gov."],
+  warn:["Slow down. Don't click links or call numbers in the message yet.","Check it yourself: open the company's app or call the number on your card.","Ask a family member or helper to look at it."],
+  safe:["No scam signs found.","Still, never share codes or passwords, even if a message looks normal."]
+};
+function toast(m){let box=document.getElementById("toasts");if(!box){box=document.createElement("div");box.id="toasts";document.body.appendChild(box)}const t=document.createElement("div");t.className="toast";t.setAttribute("role","status");t.textContent=m;box.appendChild(t);setTimeout(()=>t.remove(),4500)}
+function setStatus(){const el=document.getElementById("status");const on=S.get("connected",false)&&cfg().clientId;el.textContent=on?"Gmail connected":"Not connected";el.classList.toggle("on",!!on)}
+function fmtTime(t){const d=new Date(t);return d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})}
+function speak(text){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.92;speechSynthesis.speak(u)}catch(e){toast("Read aloud isn't available on this device.")}}
+
+let filter="risky";
+function renderToday(opt){
+  opt=opt||{};
+  const c=cfg();const rep=S.get("report",null);
+  let h="";
+  if(opt.progress){
+    h+=`<section class="card" aria-live="polite"><h2>Scanning</h2><p class="muted" style="margin:0">${esc(opt.progress.label)}</p><div class="progress"><i style="width:${Math.round(opt.progress.pct)}%"></i></div>
+        <div class="privacy"><span aria-hidden="true">🔒</span><div>Emails are read <b>inside this app on your device.</b> ScamSense has no server that stores them.</div></div></section>`;
+    view.innerHTML=h;return;
+  }
+  if(!rep){
+    h+=`<section class="card hero"><p class="label">Welcome</p><p class="big">ScamSense checks your inbox for scams and tells you which emails are safe.</p>
+      <p class="muted" style="margin:0">Connect Gmail to get today's Safety Report, or try it first with a demo inbox of made-up emails.</p>
+      <div class="row"><button class="btn primary" id="scan">${c.clientId?"Scan my Gmail":"Set up Gmail"}</button><button class="btn ghost" id="demo">Try demo inbox</button></div></section>
+      <div class="privacy"><span aria-hidden="true">🔒</span><div><b>Private by design.</b> Your email is read inside this app on your device, never stored on a ScamSense server, and never sold.</div></div>`;
+    view.innerHTML=h;
+    document.getElementById("scan").onclick=()=>c.clientId?scanGmail():go("settings");
+    document.getElementById("demo").onclick=loadDemo;return;
+  }
+  const n={scam:0,warn:0,safe:0};rep.items.forEach(i=>n[i.level]++);
+  const headline=n.scam?`${n.scam} scam${n.scam>1?"s":""} caught. Don't open ${n.scam>1?"them":"it"}.`:n.warn?`${n.warn} email${n.warn>1?"s":""} need${n.warn>1?"":"s"} a careful look.`:"All clear. No scams found.";
+  h+=`<section class="card hero"><p class="label">${rep.source==="demo"?"Demo inbox · made-up emails":"Daily Safety Report"} · ${esc(fmtTime(rep.at))}</p>
+    <p class="big">${esc(headline)}</p>
+    <div class="counts"><div class="count c-scam"><b>${n.scam}</b><span>Scam</span></div><div class="count c-warn"><b>${n.warn}</b><span>Suspicious</span></div><div class="count c-safe"><b>${n.safe}</b><span>Safe</span></div></div>
+    <p class="muted small" style="margin:0">Checked ${rep.items.length} email${rep.items.length===1?"":"s"} from the last ${rep.days===1?"24 hours":rep.days+" days"}${folderSummary(rep.items)}. ${rep.ai?`AI double-checked ${rep.aiChecked} of them.`:"AI is off, so only on-device checks were used."}</p>
+    <div class="row"><button class="btn primary" id="scan">${c.clientId?"Scan Gmail again":"Set up Gmail"}</button><button class="btn ghost" id="readsum">🔊 Read aloud</button></div></section>`;
+  h+=`<div class="filters" role="group" aria-label="Show">
+      <button class="chip" data-f="risky" aria-pressed="${filter==="risky"}">Scams & suspicious (${n.scam+n.warn})</button>
+      <button class="chip" data-f="all" aria-pressed="${filter==="all"}">All (${rep.items.length})</button></div>`;
+  const shown=rep.items.filter(i=>filter==="all"||i.level!=="safe");
+  if(!shown.length) h+=`<div class="empty card">Nothing risky here. Tap <b>All</b> to see every email that was checked.</div>`;
+  h+=shown.map((it,idx)=>itemHTML(it,idx)).join("");
+  view.innerHTML=h;
+  document.getElementById("scan").onclick=()=>c.clientId?scanGmail():go("settings");
+  document.getElementById("readsum").onclick=()=>speak(`${headline} ScamSense checked ${rep.items.length} emails. ${n.scam} scams, ${n.warn} suspicious, ${n.safe} safe.`+rep.items.filter(i=>i.level!=="safe").map(i=>` ${LV[i.level].word}: ${i.fromName||i.fromEmail}, ${i.subject}.`).join(""));
+  view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderToday()});
+  bindItems(shown);
+}
+function folderSummary(items){
+  const n={};items.forEach(i=>{if(i.folder)n[i.folder]=(n[i.folder]||0)+1});
+  const order=["Inbox","Promotions","Social","Updates","Forums","Archived","Spam","Trash"].filter(k=>n[k]);
+  return order.length?` across all folders (${order.map(k=>`${k} ${n[k]}`).join(", ")})`:"";
+}
+function explanation(it){
+  if(it.ai&&it.ai.explanation) return it.ai.explanation;
+  if(it.level==="safe") return it.local.trusted?"Sent by the real company and passed Gmail's sender checks.":"No common scam signs found.";
+  return it.local.reasons[0]||"Some warning signs were found.";
+}
+function itemHTML(it,idx){
+  const L=LV[it.level];const kind=(it.ai&&it.ai.scam_type)||it.local.kind;
+  return `<article class="item"><button aria-expanded="false" data-i="${idx}">
+    <span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span>
+    <span style="min-width:0"><span class="who">${esc(it.fromName||it.fromEmail||(it.channel==="call"?"Phone call":"Message"))}</span>
+      <span class="subj" style="display:block">${esc(it.subject||"")}</span>
+      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${it.folder?`<span class="pill" style="background:var(--line);color:var(--muted)">${esc(it.folder)}</span>`:""}${it.level!=="safe"&&kind?esc(cap(kind)):""}</span></span>
+  </button><div class="detail" hidden id="d${idx}"></div></article>`;
+}
+function detailHTML(it){
+  const L=LV[it.level];const ai=it.ai;
+  const todo=(ai&&ai.what_to_do&&ai.what_to_do.length)?ai.what_to_do:ADVICE[it.level];
+  let h="";
+  if(it.inSpam) h+=`<p class="small" style="margin:0"><b>Gmail already moved this to Spam.</b> ScamSense explains why it's dangerous.</p>`;
+  else if(it.folder==="Trash") h+=`<p class="small" style="margin:0"><b>This is in your Trash.</b></p>`;
+  if(it.fromEmail) h+=`<p class="small muted" style="margin:0">From <b>${esc(it.fromEmail)}</b>${it.date?` · ${esc(fmtTime(it.date))}`:""}</p>`;
+  h+=`<div class="ai-box"><p class="label">${ai?"AI explanation":"ScamSense says"}</p><p>${esc(explanation(it))}</p>${ai?`<p class="small muted">AI confidence: ${esc(ai.confidence)}%</p>`:""}</div>`;
+  const flags=ai&&ai.red_flags&&ai.red_flags.length?[...ai.red_flags,...it.local.reasons.slice(0,2)]:it.local.reasons;
+  if(ai&&ai.verdict==="safe"&&it.level!=="safe") h+=`<p class="small" style="margin:0"><b>Note:</b> the AI thought this was fine, but the on-device checks found serious warning signs, so ScamSense marked it to be careful.</p>`;
+  if(it.level!=="safe"&&flags.length) h+=`<div><p class="label">Warning signs</p><ul>${[...new Set(flags)].slice(0,7).map(r=>`<li>${esc(r)}</li>`).join("")}</ul></div>`;
+  h+=`<div><p class="label">What to do</p><ol>${todo.map(r=>`<li>${esc(r)}</li>`).join("")}</ol></div>`;
+  if(it.aiError) h+=`<p class="small muted" style="margin:0">AI check didn't run: ${esc(it.aiError)}</p>`;
+  h+=`<div class="row">`;
+  if(it.source==="gmail") h+=`<a class="btn ghost" href="https://mail.google.com/mail/u/0/#all/${encodeURIComponent(it.id)}" target="_blank" rel="noopener">Open in Gmail</a>`;
+  h+=`<button class="btn ghost" data-speak>🔊 Read aloud</button></div>`;
+  return h;
+}
+function bindItems(list){
+  view.querySelectorAll(".item>button").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.i;const d=document.getElementById("d"+i);const open=b.getAttribute("aria-expanded")==="true";
+    b.setAttribute("aria-expanded",String(!open));d.hidden=open;
+    if(!open){const it=list[i];d.innerHTML=detailHTML(it);
+      d.querySelector("[data-speak]").onclick=()=>speak(`${LV[it.level].title}. ${it.fromName||""} ${it.subject||""}. ${explanation(it)} What to do: ${((it.ai&&it.ai.what_to_do)||ADVICE[it.level]).join(". ")}`);}
+  });
+}
+
+/* ----- Check tab: texts, calls, anything pasted ----- */
+let mode="text";
+function renderCheck(res){
+  const ph={text:"Paste the text message here…",call:"What did the caller say or ask you to do?",other:"Paste an email, social media message, or website text…"}[mode];
+  let h=`<section class="card"><h2>Check a text, call, or message</h2>
+    <p class="muted small" style="margin:0">iPhones don't let apps read your texts or calls, so paste or describe them here.</p>
+    <div class="seg" role="group" aria-label="Type">
+      <button data-m="text" aria-pressed="${mode==="text"}">Text</button><button data-m="call" aria-pressed="${mode==="call"}">Phone call</button><button data-m="other" aria-pressed="${mode==="other"}">Other</button></div>
+    ${mode==="text"||mode==="call"?`<div class="field"><label for="num">${mode==="call"?"Caller's number":"Sender's number"} (optional)</label><input id="num" inputmode="tel" autocomplete="off" placeholder="e.g. (918) 555-0142"></div>`:""}
+    <div class="field"><label for="msg">${mode==="call"?"What happened on the call":"Message"}</label><textarea id="msg" placeholder="${ph}"></textarea></div>
+    <div class="row"><button class="btn primary" id="go">Check it</button><button class="btn ghost" id="clr">Clear</button></div>
+    ${cfg().apiKey?`<p class="small muted" style="margin:0">On-device checks run first. Then the text is sent to the AI (Anthropic) for a second opinion.</p>`:`<p class="small muted" style="margin:0">On-device checks only. Add an AI key in Settings for smarter answers.</p>`}
+  </section><section id="result" aria-live="polite"></section>`;
+  view.innerHTML=h;
+  const d=S.get("draft",null);if(d&&d.mode===mode){document.getElementById("msg").value=d.text||"";const nn=document.getElementById("num");if(nn)nn.value=d.num||""}
+  view.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{mode=b.dataset.m;renderCheck()});
+  const save=()=>{const nn=document.getElementById("num");S.set("draft",{mode,text:document.getElementById("msg").value,num:nn?nn.value:""})};
+  view.querySelectorAll("textarea,input").forEach(x=>x.oninput=save);
+  document.getElementById("clr").onclick=()=>{S.del("draft");renderCheck()};
+  document.getElementById("go").onclick=runCheck;
+}
+async function runCheck(){
+  const text=document.getElementById("msg").value.trim();const nn=document.getElementById("num");const phone=nn?nn.value.trim():"";
+  if(!text){toast("Paste or type the message first.");return}
+  const out=document.getElementById("result");const btn=document.getElementById("go");
+  const it={id:"paste",channel:{text:"text message",call:"phone call",other:"message"}[mode],source:"paste",text,phone,links:[],attachments:[],subject:""};
+  const digits=phone.replace(/[^\d+]/g,"");
+  if(digits.startsWith("+")&&!digits.startsWith("+1")) it.text+=`\n(The number ${phone} is from outside the US.)`;
+  it.local=analyze(it);
+  if(mode==="call"&&/(irs|social security|medicare|police|sheriff|microsoft|apple|amazon|bank)/i.test(text)&&/(pay|card|code|install|account|warrant|arrest)/i.test(text)){it.local.score+=3;it.local.reasons.push("Real agencies and companies don't call to demand payment, codes, or software installs.");it.local.level=it.local.score>=8?"scam":it.local.score>=4?"warn":"safe"}
+  if(cfg().apiKey&&cfg().aiMode!=="off"){btn.disabled=true;btn.textContent="AI is checking…";try{it.ai=await aiCheck(it)}catch(e){it.aiError=e.message;toast(e.message)}btn.disabled=false;btn.textContent="Check it"}
+  it.level=finalLevel(it);
+  const L=LV[it.level];const kind=(it.ai&&it.ai.scam_type)||it.local.kind;
+  out.innerHTML=`<div class="card"><div class="verdict v-${it.level}"><span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span><div><h3>${L.title}</h3>${it.level!=="safe"&&kind?`<p>This looks like a <b>${esc(kind)}</b>.</p>`:""}</div></div>${detailHTML(it)}</div>`;
+  out.querySelector("[data-speak]").onclick=()=>speak(`${L.title}. ${explanation(it)} What to do: ${((it.ai&&it.ai.what_to_do)||ADVICE[it.level]).join(". ")}`);
+  const hist=S.get("checks",[]);hist.push({at:Date.now(),channel:it.channel,level:it.level});S.set("checks",hist.slice(-200));
+  out.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ----- Settings ----- */
+function renderSettings(){
+  const c=cfg();
+  view.innerHTML=`
+  <section class="card"><h2>1. Connect Gmail</h2>
+    <p class="muted small" style="margin:0">Read-only access. ScamSense can look at emails but can never send, delete, or change anything.</p>
+    <div class="field"><label for="cid">Google Client ID</label><input id="cid" autocomplete="off" spellcheck="false" placeholder="1234…apps.googleusercontent.com" value="${esc(c.clientId)}"></div>
+    <div class="row"><button class="btn primary" id="conn">${S.get("connected",false)?"Reconnect Gmail":"Connect Gmail"}</button>${S.get("connected",false)?`<button class="btn ghost" id="disc">Disconnect</button>`:""}</div>
+  </section>
+  <section class="card"><h2>2. Smart AI checks</h2>
+    <div class="field"><label for="key">Anthropic API key</label><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(c.apiKey)}"></div>
+    <div class="field"><label for="aim">Which emails get an AI check?</label><select id="aim">
+      <option value="risky" ${c.aiMode==="risky"?"selected":""}>Only ones with warning signs (cheaper, more private)</option>
+      <option value="all" ${c.aiMode==="all"?"selected":""}>Every email</option>
+      <option value="off" ${c.aiMode==="off"?"selected":""}>Off: on-device checks only</option></select></div>
+    <div class="field"><label for="mdl">AI model</label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
+    <button class="btn ghost" id="test">Test AI key</button>
+    <p class="small muted" style="margin:0">Your key is saved only in this browser on this device. When AI is on, the text of the emails being checked is sent to Anthropic's AI to judge them.</p>
+  </section>
+  <section class="card"><h2>3. Scan settings</h2>
+    <div class="field"><label for="days">Check emails from the last</label><select id="days">
+      ${[1,3,7].map(d=>`<option value="${d}" ${c.days===d?"selected":""}>${d===1?"24 hours":d+" days"}</option>`).join("")}</select></div>
+    <div class="field"><label for="max">Most emails per scan</label><select id="max">
+      ${[50,100,200].map(d=>`<option value="${d}" ${c.max===d?"selected":""}>${d}</option>`).join("")}</select></div>
+    <p class="small muted" style="margin:0">ScamSense checks every Gmail folder: Inbox, Promotions, Social, Updates, Forums, archived mail, Spam and Trash. It skips only emails you sent and drafts.</p>
+  </section>
+  <section class="card"><h2>Put ScamSense on your Home Screen</h2>
+    <ol class="steps"><li>Open this page in <b>Safari</b> on your iPhone.</li><li>Tap the <b>Share</b> button (square with an arrow).</li><li>Tap <b>Add to Home Screen</b>, then <b>Add</b>.</li></ol>
+  </section>
+  <section class="card"><h2>Privacy</h2>
+    <ul class="steps">
+      <li>Gmail is read inside this app on your device. There is no ScamSense server, so your emails are never stored by us or sold.</li>
+      <li>Your Google sign-in, AI key, and reports stay in this browser only.</li>
+      <li>If AI is on, only the emails being checked are sent to Anthropic for a verdict.</li>
+    </ul>
+    <button class="btn ghost" id="wipe">Delete all ScamSense data on this device</button>
+  </section>
+  <p class="small muted" style="text-align:center">ScamSense prototype · Built by Karim Haidari, University of Tulsa</p>`;
+  const save=()=>{S.set("cfg",Object.assign(cfg(),{clientId:document.getElementById("cid").value.trim(),apiKey:document.getElementById("key").value.trim(),aiMode:document.getElementById("aim").value,model:document.getElementById("mdl").value.trim()||"claude-haiku-5-5",days:+document.getElementById("days").value,max:+document.getElementById("max").value}));setStatus()};
+  view.querySelectorAll("input,select").forEach(x=>x.onchange=save);
+  document.getElementById("conn").onclick=async()=>{save();try{await getToken(true);toast("Gmail connected.");go("today");scanGmail()}catch(e){toast(e.message)}};
+  const dc=document.getElementById("disc");if(dc)dc.onclick=()=>{try{if(token)google.accounts.oauth2.revoke(token,()=>{})}catch(e){}token=null;S.set("connected",false);S.del("report");setStatus();renderSettings();toast("Gmail disconnected.")};
+  document.getElementById("test").onclick=async()=>{save();const b=document.getElementById("test");b.disabled=true;b.textContent="Testing…";
+    try{const r=await aiCheck({channel:"text message",text:"Hi, this is a reminder that your dentist appointment is tomorrow at 10 AM.",links:[],local:{reasons:[]}});toast(`AI works. It called the test message "${r.verdict==="safe"?"safe":r.verdict}".`)}catch(e){toast(e.message==="no-key"?"Paste your API key first.":e.message)}
+    b.disabled=false;b.textContent="Test AI key"};
+  document.getElementById("wipe").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k))}catch(e){}token=null;setStatus();toast("All ScamSense data deleted from this device.");go("today")}else{this.dataset.sure="1";this.textContent="Tap again to delete everything"}};
+}
+
+/* ----- navigation ----- */
+function go(tab){
+  document.querySelectorAll("nav.tabs button").forEach(b=>{if(b.dataset.tab===tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
+  if(tab==="today")renderToday();else if(tab==="check")renderCheck();else renderSettings();
+  window.scrollTo(0,0);
+  try{history.replaceState(null,"","#"+tab)}catch(e){}
+}
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
+setStatus();
+go(["today","check","settings"].includes(location.hash.slice(1))?location.hash.slice(1):"today");
+</script>
+</body>
+</html>
