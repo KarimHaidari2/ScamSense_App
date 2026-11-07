@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ScamSense</title>
 <meta name="description" content="ScamSense checks your email and messages for scams and explains them in plain language.">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src https://gmail.googleapis.com https://api.anthropic.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src 'self' https://gmail.googleapis.com https://api.anthropic.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0E7C7B">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -248,6 +248,105 @@ details{display:flex;flex-direction:column;gap:10px}
 code{font-size:.85em;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:1px 5px;word-break:break-all}
 .empty{text-align:center;color:var(--muted);padding:24px 8px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+/* ===== Design pass: calmer surfaces, clear hierarchy, one icon style ===== */
+body{font-size:17px}
+.app{gap:18px}
+.ic{width:22px;height:22px;flex:none}
+header{gap:10px;flex-wrap:nowrap;padding-bottom:2px}
+header svg:first-child{width:34px;height:38px}
+header h1{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
+.langpick{margin-left:auto;display:flex;align-items:center;gap:4px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:0 4px 0 10px;color:var(--muted)}
+.langpick .ic{width:18px;height:18px}
+.langpick select{border:0;background:transparent;color:var(--ink);font-weight:700;font-size:.85rem;padding:7px 4px;max-width:118px}
+.status{font-size:.75rem;padding:5px 9px}
+.card{border:0;box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(14,59,67,.05);border-radius:18px}
+.pagehead{display:flex;flex-direction:column;gap:6px;padding-top:4px}
+.pagehead h1{font-family:var(--display);font-weight:700;font-size:1.85rem;line-height:1.1;margin:0;letter-spacing:-.015em;text-wrap:balance}
+.pagehead p{margin:0;color:var(--muted)}
+.backlink{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;color:var(--brand);font-weight:700;font-size:.95rem;margin-left:-4px;padding:4px}
+.backlink .ic{width:20px;height:20px}
+.backlink:focus-visible{outline:3px solid var(--amber);border-radius:8px}
+.sect{display:flex;flex-direction:column;gap:10px;margin-top:10px}
+.pagehead+.sect{margin-top:4px}
+.sect-h{font-family:var(--body);font-size:.8rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 2px}
+.sect-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+details.sect>summary{list-style:none;cursor:pointer}
+details.sect>summary::before{content:"▸ ";} details.sect[open]>summary::before{content:"▾ "}
+.tiles{display:flex;flex-direction:column;gap:12px}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:14px;padding:18px;border-radius:18px;background:var(--surface);box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(14,59,67,.05)}
+.tile:hover{box-shadow:0 0 0 2px var(--brand)}
+.tile:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.tile-ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;flex:none}
+.tile-ic .ic{width:26px;height:26px}
+.t-mail{background:#E8F0FE;color:#1A56C4}.t-msg{background:#E4F4E9;color:#1F7A3E}.t-call{background:#FFF2DC;color:#9A5B00}.t-dev{background:var(--brand-soft);color:var(--brand)}
+@media (prefers-color-scheme: dark){.t-mail{background:#1A2B48;color:#8AB4F8}.t-msg{background:#12321F;color:#6FD394}.t-call{background:#3A2A0E;color:#F5B95A}}
+.tile-tx{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.tile-tx b{font-family:var(--display);font-size:1.2rem;font-weight:700}
+.tile-tx span{color:var(--muted);font-size:.95rem}
+.chev{width:20px;height:20px;color:var(--muted)}
+.badge{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:4px 8px;background:var(--bg);color:var(--muted);box-shadow:0 0 0 1px var(--line);white-space:nowrap}
+.badge.ok{background:var(--safe-bg);color:var(--safe);box-shadow:none}
+.footnote{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:.88rem;margin:0 2px}
+.footnote .ic{width:18px;height:18px;margin-top:2px}
+.footnote.center{justify-content:center;text-align:center}
+.group{background:var(--surface);border-radius:18px;box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(14,59,67,.05);overflow:hidden}
+.grow{display:flex;align-items:center;gap:12px;padding:14px 16px;min-height:60px;width:100%;box-sizing:border-box}
+.grow+.grow{border-top:1px solid var(--line)}
+.grow.col{flex-direction:column;align-items:stretch}
+.grow .gl{display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;color:var(--ink);text-decoration:none}
+.grow .gl b{font-weight:700}
+.grow .gl span{color:var(--muted);font-size:.9rem}
+button.grow,.linkrow{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:14px 16px;width:100%;cursor:pointer;border-top:1px solid var(--line)}
+.group>button.grow:first-child{border-top:0}
+.linkrow.danger .gl b,.linkrow.danger .ic{color:var(--scam)}
+.pv{width:36px;height:36px;border-radius:10px;background:var(--pv);color:#fff;display:grid;place-items:center;font-weight:800;flex:none}
+select.inline{width:auto;max-width:55%;padding:8px 10px;font-size:.95rem;background:var(--bg)}
+.lookup{display:flex;gap:8px;align-items:stretch}
+.lookup input{flex:1;min-width:0}
+.lookup .btn{flex:none}
+.switch{position:relative;display:inline-block;width:52px;height:32px;flex:none;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:100%;height:100%;margin:0;cursor:pointer;z-index:1}
+.switch span[aria-hidden]{position:absolute;inset:0;background:var(--line);border-radius:999px;transition:background .2s}
+.switch span[aria-hidden]::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.switch input:checked+span{background:var(--brand)}
+.switch input:checked+span::after{transform:translateX(20px)}
+.switch input:focus-visible+span{outline:3px solid var(--amber);outline-offset:2px}
+.person .avatar{width:40px;height:40px}
+.pacts{display:flex;gap:6px;flex:none}
+.iconbtn{all:unset;box-sizing:border-box;cursor:pointer;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--bg);color:var(--ink);box-shadow:0 0 0 1px var(--line)}
+.iconbtn .ic{width:20px;height:20px}
+.iconbtn:focus-visible{outline:3px solid var(--amber)}
+.iconbtn.danger{color:var(--scam)}
+.iconbtn.confirm{width:auto;padding:0 10px;background:var(--scam);color:#fff;font-weight:700;font-size:.85rem;box-shadow:none}
+.emptybox{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:26px 18px;border-radius:18px;border:2px dashed var(--line);color:var(--muted)}
+.emptybox .ic{width:34px;height:34px}
+.emptybox b{color:var(--ink)}
+.addcard{box-shadow:0 0 0 2px var(--brand)}
+.btn{border-radius:14px}
+.btn.sm{display:inline-flex;gap:6px}
+.btn.sm .ic{width:18px;height:18px}
+.ghost{border-width:1.5px}
+.callhelper{background:var(--safe);color:#fff}
+.callhelper .ic{width:20px;height:20px}
+.intel{border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;box-shadow:inset 0 0 0 1px var(--line);background:var(--bg)}
+.intel-h{display:flex;align-items:center;gap:8px;font-size:.8rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.intel-h .ic{width:18px;height:18px}
+.intel-t{margin:0;font-weight:700;font-size:1.05rem}
+.intel ul{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
+.intel-foot{margin:2px 0 0;font-size:.82rem;color:var(--muted)}
+.lv-scam{background:var(--scam-bg);box-shadow:none}.lv-scam .intel-t,.lv-scam .intel-h{color:var(--scam)}
+.lv-warn{background:var(--warn-bg);box-shadow:none}.lv-warn .intel-t,.lv-warn .intel-h{color:var(--warn)}
+.lv-safe{background:var(--safe-bg);box-shadow:none}.lv-safe .intel-t,.lv-safe .intel-h{color:var(--safe)}
+.loading{flex-direction:row;align-items:center;gap:10px;color:var(--muted)}
+.result{gap:14px}
+#result:empty,#lookres:empty{display:none}
+#lookres{margin-top:2px}
+.help-card{border-width:0;box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(14,59,67,.05);border-radius:18px}
+.hc-icon .ic{width:28px;height:28px}
+.hc-pause .hc-icon{color:var(--warn)}.hc-sos .hc-icon{color:var(--scam)}
+.pause-hand .ic{width:30px;height:30px}
+.hero .big{font-size:1.6rem}
+
 </style>
 </head>
 <body>
@@ -264,7 +363,7 @@ code{font-size:.85em;background:var(--bg);border:1px solid var(--line);border-ra
       <polyline points="46,96 56,106 76,86" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     <h1>ScamSense</h1>
-    <label class="langpick"><span class="sr">Language</span><select id="langtop" aria-label="Language / Idioma"></select></label>
+    <label class="langpick"><span class="sr">Language</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg><select id="langtop" aria-label="Language / Idioma"></select></label>
     <span class="status" id="status">Not connected</span>
   </header>
 
@@ -418,6 +517,7 @@ function analyze(msg){
         add(5,FREE_MAIL.test(dom)?tr(`Says it's from ${cap(b)}, but it was sent from a personal ${dom} address.`,`Dice ser de ${cap(b)}, pero se envió desde una cuenta personal de ${dom}.`):tr(`Says it's from ${cap(b)}, but it was sent from "${dom}", which is not ${cap(b)}.`,`Dice ser de ${cap(b)}, pero se envió desde "${dom}", que no es ${cap(b)}.`),"sender");break;
       }
     }
+    if(typeof isDisposable==="function"&&isDisposable(dom)) add(6,tr(`Sent from a temporary (throwaway) email service, ${dom}. Anyone can make one in seconds. Real companies never use these.`,`Enviado desde un servicio de correo temporal, ${dom}. Cualquiera lo crea en segundos. Las empresas reales nunca lo usan.`),"sender");
     const lb=lookalikeBrand(dom); if(lb&&!FREE_MAIL.test(dom)) add(5,tr(`The sender's address "${dom}" looks like ${cap(lb)}, but it's a fake copy.`,`La dirección "${dom}" parece de ${cap(lb)}, pero es una copia falsa.`),"sender");
     if(/dmarc=fail/.test(auth)) add(4,tr("The email failed Gmail's sender check (DMARC). The sender's name may be faked.","El correo no pasó la verificación de remitente de Gmail (DMARC). El nombre puede ser falso."),"sender");
     else if(/spf=(fail|softfail)/.test(auth)&&/dkim=(fail|none)/.test(auth)) add(3,tr("The email failed Gmail's sender checks, so the sender may be faked.","El correo no pasó las verificaciones de Gmail; el remitente puede ser falso."),"sender");
@@ -557,7 +657,7 @@ async function scanGmail(){
   finally{scanning=false}
 }
 async function finishScan(items,source){
-  const c=cfg();
+  const c=cfg();await loadDisposable();
   items.forEach(it=>{it.local=analyze(it)});
   const wantsAI=c.apiKey&&c.aiMode!=="off";
   const aiList=wantsAI?items.filter(it=>c.aiMode==="all"||it.local.score>=2||it.local.reasons.length):[];
@@ -821,8 +921,8 @@ const ADVICE={
   warn:["Slow down. Don't click links or call numbers in the message yet.","Check it yourself: open the company's app or call the number on your card.","Ask a family member or helper to look at it."],
   safe:["No scam signs found.","Still, never share codes or passwords, even if a message looks normal."]
 };
-function toast(m){let box=document.getElementById("toasts");if(!box){box=document.createElement("div");box.id="toasts";document.body.appendChild(box)}const x=document.createElement("div");x.className="toast";x.setAttribute("role","status");x.textContent=m;box.appendChild(x);setTimeout(()=>x.remove(),4500)}
-function setStatus(){const el=document.getElementById("status");const on=S.get("connected",false);el.textContent=on?t("connected"):t("not_connected");el.classList.toggle("on",!!on)}
+function toast(m){let box=document.getElementById("toasts");if(!box){box=document.createElement("div");box.id="toasts";document.body.appendChild(box)}const x=document.createElement("div");x.className="toast";x.setAttribute("role","status");x.textContent=m;box.appendChild(x);while(box.children.length>2)box.firstChild.remove();setTimeout(()=>x.remove(),3500)}
+function setStatus(){const el=document.getElementById("status");const on=S.get("connected",false);el.textContent=on?t("connected"):"";el.hidden=!on;el.classList.toggle("on",!!on)}
 function fmtTime(ts){const d=new Date(ts);return d.toLocaleString(uiLang()==="es"?"es-US":[], {weekday:"short",hour:"numeric",minute:"2-digit"})}
 
 /* Read aloud with Pause / Resume / Stop. Text is read in short pieces so long reports don't cut off. */
@@ -956,51 +1056,6 @@ function bindItems(list){
   });
 }
 
-/* ----- Check tab: texts, calls, anything pasted ----- */
-let mode="text",sampleAI=null;
-function renderCheck(){
-  const ph={text:t("ph_text"),call:t("ph_call"),other:t("ph_other")}[mode];
-  view.innerHTML=`<section class="card"><h2>${t("check_title")}</h2>
-    <p class="muted small" style="margin:0">${t("check_sub")}</p>
-    <button class="help-card hc-phone" id="topreview"><span class="hc-icon" aria-hidden="true">📱</span><span><b>${tr("See how texts and calls will be caught","Vea cómo se atraparán textos y llamadas")}</b><span>${tr("A live preview of the coming iPhone app.","Una vista previa de la próxima app para iPhone.")}</span></span></button>
-    <div class="seg" role="group">
-      <button data-m="text" aria-pressed="${mode==="text"}">${t("m_text")}</button><button data-m="call" aria-pressed="${mode==="call"}">${t("m_call")}</button><button data-m="other" aria-pressed="${mode==="other"}">${t("m_other")}</button></div>
-    ${mode==="text"||mode==="call"?`<div class="field"><label for="num">${mode==="call"?t("num_call"):t("num_text")}</label><input id="num" inputmode="tel" autocomplete="off" placeholder="(918) 555-0142"></div>`:""}
-    <div class="field"><label for="msg">${mode==="call"?t("lbl_call"):t("lbl_msg")}</label><textarea id="msg" dir="auto" placeholder="${esc(ph)}"></textarea></div>
-    <div class="samples"><span class="small muted">${t("try_example")}</span>
-      <button class="chip" data-s="toll">${t("ex_toll")}</button><button class="chip" data-s="irs">${t("ex_irs")}</button><button class="chip" data-s="grand">${t("ex_grand")}</button></div>
-    <div class="row"><button class="btn primary" id="go">${t("check_it")}</button><button class="btn ghost" id="clr">${t("clear")}</button></div>
-    <p class="small muted" style="margin:0">${cfg().apiKey?t("note_ai"):t("note_noai")}</p>
-  </section><section id="result" aria-live="polite"></section>`;
-  let d=null;try{d=JSON.parse(sessionStorage.getItem("ss_draft")||"null")}catch(e){}if(d&&d.mode===mode){document.getElementById("msg").value=d.text||"";const nn=document.getElementById("num");if(nn)nn.value=d.num||""}
-  view.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{mode=b.dataset.m;sampleAI=null;renderCheck()});
-  const save=()=>{sampleAI=null;const nn=document.getElementById("num");try{sessionStorage.setItem("ss_draft",JSON.stringify({mode,text:document.getElementById("msg").value,num:nn?nn.value:""}))}catch(e){}};
-  view.querySelectorAll("textarea,input").forEach(x=>x.oninput=save);
-  view.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{const sm=SAMPLES[b.dataset.s];mode=sm.mode;renderCheck();document.getElementById("msg").value=sm.text;const nn=document.getElementById("num");if(nn)nn.value=sm.num;sampleAI=sm.ai;runCheck()});
-  document.getElementById("clr").onclick=()=>{try{sessionStorage.removeItem("ss_draft")}catch(e){}sampleAI=null;renderCheck()};
-  document.getElementById("go").onclick=runCheck;
-  document.getElementById("topreview").onclick=()=>go("preview");
-}
-async function runCheck(){
-  const text=document.getElementById("msg").value.trim();const nn=document.getElementById("num");const phone=nn?nn.value.trim():"";
-  if(!text){toast(t("paste_first"));return}
-  const out=document.getElementById("result");const btn=document.getElementById("go");
-  const it={id:"paste",channel:{text:"text message",call:"phone call",other:"message"}[mode],source:"paste",text,phone,links:[],attachments:[],subject:""};
-  const digits=phone.replace(/[^\d+]/g,"");
-  if(digits.startsWith("+")&&!digits.startsWith("+1")) it.text+="\n"+t("outside_us",{p:phone});
-  it.local=analyze(it);
-  if(mode==="call"&&/(irs|social security|medicare|police|sheriff|microsoft|apple|amazon|bank)/i.test(text)&&/(pay|card|code|install|account|warrant|arrest)/i.test(text)){it.local.score+=3;it.local.reasons.push(t("call_rule"));it.local.level=it.local.score>=8?"scam":it.local.score>=4?"warn":"safe"}
-  const c=cfg();
-  if(c.apiKey&&c.aiMode!=="off"){btn.disabled=true;btn.textContent=t("checking");try{it.ai=await aiCheck(it)}catch(e){it.aiError=e.message;toast(e.message)}btn.disabled=false;btn.textContent=t("check_it")}
-  else if(sampleAI){it.ai=JSON.parse(JSON.stringify(pickDemoAI(sampleAI)));it.ai.verdict=({safe:"safe",suspicious:"warn",scam:"scam"})[it.ai.verdict]||it.ai.verdict}
-  it.level=finalLevel(it);
-  const L=LV[it.level];const kind=(it.ai&&it.ai.scam_type)||it.local.kind;
-  out.innerHTML=`<div class="card"><div class="verdict v-${it.level}"><span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span><div><h3>${L.title}</h3>${it.level!=="safe"&&kind?`<p dir="auto">${t("looks_like",{k:esc(kind)})}</p>`:""}</div></div>${detailHTML(it)}</div>`;
-  out.querySelector("[data-speak]").onclick=()=>speakItem(it);
-  const hist=S.get("checks",[]);hist.push({at:Date.now(),channel:it.channel,level:it.level});S.set("checks",hist.slice(-200));
-  out.scrollIntoView({behavior:"smooth",block:"start"});
-}
-
 /* ----- iPhone preview: shows how the future iPhone app will catch texts and calls (simulation) ----- */
 let simTimers=[];
 function simClear(){simTimers.forEach(clearTimeout);simTimers=[]}
@@ -1016,26 +1071,24 @@ const SIM_CALLS={
   real:{num:"Sara (daughter)",reports:0,kind:"contact"}
 };
 function renderPreview(){
-  simClear();
-  view.innerHTML=`<button class="btn ghost backbtn" id="back">${t("back")}</button>
-  <section class="card"><div class="titlerow"><h2>📱 ${tr("How ScamSense will catch texts and calls","Cómo ScamSense atrapará textos y llamadas")}</h2><span class="tag">${tr("iPhone app preview","Vista previa de la app")}</span></div>
+  simClear();const isText=previewMode!=="call";
+  view.innerHTML=`${pageHead(isText?tr("How texts will be caught","Cómo se atraparán los textos"):tr("How calls will be caught","Cómo se atraparán las llamadas"),"",isText?"checkText":"checkCall")}
+  <section class="card"><div class="titlerow"><span class="tag">${tr("iPhone app preview","Vista previa de la app")}</span></div>
     <p class="muted small" style="margin:0">${tr("This is a simulation of the coming iPhone app. Tap a button and watch what happens on the phone and inside ScamSense.","Esta es una simulación de la próxima app para iPhone. Toque un botón y vea qué pasa en el teléfono y dentro de ScamSense.")}</p>
-    <div class="simbtns"><span class="small muted">${tr("Texts","Textos")}</span>
-      <button class="chip" data-st="toll">💬 ${tr("Scam text: toll","Texto falso: peaje")}</button><button class="chip" data-st="bank">💬 ${tr("Scam text: bank","Texto falso: banco")}</button><button class="chip" data-st="safe">💬 ${tr("Real text: doctor","Texto real: doctor")}</button>
-      <span class="small muted">${tr("Calls","Llamadas")}</span>
-      <button class="chip" data-sc="scam">📞 ${tr("Scam call","Llamada falsa")}</button><button class="chip" data-sc="blocked">🚫 ${tr("Known scam number","Número de estafa conocido")}</button><button class="chip" data-sc="real">📞 ${tr("Call from family","Llamada de familia")}</button></div></section>
+    <div class="simbtns">${isText?`<button class="chip" data-st="toll">${tr("Scam text: toll","Texto falso: peaje")}</button><button class="chip" data-st="bank">${tr("Scam text: bank","Texto falso: banco")}</button><button class="chip" data-st="safe">${tr("Real text: doctor","Texto real: doctor")}</button>`
+      :`<button class="chip" data-sc="scam">${tr("Scam call","Llamada falsa")}</button><button class="chip" data-sc="blocked">${tr("Known scam number","Número de estafa conocido")}</button><button class="chip" data-sc="real">${tr("Call from family","Llamada de familia")}</button>`}</div></section>
   <div class="simgrid">
     <div class="phone" aria-live="polite"><div class="notch"></div><div class="screen" id="screen"></div></div>
     <section class="card"><h2>${tr("What ScamSense does","Qué hace ScamSense")}</h2><ol class="steps2" id="simsteps"><li class="muted">${tr("Tap a button above to start.","Toque un botón arriba para empezar.")}</li></ol></section>
   </div>
   <section class="card"><h2>${tr("How it works on a real iPhone","Cómo funciona en un iPhone real")}</h2>
     <ul class="steps">
-      <li><b>${tr("Texts:","Textos:")}</b> ${tr("Apple lets one app act as a message filter. When a text comes from a number that isn't in your contacts, iPhone asks ScamSense. ScamSense checks it on the phone, and if it isn't sure, asks the AI through the ScamSense server. Scams go to the Junk folder in Messages.","Apple permite que una app filtre mensajes. Cuando llega un texto de un número que no está en sus contactos, el iPhone le pregunta a ScamSense. ScamSense lo revisa en el teléfono y, si no está seguro, le pregunta a la IA por el servidor de ScamSense. Las estafas van a la carpeta de basura de Mensajes.")}</li>
-      <li><b>${tr("Calls:","Llamadas:")}</b> ${tr("ScamSense gives iPhone a list of reported scam numbers. iPhone shows \"Scam Likely – ScamSense\" when one calls, or blocks it. The list updates every day.","ScamSense le da al iPhone una lista de números de estafa reportados. El iPhone muestra \"Posible estafa – ScamSense\" cuando llaman, o los bloquea. La lista se actualiza cada día.")}</li>
+      ${isText?`<li><b>${tr("Texts:","Textos:")}</b> ${tr("Apple lets one app act as a message filter. When a text comes from a number that isn't in your contacts, iPhone asks ScamSense. ScamSense checks it on the phone, and if it isn't sure, asks the AI through the ScamSense server. Scams go to the Junk folder in Messages.","Apple permite que una app filtre mensajes. Cuando llega un texto de un número que no está en sus contactos, el iPhone le pregunta a ScamSense. ScamSense lo revisa en el teléfono y, si no está seguro, le pregunta a la IA por el servidor de ScamSense. Las estafas van a la carpeta de basura de Mensajes.")}</li>`:""}
+      ${!isText?`<li><b>${tr("Calls:","Llamadas:")}</b> ${tr("ScamSense gives iPhone a list of reported scam numbers. iPhone shows \"Scam Likely – ScamSense\" when one calls, or blocks it. The list updates every day.","ScamSense le da al iPhone una lista de números de estafa reportados. El iPhone muestra \"Posible estafa – ScamSense\" cuando llaman, o los bloquea. La lista se actualiza cada día.")}</li>`:""}
       <li><b>${tr("Turn it on once:","Actívelo una vez:")}</b> ${tr("Settings → Apps → Messages → Unknown & Spam → ScamSense, and Settings → Apps → Phone → Call Blocking & Identification → ScamSense.","Configuración → Apps → Mensajes → Desconocidos y spam → ScamSense, y Configuración → Apps → Teléfono → Bloqueo e identificación → ScamSense.")}</li>
       <li><b>${tr("Apple's limits:","Límites de Apple:")}</b> ${tr("no app can read texts from your contacts or iMessages, listen to calls, or read call history. For those, use the Check tab.","ninguna app puede leer textos de sus contactos ni iMessages, escuchar llamadas ni leer el historial. Para eso use la pestaña Revisar.")}</li>
     </ul></section>`;
-  document.getElementById("back").onclick=()=>go("check");
+  bindBack();
   view.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>simText(b.dataset.st));
   view.querySelectorAll("[data-sc]").forEach(b=>b.onclick=()=>simCall(b.dataset.sc));
   homeScreen();
@@ -1078,7 +1131,7 @@ function simCall(k){
     tr("iPhone shows a label or blocks the call.","El iPhone muestra una etiqueta o bloquea la llamada."),
     tr("ScamSense adds it to your Daily Safety Report.","ScamSense lo agrega a su Reporte diario.")]);
   simAt(300,()=>stepOn(0,`<span class="mono">${esc(c.num)}</span>`));
-  simAt(1100,()=>stepOn(1,c.kind==="contact"?tr("In your contacts. Not checked.","En sus contactos. No se revisa."):tr(`Found: reported ${c.reports} times as a scam.`,`Encontrado: reportado ${c.reports} veces como estafa.`)));
+  simAt(1100,()=>stepOn(1,c.kind==="contact"?tr("In your contacts. Not checked.","En sus contactos. No se revisa."):tr(`Found: reported ${c.reports} times as a scam. Line type: internet number from a free calling app (auto-generated, not tied to a real person).`,`Encontrado: reportado ${c.reports} veces como estafa. Tipo de línea: número de internet de una app gratuita (generado automáticamente, no pertenece a una persona real).`)));
   simAt(1900,()=>{
     if(c.kind==="block"){stepOn(2,`<b class="red">${tr("Blocked. Your phone didn't ring.","Bloqueada. Su teléfono no sonó.")}</b>`);
       document.getElementById("notifs").innerHTML=`<div class="notif in"><b>🚫 ScamSense</b><span>${tr(`Blocked a call from ${c.num} (known scam number).`,`Bloqueó una llamada de ${c.num} (número de estafa conocido).`)}</span></div>`;return}
@@ -1094,26 +1147,26 @@ function simCall(k){
 /* ----- Help: Pause before you pay + I was scammed ----- */
 function helpCardsHTML(){
   return `<div class="help-cards">
-    <button class="help-card hc-pause" data-h="pause"><span class="hc-icon" aria-hidden="true">✋</span><span><b>${t("pause_card")}</b><span>${t("pause_card_sub")}</span></span></button>
-    <button class="help-card hc-sos" data-h="scammed"><span class="hc-icon" aria-hidden="true">🆘</span><span><b>${t("scammed_card")}</b><span>${t("scammed_card_sub")}</span></span></button></div>`;
+    <button class="help-card hc-pause" data-h="pause"><span class="hc-icon" aria-hidden="true">${ic("hand")}</span><span><b>${t("pause_card")}</b><span>${t("pause_card_sub")}</span></span></button>
+    <button class="help-card hc-sos" data-h="scammed"><span class="hc-icon" aria-hidden="true">${ic("sos")}</span><span><b>${t("scammed_card")}</b><span>${t("scammed_card_sub")}</span></span></button></div>`;
 }
 function bindHelpCards(){view.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>go(b.dataset.h==="pause"?"pause":"scammed"))}
 function renderHelp(){
-  view.innerHTML=`<section class="card"><h2>${t("help_title")}</h2><p class="muted small" style="margin:0">${t("help_sub")}</p></section>${helpCardsHTML()}`;
+  view.innerHTML=`${pageHead(t("help_title"),t("help_sub"))}${helpCardsHTML()}`;
   bindHelpCards();
 }
 const opt=(v,key,sel)=>`<option value="${v}" ${sel===v?"selected":""}>${t(key)}</option>`;
 let pauseState={who:"",how:"",amt:"",note:""};
 function renderPause(){
   const p=pauseState;
-  view.innerHTML=`<button class="btn ghost backbtn" id="back">${t("back")}</button>
-  <section class="card"><h2>✋ ${t("p_title")}</h2><p class="muted small" style="margin:0">${t("p_sub")}</p>
+  view.innerHTML=`${pageHead(t("p_title"),t("p_sub"),"help")}
+  <section class="card">
     <div class="field"><label for="pw">${t("p_who")}</label><select id="pw"><option value=""></option>${["gov","tech","family","online","prize","company","seller","other"].map(k=>opt(k,"who_"+k,p.who)).join("")}</select></div>
     <div class="field"><label for="ph">${t("p_how")}</label><select id="ph"><option value=""></option>${["gift","crypto","wire","p2p","cash","card","check","other"].map(k=>opt(k,"how_"+k,p.how)).join("")}</select></div>
     <div class="field"><label for="pa">${t("p_amt")}</label><input id="pa" inputmode="decimal" placeholder="$500" value="${esc(p.amt)}"></div>
     <div class="field"><label for="pn">${t("p_note")}</label><textarea id="pn" dir="auto" placeholder="${esc(t("p_note_ph"))}">${esc(p.note)}</textarea></div>
     <button class="btn primary" id="pgo">${t("p_go")}</button></section><section id="presult" aria-live="polite"></section>`;
-  document.getElementById("back").onclick=()=>go("help");
+  bindBack();
   document.getElementById("pgo").onclick=runPause;
 }
 function assessPayment(p){
@@ -1141,10 +1194,11 @@ async function runPause(){
   const head={scam:["p_stop","p_stop_sub"],warn:["p_wait","p_wait_sub"],safe:["p_ok","p_ok_sub"]}[level];
   const reasons=ai&&ai.red_flags?[...ai.red_flags,...r.reasons]:r.reasons;
   out.innerHTML=`<div class="card pause-card pc-${level}">
-    <div class="pause-head"><span class="pause-hand" aria-hidden="true">${level==="safe"?"✓":"✋"}</span><div><h3>${t(head[0])}</h3><p>${t(head[1])}</p></div></div>
+    <div class="pause-head"><span class="pause-hand" aria-hidden="true">${level==="safe"?ic("check"):ic("hand")}</span><div><h3>${t(head[0])}</h3><p>${t(head[1])}</p></div></div>
     ${ai&&ai.explanation?`<div class="ai-box"><p class="label">${t("ai_expl")}</p><p dir="auto">${esc(ai.explanation)}</p></div>`:""}
     ${reasons.length?`<div><p class="label">${t("p_why")}</p><ul dir="auto">${[...new Set(reasons)].slice(0,6).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`:""}
     <div><p class="label">${t("p_before")}</p><ol><li>${t("p_b1")}</li><li>${t("p_b2")}</li><li>${t("p_b3")}</li><li>${t("p_b4")}</li></ol></div>
+    ${(()=>{const h=S.get("helpers",[]).find(x=>x.phone);return h&&famPrefs().callBeforePay&&level!=="safe"?`<a class="btn callhelper" href="tel:${esc(h.phone.replace(/[^\d+]/g,""))}">${ic("phone")}<span>${tr(`Call ${h.name} before you pay`,`Llame a ${h.name} antes de pagar`)}</span></a>`:""})()}
     <div class="row"><button class="btn primary" id="pwont">${t("p_wont")}</button><button class="btn ghost" id="ppaid">${t("p_paid")}</button></div>
     <button class="btn ghost" id="pstill" disabled>${t("p_still",{n:10})}</button>
     <p id="pmsg" class="small" style="margin:0" hidden></p>
@@ -1221,8 +1275,8 @@ function contactHTML(k){const c=CONTACTS[k];return `<div class="contact"><div><b
 function renderScammed(){
   const s=scamState;const today=new Date().toISOString().slice(0,10);
   const chk=(k)=>`<label class="checkrow"><input type="checkbox" value="${k}" ${s.what.includes(k)?"checked":""}> ${t("w_"+k)}</label>`;
-  view.innerHTML=`<button class="btn ghost backbtn" id="back">${t("back")}</button>
-  <section class="card"><h2>🆘 ${t("s_title")}</h2><p class="muted small" style="margin:0">${t("s_sub")}</p>
+  view.innerHTML=`${pageHead(t("s_title"),t("s_sub"),"help")}
+  <section class="card">
     <div class="example-box"><div><b>${tr("See how it works","Vea cómo funciona")}</b><span class="small">${tr("Fill in a made-up case: a fake \"Chase Fraud Department\" call, with sample screenshots.","Llene un caso inventado: una llamada falsa del \"Departamento de Fraude de Chase\", con capturas de ejemplo.")}</span></div>
       <button class="btn ghost sm" id="sexample">${tr("Try an example","Probar un ejemplo")}</button></div>
     ${scamExample?`<p class="small examplenote">${tr("This is an example case. Change anything, or tap Clear to start your own.","Este es un caso de ejemplo. Cambie lo que quiera, o toque Borrar para empezar el suyo.")} <button class="linkbtn" id="sclear">${tr("Clear","Borrar")}</button></p>`:""}
@@ -1244,7 +1298,7 @@ function renderScammed(){
       <span class="small muted">${tr("Add texts, call logs, emails, receipts, or gift cards. They stay on this device and go into your PDF report.","Agregue textos, llamadas, correos, recibos o tarjetas. Se quedan en este dispositivo y van en su reporte PDF.")}</span>
       <div class="thumbs" id="thumbs"></div></div>
     <button class="btn primary" id="sgo">${tr("Make my plan and documents","Crear mi plan y documentos")}</button></section><section id="splan" aria-live="polite"></section>`;
-  document.getElementById("back").onclick=()=>go("help");
+  bindBack();
   document.getElementById("sgo").onclick=()=>buildPlan(true);
   document.getElementById("sexample").onclick=loadExample;
   const sclr=document.getElementById("sclear");if(sclr)sclr.onclick=()=>{scamExample=false;evidence=[];scamState={how:"",what:[],method:"",amt:"",date:"",pretend:"",org:"",bank:"",bankName:"",last4:"",contact:"",story:""};renderScammed()};
@@ -1602,82 +1656,296 @@ function buildPlan(makePdf){
   if(makePdf) showReportModal(P);
 }
 
-/* ----- Family helper (preview with sample data) ----- */
-function renderFamily(){
-  const rep=S.get("report",null);const n=rep?rep.items.length:31;const sc=rep?rep.items.filter(i=>i.level==="scam").length:3;
-  const alert=(ic,cls,time,txt)=>`<div class="alert ${cls}"><span class="dot ${cls==="a-scam"?"d-scam":cls==="a-pause"?"d-warn":"d-safe"}" aria-hidden="true">${ic}</span><div><span class="small muted">${time}</span><p>${esc(txt)}</p>
-    ${cls!=="a-week"?`<div class="row"><button class="btn ghost sm" disabled>📞 ${t("fam_call")}</button><button class="btn ghost sm" disabled>${t("fam_talked")}</button></div>`:""}</div></div>`;
-  view.innerHTML=`<section class="card"><div class="titlerow"><h2>👪 ${t("fam_title")}</h2><span class="tag">${t("fam_preview")}</span></div>
-    <p class="muted small" style="margin:0">${t("fam_sub")}</p></section>
-  <section class="card"><h2>${t("fam_helpers")}</h2>
-    <div class="helper"><span class="avatar" aria-hidden="true">S</span><div><b>Sara</b><span class="small muted">${tr("Daughter · sara@example.com","Hija · sara@example.com")}</span></div></div>
-    <div class="helper"><span class="avatar" aria-hidden="true">D</span><div><b>David</b><span class="small muted">${tr("Son · (918) 555-0123","Hijo · (918) 555-0123")}</span></div></div>
-    <details><summary>${t("fam_add")}</summary>
-      <div class="field"><label for="fn">${t("fam_name")}</label><input id="fn" disabled></div>
-      <div class="field"><label for="fc">${t("fam_contact")}</label><input id="fc" disabled></div>
-      <p class="small muted" style="margin:0">${t("fam_soon")}</p></details>
-    <p class="label" style="margin-top:6px">${t("fam_share")}</p>
-    ${["fam_s1","fam_s2","fam_s3","fam_s4"].map((k,i)=>`<label class="checkrow"><input type="checkbox" ${i<3?"checked":""} disabled> ${t(k)}</label>`).join("")}
-  </section>
-  <section class="card"><div class="titlerow"><h2>${t("fam_sees")}</h2><span class="tag">${t("fam_sample")}</span></div>
-    <div class="phone-preview">
-      ${alert("!","a-scam",t("fam_t1"),t("fam_a1"))}
-      ${alert("✋","a-pause",t("fam_t2"),t("fam_a2"))}
-      ${alert("✓","a-week",t("fam_t3"),t("fam_a3",{n,s:sc}))}
-    </div></section>`;
+/* ================= Icons (one consistent line set) ================= */
+const ICONS={
+  mail:'<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3.5 7l8.5 6 8.5-6"/>',
+  msg:'<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/>',
+  phone:'<path d="M5 4h3.5l1.7 4.3-2.2 1.4a11 11 0 0 0 6.3 6.3l1.4-2.2L20 15.5V19a1.5 1.5 0 0 1-1.6 1.5C10.5 20 4 13.5 3.5 5.6A1.5 1.5 0 0 1 5 4z"/>',
+  chev:'<path d="M9 5l7 7-7 7"/>',back:'<path d="M15 5l-7 7 7 7"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',trash:'<path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13"/>',
+  share:'<path d="M12 3v12M7.5 7.5L12 3l4.5 4.5"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/>',
+  check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',alert:'<path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5v.5"/>',
+  info:'<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',lock:'<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/>',
+  hand:'<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v7c0 4.5-2.5 8-6.5 8-3 0-4.6-1.6-6-4.2L3 13.6a1.5 1.5 0 0 1 2.6-1.4L8 15"/>',
+  sos:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.5"/><path d="M5.6 5.6l3.9 3.9M14.5 14.5l3.9 3.9M18.4 5.6l-3.9 3.9M9.5 14.5l-3.9 3.9"/>',
+  device:'<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/>',spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
+  globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>',
+  scan:'<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16"/>',
+  download:'<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/>',bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2.5 2.5"/>'
+};
+const ic=(n,cls)=>`<svg class="ic ${cls||""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||""}</svg>`;
+const backBtn=(to)=>`<button class="backlink" data-back="${to}">${ic("back")}<span>${t("back").replace(/^←\s*/,"")}</span></button>`;
+const pageHead=(title,sub,back)=>`<div class="pagehead">${back?backBtn(back):""}<h1>${title}</h1>${sub?`<p>${sub}</p>`:""}</div>`;
+function bindBack(){view.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>go(b.dataset.back))}
+const switchHTML=(id,on,label)=>`<label class="switch"><input type="checkbox" role="switch" id="${id}" ${on?"checked":""}><span aria-hidden="true"></span><span class="sr">${label||""}</span></label>`;
+
+/* ================= Who is really behind an email address or phone number ================= */
+let DISPOSABLE=null,DISPOSABLE_WILD=null,disposableLoading=null;
+function loadDisposable(){
+  if(DISPOSABLE)return Promise.resolve();
+  if(!disposableLoading) disposableLoading=Promise.all([fetch("vendor/disposable-domains.txt").then(r=>r.text()),fetch("vendor/disposable-wildcard.txt").then(r=>r.text())])
+    .then(([a,b])=>{DISPOSABLE=new Set(a.split("\n").map(x=>x.trim()).filter(Boolean));DISPOSABLE_WILD=b.split("\n").map(x=>x.trim()).filter(Boolean)})
+    .catch(()=>{DISPOSABLE=new Set();DISPOSABLE_WILD=[]});
+  return disposableLoading;
+}
+function isDisposable(dom){if(!DISPOSABLE||!dom)return false;dom=dom.toLowerCase();if(DISPOSABLE.has(dom))return true;
+  const parts=dom.split(".");for(let i=1;i<parts.length-1;i++){if(DISPOSABLE.has(parts.slice(i).join(".")))return true}
+  return DISPOSABLE_WILD.some(w=>dom===w||dom.endsWith("."+w))}
+async function emailInfo(raw){
+  const addr=String(raw||"").trim().toLowerCase().replace(/^.*</,"").replace(/>.*$/,"");
+  if(!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(addr)) return {level:"warn",title:tr("This isn't a complete email address.","Esta no es una dirección de correo completa."),lines:[]};
+  const dom=addr.split("@")[1];await loadDisposable();
+  if(isDisposable(dom)) return {level:"scam",title:tr("Temporary (throwaway) email address","Correo temporal (desechable)"),
+    lines:[tr(`${dom} is a temporary email service. Anyone can make an address there in seconds, with no name and no account.`,`${dom} es un servicio de correo temporal. Cualquiera crea una dirección ahí en segundos, sin nombre ni cuenta.`),
+      tr("Real companies, banks, and government agencies never use these. Treat it as fake.","Las empresas, bancos y agencias reales nunca los usan. Trátelo como falso.")]};
+  const lb=lookalikeBrand(dom);
+  if(lb) return {level:"scam",title:tr(`Fake ${cap(lb)} address`,`Dirección falsa de ${cap(lb)}`),lines:[tr(`"${dom}" is made to look like ${cap(lb)}, but it isn't ${cap(lb)}'s real address.`,`"${dom}" imita a ${cap(lb)}, pero no es su dirección real.`)]};
+  const brand=Object.keys(BRANDS).find(b=>legitFor(b,dom));
+  if(brand) return {level:"safe",title:tr(`Real ${cap(brand)} address`,`Dirección real de ${cap(brand)}`),lines:[tr(`${dom} belongs to ${cap(brand)}. The name on an email can still be faked, so check the message too.`,`${dom} pertenece a ${cap(brand)}. El nombre se puede falsificar, así que revise también el mensaje.`)]};
+  if(FREE_MAIL.test(dom)) return {level:"info",title:tr("Personal email account","Cuenta de correo personal"),lines:[tr(`${dom} is a free personal email service. That's normal for people you know, but companies, banks, and agencies don't send from these.`,`${dom} es un servicio gratuito de correo personal. Es normal en personas que conoce, pero empresas, bancos y agencias no escriben desde ahí.`)]};
+  return {level:"info",title:tr("Company or private address","Dirección de empresa o privada"),lines:[tr(`ScamSense can't confirm who owns ${dom} yet. If it says it's a company you know, check that company's real website address.`,`ScamSense aún no puede confirmar quién es dueño de ${dom}. Si dice ser una empresa conocida, compare con su sitio web real.`)]};
+}
+const CARIBBEAN={"242":"the Bahamas","246":"Barbados","264":"Anguilla","268":"Antigua and Barbuda","284":"the British Virgin Islands","345":"the Cayman Islands","441":"Bermuda","473":"Grenada","649":"Turks and Caicos","658":"Jamaica","876":"Jamaica","664":"Montserrat","721":"Sint Maarten","758":"Saint Lucia","767":"Dominica","784":"Saint Vincent","809":"the Dominican Republic","829":"the Dominican Republic","849":"the Dominican Republic","868":"Trinidad and Tobago","869":"Saint Kitts and Nevis"};
+const COUNTRIES={"44":"the United Kingdom","91":"India","234":"Nigeria","233":"Ghana","232":"Sierra Leone","63":"the Philippines","52":"Mexico","92":"Pakistan","880":"Bangladesh","7":"Russia","86":"China","62":"Indonesia","225":"Côte d'Ivoire","216":"Tunisia","254":"Kenya","27":"South Africa","93":"Afghanistan","98":"Iran","20":"Egypt","90":"Turkey","971":"the United Arab Emirates","966":"Saudi Arabia","84":"Vietnam","82":"South Korea","81":"Japan","49":"Germany","33":"France","34":"Spain","39":"Italy","55":"Brazil","57":"Colombia","58":"Venezuela","51":"Peru","53":"Cuba","509":"Haiti","370":"Lithuania","371":"Latvia","373":"Moldova","381":"Serbia","40":"Romania","48":"Poland","380":"Ukraine"};
+/* Sample community reports for this prototype (fictional 555 numbers). Real reports come from the ScamSense server later. */
+const REPORTED={"8005550144":132,"2025550161":418,"4695550137":57,"4695550182":88,"2135550199":64,"8885550199":41};
+function numberInfo(raw){
+  const s=String(raw||"").trim();if(!s)return null;
+  let d=s.replace(/[^\d+]/g,"");
+  if(d.startsWith("+")&&!d.startsWith("+1")){const n=d.slice(1);const code=["3","2","1"].map(l=>n.slice(0,+l)).find(c=>COUNTRIES[c]);
+    return {level:"warn",title:tr(`International number${code?` from ${COUNTRIES[code]}`:""}`,`Número internacional${code?` de ${COUNTRIES[code]}`:""}`),
+      lines:[tr("If you don't know anyone there, don't call back, don't press any buttons, and don't send money.","Si no conoce a nadie ahí, no devuelva la llamada, no marque nada y no envíe dinero.")]};}
+  d=d.replace(/^\+?1/,"").replace(/\D/g,"");
+  if(d.length===11&&d[0]==="1")d=d.slice(1);
+  if(d.length!==10) return {level:"warn",title:tr("Not a complete US phone number","No es un número de EE. UU. completo"),lines:[tr("US numbers have 10 digits. Short or odd numbers can be texts from companies, or faked caller ID.","Los números de EE. UU. tienen 10 dígitos. Los cortos o raros pueden ser de empresas o identificadores falsos.")]};
+  const a=d.slice(0,3),e=d.slice(3,6),l=d.slice(6),pretty=`(${a}) ${e}-${l}`;const out={number:pretty,lines:[]};
+  const rep=REPORTED[d];
+  if(/^[01]/.test(a)||/^[01]/.test(e)) return {number:pretty,level:"scam",title:tr("Fake number format","Formato de número falso"),lines:[tr(`${pretty} can't exist. The caller ID was faked (spoofed).`,`${pretty} no puede existir. El identificador fue falsificado.`)]};
+  if(rep){out.level="scam";out.title=tr(`Reported ${rep} times as a scam`,`Reportado ${rep} veces como estafa`);out.lines.push(tr("People reported this number for scam calls or texts. Don't answer, call back, or reply.","La gente reportó este número por llamadas o textos de estafa. No conteste, no devuelva la llamada ni responda."));out.sample=true}
+  if(CARIBBEAN[a]){out.level="scam";out.title=out.title||tr(`International call to ${CARIBBEAN[a]}`,`Llamada internacional a ${CARIBBEAN[a]}`);
+    out.lines.push(tr(`Area code ${a} looks like a US number, but it's ${CARIBBEAN[a]}. Calling back can cost a lot of money. This is common in "one-ring" scams.`,`El código ${a} parece de EE. UU., pero es ${CARIBBEAN[a]}. Devolver la llamada puede costar mucho dinero. Es común en estafas de "un timbre".`))}
+  if(e==="555"&&+l>=100&&+l<=199&&!rep){out.level=out.level||"info";out.title=out.title||tr("Example number","Número de ejemplo");out.lines.push(tr("555-01xx numbers are reserved for movies and examples. A real call from one means caller ID was faked.","Los números 555-01xx son para películas y ejemplos. Una llamada real desde uno significa identificador falso."))}
+  if(/^8(00|33|44|55|66|77|88)$/.test(a)){out.level=out.level||"info";out.title=out.title||tr("Toll-free number","Número gratuito");out.lines.push(tr("Real companies use toll-free numbers, but scammers rent them cheaply too. Make sure it matches the number on your card, bill, or the official website.","Las empresas reales los usan, pero los estafadores también los rentan barato. Compare con el número de su tarjeta, factura o sitio oficial."))}
+  if(!out.title){out.level="info";out.title=tr(`US number, area code ${a}`,`Número de EE. UU., código ${a}`);out.lines.push(tr("No scam reports found for this number. Caller ID can still be faked, so judge what they ask you to do.","No hay reportes de estafa. El identificador se puede falsificar, así que fíjese en lo que le piden."))}
+  return out;
+}
+function intelHTML(info,kind){
+  if(!info)return "";
+  const icon={scam:"alert",warn:"alert",safe:"check",info:"info"}[info.level]||"info";
+  const label=kind==="email"?tr("About the sender","Sobre el remitente"):tr("About this number","Sobre este número");
+  return `<div class="intel lv-${info.level}"><div class="intel-h">${ic(icon)}<span>${label}${info.number?` · <span class="mono">${esc(info.number)}</span>`:""}</span></div>
+    <p class="intel-t">${esc(info.title)}</p>${info.lines.length?`<ul>${info.lines.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    ${kind==="phone"?`<p class="intel-foot">${info.sample?tr("Reports shown are sample data in this prototype. ","Los reportes son datos de ejemplo en este prototipo. "):""}${tr("Coming with the ScamSense server: checking if a number is an internet or free-app number (often used for fake numbers).","Próximamente con el servidor: saber si un número es de internet o de una app gratuita (muy usados para números falsos).")}</p>`:""}</div>`;
 }
 
-/* ----- Settings ----- */
+/* ================= Check hub: Email · Texts · Calls ================= */
+function renderCheck(){
+  const conn=S.get("connected",false);
+  view.innerHTML=`${pageHead(tr("Check something","Revisar algo"),tr("Choose what you want to check. ScamSense tells you if it's safe, and why.","Elija qué quiere revisar. ScamSense le dice si es seguro y por qué."))}
+  <div class="tiles">
+    <button class="tile" data-go="checkEmail"><span class="tile-ic t-mail">${ic("mail")}</span><span class="tile-tx"><b>${tr("Email","Correo")}</b><span>${tr("Gmail, Outlook, Yahoo, and more","Gmail, Outlook, Yahoo y más")}</span></span>${conn?`<span class="badge ok">${tr("Gmail on","Gmail activo")}</span>`:""}${ic("chev","chev")}</button>
+    <button class="tile" data-go="checkText"><span class="tile-ic t-msg">${ic("msg")}</span><span class="tile-tx"><b>${tr("Text messages","Mensajes de texto")}</b><span>${tr("Check a text and who sent it","Revise un texto y quién lo envió")}</span></span>${ic("chev","chev")}</button>
+    <button class="tile" data-go="checkCall"><span class="tile-ic t-call">${ic("phone")}</span><span class="tile-tx"><b>${tr("Phone calls","Llamadas")}</b><span>${tr("Look up a number or describe a call","Busque un número o describa una llamada")}</span></span>${ic("chev","chev")}</button>
+  </div>
+  <p class="footnote">${ic("lock")}${tr("Checks run on this device. Nothing you type is saved.","Las revisiones se hacen en este dispositivo. No se guarda lo que escribe.")}</p>`;
+  view.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+const PROVIDERS=[["gmail","Gmail","#D93025"],["outlook","Outlook / Hotmail","#0F6CBD"],["yahoo","Yahoo Mail","#6001D2"],["icloud","iCloud Mail","#1E88E5"],["aol","AOL Mail","#31459B"],["other",tr("Work, school, or other","Trabajo, escuela u otro"),"#4F6B70"]];
+const EMAIL_SAMPLES={
+  paypal:{from:"service@paypa1-security.com",subject:"Your account has been limited",text:"We noticed unusual sign-in activity on your PayPal account. Your account will be locked within 24 hours unless you verify your billing information."},
+  temp:{from:"claims.dept@mailinator.com",subject:"You've won a $500 Walmart gift card",text:"Congratulations! Claim your reward today. Reply with your name, address, and phone number to receive your prize."}
+};
+function renderCheckEmail(){
+  const conn=S.get("connected",false);
+  view.innerHTML=`${pageHead(tr("Email","Correo"),tr("Connect your inbox for a daily report, or check one email.","Conecte su correo para un reporte diario, o revise un correo.") ,"check")}
+  <section class="sect"><h2 class="sect-h">${tr("Your email accounts","Sus cuentas de correo")}</h2>
+    <div class="group">${PROVIDERS.map(([k,n,c])=>`<div class="grow"><span class="pv" style="--pv:${c}">${esc(n[0])}</span><span class="gl"><b>${esc(n)}</b><span>${k==="gmail"?(conn?tr("Connected · checks every folder","Conectado · revisa todas las carpetas"):tr("Read-only. Never sends or deletes.","Solo lectura. Nunca envía ni borra.")):tr("Coming soon","Próximamente")}</span></span>
+      ${k==="gmail"?(conn?`<button class="btn sm primary" id="gscan">${tr("Scan now","Revisar")}</button>`:`<button class="btn sm primary" id="gconn">${tr("Connect","Conectar")}</button>`):`<span class="badge">${tr("Soon","Pronto")}</span>`}</div>`).join("")}</div>
+    <p class="footnote">${tr("Outlook, Yahoo, iCloud, and AOL need their own sign-in setup and are next. Until then, paste those emails below.","Outlook, Yahoo, iCloud y AOL necesitan su propia conexión y vienen después. Mientras, pegue esos correos abajo.")}</p></section>
+  <section class="sect"><h2 class="sect-h">${tr("Check one email","Revisar un correo")}</h2>
+    <div class="card">
+      <div class="field"><label for="ef">${tr("Sender's email address","Dirección del remitente")}</label><input id="ef" type="email" autocomplete="off" spellcheck="false" placeholder="name@example.com"></div>
+      <div class="field"><label for="es">${tr("Subject (optional)","Asunto (opcional)")}</label><input id="es" autocomplete="off"></div>
+      <div class="field"><label for="eb">${tr("Message","Mensaje")}</label><textarea id="eb" dir="auto" placeholder="${esc(tr("Paste the email here…","Pegue el correo aquí…"))}"></textarea></div>
+      <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" data-es="paypal">${tr("Fake PayPal","PayPal falso")}</button><button class="chip" data-es="temp">${tr("Throwaway address","Dirección desechable")}</button></div>
+      <button class="btn primary" id="ego">${tr("Check this email","Revisar este correo")}</button></div>
+    <div id="result" aria-live="polite"></div></section>`;
+  bindBack();
+  const gc=document.getElementById("gconn");if(gc)gc.onclick=async()=>{try{await getToken(true);toast(t("gmail_ok"));go("today");scanGmail()}catch(e){toast(e.message)}};
+  const gs=document.getElementById("gscan");if(gs)gs.onclick=()=>{go("today");scanGmail()};
+  view.querySelectorAll("[data-es]").forEach(b=>b.onclick=()=>{const x=EMAIL_SAMPLES[b.dataset.es];document.getElementById("ef").value=x.from;document.getElementById("es").value=x.subject;document.getElementById("eb").value=x.text;runEmailCheck()});
+  document.getElementById("ego").onclick=runEmailCheck;
+}
+async function runEmailCheck(){
+  const from=document.getElementById("ef").value.trim(),subject=document.getElementById("es").value.trim(),text=document.getElementById("eb").value.trim();
+  if(!from&&!text){toast(t("paste_first"));return}
+  const info=from?await emailInfo(from):null;
+  const it={id:"paste",channel:"email",source:"paste",fromEmail:from.toLowerCase(),fromName:"",subject,text,links:[],attachments:[]};
+  await showVerdict(it,info,"email");
+}
+const TEXT_SAMPLES={toll:SAMPLES.toll,grand:SAMPLES.grand,bank:{mode:"text",num:"+1 (213) 555-0199",text:"Wells Fargo: Unusual sign-in detected. Your account will be locked. Verify now at https://wellsfargo-secure-login.top"}};
+function renderCheckText(){
+  view.innerHTML=`${pageHead(tr("Text messages","Mensajes de texto"),tr("Paste a text to see if it's a scam and who's really behind the number.","Pegue un texto para ver si es estafa y quién está detrás del número."),"check")}
+  <section class="sect"><div class="card">
+    <div class="field"><label for="tn">${tr("Sender's number","Número del remitente")}</label><input id="tn" inputmode="tel" autocomplete="off" placeholder="(918) 555-0142"></div>
+    <div class="field"><label for="tb">${t("lbl_msg")}</label><textarea id="tb" dir="auto" placeholder="${esc(t("ph_text"))}"></textarea></div>
+    <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" data-ts="toll">${t("ex_toll")}</button><button class="chip" data-ts="bank">${tr("Fake bank alert","Alerta falsa de banco")}</button><button class="chip" data-ts="grand">${t("ex_grand")}</button></div>
+    <button class="btn primary" id="tgo">${tr("Check this text","Revisar este texto")}</button></div>
+    <div id="result" aria-live="polite"></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Automatic filtering","Filtrado automático")}</h2>
+    <button class="tile" id="tprev"><span class="tile-ic t-dev">${ic("device")}</span><span class="tile-tx"><b>${tr("See how texts will be caught","Vea cómo se atraparán los textos")}</b><span>${tr("iPhone app preview: scam texts go straight to Junk","Vista previa: los textos de estafa van directo a Basura")}</span></span><span class="badge">${tr("Soon","Pronto")}</span>${ic("chev","chev")}</button></section>`;
+  bindBack();
+  view.querySelectorAll("[data-ts]").forEach(b=>b.onclick=()=>{const x=TEXT_SAMPLES[b.dataset.ts];document.getElementById("tn").value=x.num;document.getElementById("tb").value=x.text;runTextCheck(x.ai)});
+  document.getElementById("tgo").onclick=()=>runTextCheck();
+  document.getElementById("tprev").onclick=()=>{previewMode="text";go("preview")};
+}
+async function runTextCheck(sample){
+  const phone=document.getElementById("tn").value.trim(),text=document.getElementById("tb").value.trim();
+  if(!text){toast(t("paste_first"));return}
+  const info=numberInfo(phone);
+  await showVerdict({id:"paste",channel:"text message",source:"paste",text,phone,links:[],attachments:[],subject:""},info,"phone",sample);
+}
+function renderCheckCall(){
+  view.innerHTML=`${pageHead(tr("Phone calls","Llamadas"),tr("Look up a number before you call back, or tell ScamSense what a caller said.","Busque un número antes de devolver la llamada, o cuéntele a ScamSense qué dijo quien llamó."),"check")}
+  <section class="sect"><h2 class="sect-h">${tr("Look up a number","Buscar un número")}</h2>
+    <div class="card"><div class="lookup"><input id="cn" inputmode="tel" autocomplete="off" placeholder="(800) 555-0144" aria-label="${tr("Phone number","Número de teléfono")}"><button class="btn primary" id="clook">${tr("Look up","Buscar")}</button></div>
+    <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" data-cn="+1 (800) 555-0144">${tr("Reported number","Número reportado")}</button><button class="chip" data-cn="+1 (876) 555-0123">${tr("One-ring area code","Código de un timbre")}</button><button class="chip" data-cn="+1 (123) 456-7890">${tr("Faked number","Número falso")}</button></div>
+    <div id="lookres" aria-live="polite"></div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Describe a call","Describir una llamada")}</h2>
+    <div class="card"><div class="field"><label for="cd">${t("lbl_call")}</label><textarea id="cd" dir="auto" placeholder="${esc(t("ph_call"))}"></textarea></div>
+    <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" data-cs="irs">${t("ex_irs")}</button></div>
+    <button class="btn primary" id="cgo">${tr("Check this call","Revisar esta llamada")}</button></div>
+    <div id="result" aria-live="polite"></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Automatic call labels","Etiquetas automáticas")}</h2>
+    <button class="tile" id="cprev"><span class="tile-ic t-dev">${ic("device")}</span><span class="tile-tx"><b>${tr("See how calls will be caught","Vea cómo se atraparán las llamadas")}</b><span>${tr("iPhone app preview: \"Scam Likely\" labels and blocking","Vista previa: etiquetas \"Posible estafa\" y bloqueo")}</span></span><span class="badge">${tr("Soon","Pronto")}</span>${ic("chev","chev")}</button></section>`;
+  bindBack();
+  const look=()=>{const v=document.getElementById("cn").value.trim();if(!v){toast(tr("Type a phone number first.","Escriba primero un número."));return}document.getElementById("lookres").innerHTML=intelHTML(numberInfo(v),"phone")};
+  document.getElementById("clook").onclick=look;document.getElementById("cn").onkeydown=e=>{if(e.key==="Enter")look()};
+  view.querySelectorAll("[data-cn]").forEach(b=>b.onclick=()=>{document.getElementById("cn").value=b.dataset.cn;look()});
+  view.querySelectorAll("[data-cs]").forEach(b=>b.onclick=()=>{const x=SAMPLES.irs;document.getElementById("cn").value=x.num;document.getElementById("cd").value=x.text;runCallCheck(x.ai)});
+  document.getElementById("cgo").onclick=()=>runCallCheck();
+  document.getElementById("cprev").onclick=()=>{previewMode="call";go("preview")};
+}
+async function runCallCheck(sample){
+  const phone=document.getElementById("cn").value.trim(),text=document.getElementById("cd").value.trim();
+  if(!text){toast(t("paste_first"));return}
+  await showVerdict({id:"paste",channel:"phone call",source:"paste",text,phone,links:[],attachments:[],subject:""},numberInfo(phone),"phone",sample);
+}
+async function showVerdict(it,info,kind,sample){
+  const out=document.getElementById("result");
+  it.local=analyze(it);
+  if(info&&info.level==="scam"){it.local.score+=6;it.local.reasons.unshift(info.title)}else if(info&&info.level==="warn"){it.local.score+=2;it.local.reasons.unshift(info.title)}
+  if(it.channel==="phone call"&&/(irs|social security|medicare|police|sheriff|microsoft|apple|amazon|bank)/i.test(it.text)&&/(pay|card|code|install|account|warrant|arrest)/i.test(it.text)){it.local.score+=3;it.local.reasons.push(t("call_rule"))}
+  it.local.level=it.local.score>=8?"scam":it.local.score>=4?"warn":"safe";
+  const c=cfg();
+  if(c.apiKey&&c.aiMode!=="off"){out.innerHTML=`<div class="card loading">${ic("spark")} ${t("checking")}</div>`;try{it.ai=await aiCheck(it)}catch(e){it.aiError=e.message;toast(e.message)}}
+  else if(sample){it.ai=JSON.parse(JSON.stringify(pickDemoAI(sample)));it.ai.verdict=({safe:"safe",suspicious:"warn",scam:"scam"})[it.ai.verdict]||it.ai.verdict}
+  it.level=finalLevel(it);
+  const L=LV[it.level];const k=(it.ai&&it.ai.scam_type)||it.local.kind;
+  out.innerHTML=`<div class="card result"><div class="verdict v-${it.level}"><span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span><div><h3>${L.title}</h3>${it.level!=="safe"&&k?`<p dir="auto">${t("looks_like",{k:esc(cap(k))})}</p>`:""}</div></div>
+    ${intelHTML(info,kind)}${detailHTML(it)}</div>`;
+  out.querySelector("[data-speak]").onclick=()=>speakItem(it);
+  out.scrollIntoView({behavior:"smooth",block:"start"});
+}
+let previewMode="text";
+
+/* ================= Family & trusted people ================= */
+const RELS=[["daughter","Daughter","Hija"],["son","Son","Hijo"],["spouse","Spouse or partner","Pareja"],["grandchild","Grandchild","Nieto/a"],["sibling","Brother or sister","Hermano/a"],["friend","Friend","Amigo/a"],["caregiver","Caregiver","Cuidador/a"],["other","Other","Otro"]];
+const relName=k=>{const r=RELS.find(x=>x[0]===k);return r?tr(r[1],r[2]):""};
+const famPrefs=()=>Object.assign({scam:true,pause:true,sos:true,weekly:false,callBeforePay:true},S.get("famPrefs",{}));
+function renderFamily(){
+  const helpers=S.get("helpers",[]);const p=famPrefs();
+  view.innerHTML=`${pageHead(tr("Family & trusted people","Familia y personas de confianza"),tr("Pick people you trust. They can help you decide before you pay or reply. They see alerts, never your messages.","Elija personas de confianza. Pueden ayudarle antes de pagar o responder. Ven alertas, nunca sus mensajes."))}
+  <section class="sect"><div class="sect-row"><h2 class="sect-h">${tr("Your trusted people","Sus personas de confianza")}</h2><button class="btn sm primary" id="addp">${ic("plus")}<span>${tr("Add","Agregar")}</span></button></div>
+    <div id="addform" hidden></div>
+    ${helpers.length?`<div class="group">${helpers.map((h,i)=>`<div class="grow person"><span class="avatar">${esc((h.name||"?")[0].toUpperCase())}</span>
+      <span class="gl"><b>${esc(h.name)}</b><span>${esc([relName(h.rel),h.phone,h.email].filter(Boolean).join(" · "))}</span></span>
+      <span class="pacts">${h.phone?`<a class="iconbtn" href="tel:${esc(h.phone.replace(/[^\d+]/g,""))}" aria-label="${tr("Call","Llamar")} ${esc(h.name)}">${ic("phone")}</a>`:""}
+      <button class="iconbtn" data-inv="${i}" aria-label="${tr("Invite","Invitar")} ${esc(h.name)}">${ic("share")}</button>
+      <button class="iconbtn danger" data-rm="${i}" aria-label="${tr("Remove","Quitar")} ${esc(h.name)}">${ic("trash")}</button></span></div>`).join("")}</div>`
+    :`<div class="emptybox">${ic("user")}<b>${tr("No one added yet","Aún no hay nadie")}</b><span>${tr("Add a family member or friend you'd call before sending money.","Agregue a un familiar o amigo a quien llamaría antes de enviar dinero.")}</span></div>`}</section>
+  <section class="sect"><h2 class="sect-h">${tr("Call before you pay","Llame antes de pagar")}</h2>
+    <div class="group"><div class="grow"><span class="gl"><b>${tr("Show a \"Call\" button when a payment is paused","Mostrar botón \"Llamar\" al pausar un pago")}</b><span>${tr("When ScamSense stops a payment, you can call your trusted person with one tap.","Cuando ScamSense detiene un pago, puede llamar a su persona de confianza con un toque.")}</span></span>${switchHTML("pcbp",p.callBeforePay,"")}</div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("What they'll be told","Qué se les avisará")}</h2>
+    <div class="group">${[["scam",t("fam_s1")],["pause",t("fam_s2")],["sos",t("fam_s3")],["weekly",t("fam_s4")]].map(([k,l])=>`<div class="grow"><span class="gl"><b>${l}</b></span>${switchHTML("pf_"+k,p[k],l)}</div>`).join("")}</div>
+    <p class="footnote">${ic("bell")}${tr("Automatic alerts start when the ScamSense server is ready. For now, use Call or Invite.","Las alertas automáticas empiezan cuando el servidor esté listo. Por ahora use Llamar o Invitar.")}</p></section>
+  <section class="sect"><h2 class="sect-h">${tr("What your trusted person will see","Lo que verá su persona de confianza")}</h2>
+    <div class="phone-preview">
+      <div class="alert"><span class="dot d-scam" aria-hidden="true">!</span><div><span class="small muted">${t("fam_t1")}</span><p>${tr("Your mom got a fake PayPal email. ScamSense marked it as a scam. She didn't click it.","Su mamá recibió un correo falso de PayPal. ScamSense lo marcó como estafa. No hizo clic.")}</p></div></div>
+      <div class="alert"><span class="dot d-warn" aria-hidden="true">!</span><div><span class="small muted">${t("fam_t2")}</span><p>${tr("Your mom paused a $500 gift card payment. ScamSense explained it was a tech support scam. Give her a call.","Su mamá pausó un pago de $500 en tarjetas de regalo. ScamSense explicó que era una estafa de soporte técnico. Llámela.")}</p></div></div>
+    </div><p class="footnote">${tr("Sample alerts.","Alertas de ejemplo.")}</p></section>`;
+  document.getElementById("addp").onclick=showAddForm;
+  view.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
+    if(b.dataset.sure){const hs=S.get("helpers",[]);const gone=hs.splice(+b.dataset.rm,1)[0];S.set("helpers",hs);toast(tr(`${gone.name} was removed.`,`Se quitó a ${gone.name}.`));renderFamily();return}
+    b.dataset.sure="1";b.classList.add("confirm");b.innerHTML=`<span>${tr("Remove?","¿Quitar?")}</span>`;setTimeout(()=>{if(document.body.contains(b)){delete b.dataset.sure;b.classList.remove("confirm");b.innerHTML=ic("trash")}},4000)});
+  view.querySelectorAll("[data-inv]").forEach(b=>b.onclick=async()=>{const h=S.get("helpers",[])[+b.dataset.inv];
+    const msg=tr(`Hi ${h.name}, I'm using ScamSense to protect me from scams. I added you as my trusted person, so I may call you before I send money to anyone. Here's the app: https://karimhaidari2.github.io/ScamSense_App/`,`Hola ${h.name}, uso ScamSense para protegerme de estafas. Le agregué como mi persona de confianza, así que puedo llamarle antes de enviar dinero a alguien. La app: https://karimhaidari2.github.io/ScamSense_App/`);
+    try{if(navigator.share){await navigator.share({text:msg});return}}catch(e){if(e.name==="AbortError")return}
+    try{await navigator.clipboard.writeText(msg);toast(tr("Invite message copied. Paste it in a text or email.","Mensaje copiado. Péguelo en un texto o correo."))}catch(e){toast(msg)}});
+  const save=()=>{const q={};["scam","pause","sos","weekly"].forEach(k=>q[k]=document.getElementById("pf_"+k).checked);q.callBeforePay=document.getElementById("pcbp").checked;S.set("famPrefs",q);toast(tr("Saved.","Guardado."))};
+  view.querySelectorAll(".switch input").forEach(x=>x.onchange=save);
+}
+function showAddForm(){
+  const f=document.getElementById("addform");f.hidden=false;
+  f.innerHTML=`<div class="card addcard"><div class="two"><div class="field"><label for="hn">${t("fam_name")}</label><input id="hn" autocomplete="name"></div>
+    <div class="field"><label for="hr">${tr("Relationship","Relación")}</label><select id="hr">${RELS.map(r=>`<option value="${r[0]}">${tr(r[1],r[2])}</option>`).join("")}</select></div></div>
+    <div class="two"><div class="field"><label for="hp">${tr("Phone","Teléfono")}</label><input id="hp" type="tel" inputmode="tel" autocomplete="tel"></div>
+    <div class="field"><label for="he">${tr("Email (optional)","Correo (opcional)")}</label><input id="he" type="email" autocomplete="email"></div></div>
+    <div class="row"><button class="btn primary" id="hsave">${tr("Save","Guardar")}</button><button class="btn ghost" id="hcancel">${tr("Cancel","Cancelar")}</button></div></div>`;
+  document.getElementById("hn").focus();
+  document.getElementById("hcancel").onclick=()=>{f.hidden=true;f.innerHTML=""};
+  document.getElementById("hsave").onclick=()=>{const v=id=>document.getElementById(id).value.trim();
+    if(!v("hn")){toast(tr("Add a name.","Agregue un nombre."));return}if(!v("hp")&&!v("he")){toast(tr("Add a phone number or email.","Agregue un teléfono o correo."));return}
+    const hs=S.get("helpers",[]);hs.push({name:v("hn"),rel:v("hr"),phone:v("hp"),email:v("he")});S.set("helpers",hs);toast(tr("Added.","Agregado."));renderFamily()};
+}
+
+/* ================= Settings ================= */
 function renderSettings(){
   const c=cfg();const conn=S.get("connected",false);
-  view.innerHTML=`
-  <section class="card"><h2>🌐 ${t("set_lang")}</h2>
-    <div class="field"><select id="lang" aria-label="${t("set_lang")}">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${c.lang===k?"selected":""}>${v.name}</option>`).join("")}</select></div>
-    <p class="small muted" style="margin:0">${t("set_lang_sub")}</p></section>
-  <section class="card"><h2>${t("set_gmail")}</h2>
-    <p class="muted small" style="margin:0">${t("set_gmail_sub")}</p>
-    <div class="field"><label for="cid">${t("set_cid")}</label><input id="cid" autocomplete="off" spellcheck="false" value="${esc(c.clientId)}"></div>
-    <div class="row"><button class="btn primary" id="conn">${conn?t("reconnect"):t("connect")}</button>${conn?`<button class="btn ghost" id="disc">${t("disconnect")}</button>`:""}</div>
-  </section>
-  <section class="card"><h2>${t("set_ai")}</h2>
-    <div class="field"><label for="key">${t("set_key")}</label><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(c.apiKey)}"></div>
-    <div class="field"><label for="aim">${t("set_aim")}</label><select id="aim">
-      <option value="risky" ${c.aiMode==="risky"?"selected":""}>${t("aim_risky")}</option><option value="all" ${c.aiMode==="all"?"selected":""}>${t("aim_all")}</option><option value="off" ${c.aiMode==="off"?"selected":""}>${t("aim_off")}</option></select></div>
-    <div class="field"><label for="mdl">${t("set_model")}</label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
-    <button class="btn ghost" id="test">${t("test_key")}</button>
-    <div class="field"><label for="remk">${t("set_rem")}</label><select id="remk">
-      <option value="yes" ${c.rememberKey!==false?"selected":""}>${t("rem_yes")}</option><option value="no" ${c.rememberKey===false?"selected":""}>${t("rem_no")}</option></select></div>
-    <p class="small muted" style="margin:0">${t("set_key_note")}</p>
-  </section>
-  <section class="card"><h2>${t("set_scan")}</h2>
-    <div class="field"><label for="days">${t("set_days")}</label><select id="days">
-      ${[1,3,7].map(d=>`<option value="${d}" ${c.days===d?"selected":""}>${d===1?t("d24"):t("ddays",{n:d})}</option>`).join("")}</select></div>
-    <div class="field"><label for="max">${t("set_max")}</label><select id="max">
-      ${[50,100,200].map(d=>`<option value="${d}" ${c.max===d?"selected":""}>${d}</option>`).join("")}</select></div>
-    <p class="small muted" style="margin:0">${t("set_folders")}</p>
-  </section>
-  <section class="card"><h2>${t("set_home")}</h2><ol class="steps"><li>${t("home1")}</li><li>${t("home2")}</li><li>${t("home3")}</li></ol></section>
-  <section class="card"><h2>${t("set_priv")}</h2>
-    <ul class="steps"><li>${t("priv1")}</li><li>${t("priv2")}</li><li>${t("priv3")}</li></ul>
-    <button class="btn ghost" id="wipe">${t("wipe")}</button>
-  </section>
-  <p class="small muted" style="text-align:center">${t("footer")}</p>`;
-  const save=()=>{saveCfg(Object.assign(cfg(),{lang:document.getElementById("lang").value,rememberKey:document.getElementById("remk").value==="yes",clientId:document.getElementById("cid").value.trim(),apiKey:document.getElementById("key").value.trim(),aiMode:document.getElementById("aim").value,model:document.getElementById("mdl").value.trim()||"claude-haiku-5-5",days:+document.getElementById("days").value,max:+document.getElementById("max").value}));setStatus()};
+  view.innerHTML=`${pageHead(t("tab_settings"),"")}
+  <section class="sect"><h2 class="sect-h">${tr("Email accounts","Cuentas de correo")}</h2><div class="group">
+    <div class="grow"><span class="pv" style="--pv:#D93025">G</span><span class="gl"><b>Gmail</b><span>${conn?tr("Connected","Conectado"):tr("Not connected","Sin conectar")}</span></span>
+      ${conn?`<button class="btn sm ghost" id="disc">${t("disconnect")}</button>`:`<button class="btn sm primary" id="conn">${tr("Connect","Conectar")}</button>`}</div>
+    <button class="grow linkrow" data-go="checkEmail"><span class="pv" style="--pv:#4F6B70">+</span><span class="gl"><b>${tr("Other email providers","Otros proveedores")}</b><span>Outlook, Yahoo, iCloud, AOL</span></span>${ic("chev","chev")}</button></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Smart AI checks","Revisión con IA")}</h2><div class="group">
+    <div class="grow col"><label for="key" class="gl"><b>${t("set_key")}</b><span>${tr("Used only to ask Anthropic's AI about risky messages.","Solo para preguntar a la IA de Anthropic sobre mensajes riesgosos.")}</span></label>
+      <div class="lookup"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(c.apiKey)}"><button class="btn sm ghost" id="test">${t("test_key")}</button></div></div>
+    <div class="grow"><label for="aim" class="gl"><b>${tr("What the AI checks","Qué revisa la IA")}</b></label><select id="aim" class="inline">
+      <option value="risky" ${c.aiMode==="risky"?"selected":""}>${tr("Only risky messages","Solo los riesgosos")}</option><option value="all" ${c.aiMode==="all"?"selected":""}>${tr("Every message","Todos")}</option><option value="off" ${c.aiMode==="off"?"selected":""}>${tr("Off","Apagado")}</option></select></div>
+    <div class="grow"><span class="gl"><b>${tr("Remember my key on this device","Recordar mi clave en este dispositivo")}</b><span>${tr("Off is safer: you paste it again after closing the tab.","Apagado es más seguro: la pega de nuevo al cerrar.")}</span></span>${switchHTML("remk",c.rememberKey!==false,"")}</div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Language","Idioma")}</h2><div class="group">
+    <div class="grow"><label for="lang" class="gl"><b>${tr("App language","Idioma de la app")}</b><span>${tr("AI answers and read-aloud use it too.","Las respuestas de IA y la lectura también.")}</span></label><select id="lang" class="inline">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${c.lang===k?"selected":""}>${v.name}</option>`).join("")}</select></div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Daily scan","Revisión diaria")}</h2><div class="group">
+    <div class="grow"><label for="days" class="gl"><b>${t("set_days")}</b></label><select id="days" class="inline">${[1,3,7].map(d=>`<option value="${d}" ${c.days===d?"selected":""}>${d===1?t("d24"):t("ddays",{n:d})}</option>`).join("")}</select></div>
+    <div class="grow"><label for="max" class="gl"><b>${t("set_max")}</b></label><select id="max" class="inline">${[50,100,200].map(d=>`<option value="${d}" ${c.max===d?"selected":""}>${d}</option>`).join("")}</select></div></div>
+    <p class="footnote">${t("set_folders")}</p></section>
+  <section class="sect"><h2 class="sect-h">${t("set_priv")}</h2><div class="group">
+    <div class="grow col"><span class="gl"><span>${t("priv1")}</span></span></div>
+    <div class="grow col"><span class="gl"><span>${t("priv2")}</span></span></div>
+    <div class="grow"><a class="gl" href="https://myaccount.google.com/permissions" target="_blank" rel="noopener"><b>${tr("Remove Gmail access in Google","Quitar el acceso de Gmail en Google")}</b><span>myaccount.google.com/permissions</span></a>${ic("chev","chev")}</div>
+    <button class="grow linkrow danger" id="wipe"><span class="gl"><b>${t("wipe")}</b></span>${ic("trash")}</button></div></section>
+  <section class="sect"><h2 class="sect-h">${t("set_home")}</h2><div class="group"><div class="grow col"><ol class="steps"><li>${t("home1")}</li><li>${t("home2")}</li><li>${t("home3")}</li></ol></div></div></section>
+  <details class="sect adv"><summary class="sect-h">${tr("Advanced","Avanzado")}</summary><div class="group">
+    <div class="grow col"><label for="cid" class="gl"><b>${t("set_cid")}</b></label><input id="cid" autocomplete="off" spellcheck="false" value="${esc(c.clientId)}"></div>
+    <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div></div></details>
+  <p class="footnote center">${t("footer")}</p>`;
+  const save=()=>{saveCfg(Object.assign(cfg(),{lang:document.getElementById("lang").value,rememberKey:document.getElementById("remk").checked,clientId:document.getElementById("cid").value.trim()||DEFAULT_CLIENT_ID,apiKey:document.getElementById("key").value.trim(),aiMode:document.getElementById("aim").value,model:document.getElementById("mdl").value.trim()||"claude-haiku-5-5",days:+document.getElementById("days").value,max:+document.getElementById("max").value}));setStatus()};
   view.querySelectorAll("input,select").forEach(x=>x.onchange=save);
   document.getElementById("lang").onchange=()=>{save();applyLang();renderSettings()};
-  document.getElementById("conn").onclick=async()=>{save();try{await getToken(true);toast(t("gmail_ok"));go("today");scanGmail()}catch(e){toast(e.message)}};
+  view.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+  const cn=document.getElementById("conn");if(cn)cn.onclick=async()=>{save();try{await getToken(true);toast(t("gmail_ok"));go("today");scanGmail()}catch(e){toast(e.message)}};
   const dc=document.getElementById("disc");if(dc)dc.onclick=()=>{try{if(token)google.accounts.oauth2.revoke(token,()=>{})}catch(e){}token=null;S.set("connected",false);S.del("report");setStatus();renderSettings();toast(t("gmail_off"))};
   document.getElementById("test").onclick=async()=>{save();const b=document.getElementById("test");b.disabled=true;b.textContent=t("testing");
     try{const r=await aiCheck({channel:"text message",text:"Hi, this is a reminder that your dentist appointment is tomorrow at 10 AM.",links:[],local:{reasons:[]}});toast(t("ai_works",{v:t(r.verdict)}))}catch(e){toast(e.message==="no-key"?t("paste_key"):e.message)}
     b.disabled=false;b.textContent=t("test_key")};
-  document.getElementById("wipe").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k));Object.keys(sessionStorage).filter(k=>k.startsWith("ss_")).forEach(k=>sessionStorage.removeItem(k))}catch(e){}token=null;setStatus();applyLang();toast(t("wiped"));go("today")}else{this.dataset.sure="1";this.textContent=t("wipe_sure")}};
+  document.getElementById("wipe").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k));Object.keys(sessionStorage).filter(k=>k.startsWith("ss_")).forEach(k=>sessionStorage.removeItem(k))}catch(e){}token=null;setStatus();applyLang();toast(t("wiped"));go("today")}else{this.dataset.sure="1";this.querySelector("b").textContent=t("wipe_sure")}};
 }
 
 /* ----- navigation ----- */
-const TAB_OF={today:"today",check:"check",preview:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
+const TAB_OF={today:"today",check:"check",checkEmail:"check",checkText:"check",checkCall:"check",preview:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
 function fillLangTop(){const el=document.getElementById("langtop");if(!el)return;
-  const short={en:"🌐 EN",es:"🌐 ES",zh:"🌐 中文",tl:"🌐 TL",vi:"🌐 VI",ar:"🌐 AR",ko:"🌐 KO",fa:"🌐 FA"};
-  el.innerHTML=Object.keys(LANGS).map(k=>`<option value="${k}" ${langCode()===k?"selected":""}>${short[k]} · ${LANGS[k].name}</option>`).join("");
+  el.innerHTML=Object.keys(LANGS).map(k=>`<option value="${k}" ${langCode()===k?"selected":""}>${LANGS[k].name}</option>`).join("");
   el.onchange=()=>{saveCfg(Object.assign(cfg(),{lang:el.value}));applyLang();const h=location.hash.slice(1);go(TAB_OF[h]?h:"today")}}
 function applyLang(){
   fillLangTop();
@@ -1690,7 +1958,7 @@ function go(tab){
   clearInterval(stillTimer);if(typeof simClear==="function")simClear();
   const top=TAB_OF[tab]||"today";
   document.querySelectorAll("nav.tabs button").forEach(b=>{if(b.dataset.tab===top)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
-  ({today:renderToday,check:renderCheck,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
+  ({today:renderToday,check:renderCheck,checkEmail:renderCheckEmail,checkText:renderCheckText,checkCall:renderCheckCall,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
   window.scrollTo(0,0);
   try{history.replaceState(null,"","#"+tab)}catch(e){}
 }
