@@ -70,6 +70,12 @@ input[type=file]{padding:10px;background:var(--surface)}
 .modal{background:var(--surface);color:var(--ink);border-radius:20px;padding:20px;width:100%;max-width:560px;max-height:88vh;overflow:auto;display:flex;flex-direction:column;gap:12px}
 @media (min-width:640px){.modal-bg{align-items:center}}
 .modal-ok{width:56px;height:56px;border-radius:50%;background:var(--safe-bg);color:var(--safe);display:grid;place-items:center;font-size:1.8rem;font-weight:800}
+.keepdoc{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border:2px dashed var(--brand);border-radius:12px;padding:12px}
+.keepdoc b{display:block}
+.docbtn{align-self:flex-start;margin-top:4px}
+.docbtn.done{background:var(--safe);color:#fff}
+.sep{border:0;border-top:1px solid var(--line);margin:4px 0;width:100%}
+.modal-h3{font-family:var(--display);font-size:1.25rem}
 .org-card{border:2px solid var(--brand);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px}
 .org-head b{display:block;font-family:var(--display);font-size:1.2rem}
 .org-role{font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--brand)}
@@ -1101,7 +1107,7 @@ function renderScammed(){
       <input id="sf" type="file" accept="image/*" multiple>
       <span class="small muted">${tr("Add texts, call logs, emails, receipts, or gift cards. They stay on this device and go into your PDF report.","Agregue textos, llamadas, correos, recibos o tarjetas. Se quedan en este dispositivo y van en su reporte PDF.")}</span>
       <div class="thumbs" id="thumbs"></div></div>
-    <button class="btn primary" id="sgo">${tr("Make my plan and report (PDF)","Crear mi plan y reporte (PDF)")}</button></section><section id="splan" aria-live="polite"></section>`;
+    <button class="btn primary" id="sgo">${tr("Make my plan and documents","Crear mi plan y documentos")}</button></section><section id="splan" aria-live="polite"></section>`;
   document.getElementById("back").onclick=()=>go("help");
   document.getElementById("sgo").onclick=()=>buildPlan(true);
   document.getElementById("sexample").onclick=loadExample;
@@ -1178,109 +1184,177 @@ function renderThumbs(){const el=document.getElementById("thumbs");if(!el)return
 /* Where to send the report, best option first */
 function sendList(s,bankNm){
   const L=[];const o=ORGS[s.bank];
-  if(s.bank||["credit","debit","bank"].includes(s.method)) L.push({name:bankNm||tr("Your bank or card company","Su banco o tarjeta"),
+  if(s.bank||["credit","debit","bank"].includes(s.method)) L.push({type:"bank",name:bankNm||tr("Your bank or card company","Su banco o tarjeta"),
     lines:o?o.lines:[],web:o&&o.w,note:o&&o.en?tr(o.en,o.es):"",
     when:tr("Today, right away. This is your best chance to stop or reverse the payment.","Hoy, de inmediato. Es su mejor oportunidad de detener o revertir el pago."),
-    how:tr("Call first and tell them it's fraud. Then send or bring the letter in this report and ask for a case number.","Llame primero y diga que es fraude. Luego envíe o lleve la carta de este reporte y pida un número de caso.")});
+    how:tr("Call first and tell them it's fraud. If they want it in writing, send their document. Ask for a case number.","Llame primero y diga que es fraude. Si lo piden por escrito, envíe su documento. Pida un número de caso.")});
   const pm={app:[tr("The payment app (PayPal, Venmo, or Cash App)","La app de pago (PayPal, Venmo o Cash App)"),tr("Report the payment inside the app and ask them to reverse it.","Reporte el pago dentro de la app y pida revertirlo.")],
     gift:[tr("The gift card company","La compañía de la tarjeta de regalo"),tr("Call the number on the back of the card. Say a scammer has the number and PIN. Keep the card and receipt.","Llame al número del reverso. Diga que un estafador tiene el número y el PIN. Guarde la tarjeta y el recibo.")],
     wire:[tr("Western Union or MoneyGram","Western Union o MoneyGram"),tr("Call right away and ask them to stop the transfer.","Llame de inmediato y pida detener el envío.")],
     crypto:[tr("The crypto exchange or Bitcoin ATM company","La plataforma de cripto o la empresa del cajero"),tr("Report the transaction as fraud and ask them to reverse it.","Reporte la transacción como fraude y pida revertirla.")],
     cashmail:["U.S. Postal Inspection Service",tr("Call 1-877-876-2455 right away. They may stop the package.","Llame al 1-877-876-2455 de inmediato. Pueden detener el paquete."),"1-877-876-2455"],
     courier:[tr("The delivery company (FedEx, UPS, or other)","La empresa de envíos (FedEx, UPS u otra)"),tr("Call right away and ask them to stop the package.","Llame de inmediato y pida detener el paquete.")]}[s.method];
-  if(pm) L.push({name:pm[0],lines:pm[2]?[["","",pm[2]]]:[],when:tr("Today, right away.","Hoy, de inmediato."),how:pm[1]});
-  L.push({name:tr("Federal Trade Commission (FTC)","Comisión Federal de Comercio (FTC)"),web:"https://reportfraud.ftc.gov",
+  if(pm) L.push({type:"payment",name:pm[0],lines:pm[2]?[["","",pm[2]]]:[],when:tr("Today, right away.","Hoy, de inmediato."),how:pm[1]});
+  L.push({type:"ftc",name:tr("Federal Trade Commission (FTC)","Comisión Federal de Comercio (FTC)"),web:"https://reportfraud.ftc.gov",
     when:tr("Today or this week.","Hoy o esta semana."),how:tr("Fill in the online form using page 1 of this report. Save the FTC report number they give you; your bank or police may ask for it.","Llene el formulario en línea con la página 1 de este reporte. Guarde el número de reporte de la FTC; su banco o la policía pueden pedirlo.")});
-  L.push({name:tr("Your local police (non-emergency line)","Su policía local (línea que no es de emergencia)"),
+  L.push({type:"police",name:tr("Your local police (non-emergency line)","Su policía local (línea que no es de emergencia)"),
     when:tr("This week.","Esta semana."),how:tr("Bring a printed copy of this report and your screenshots. Ask for a police report number. Some banks ask for one.","Lleve una copia impresa de este reporte y sus capturas. Pida un número de reporte policial. Algunos bancos lo piden.")});
   if(["email","text","web","social"].includes(s.how)||["crypto","wire"].includes(s.method)||parseFloat(String(s.amt).replace(/[^\d.]/g,""))>=1000)
-    L.push({name:tr("FBI Internet Crime Complaint Center (IC3)","Centro de Denuncias de Delitos en Internet del FBI (IC3)"),web:"https://www.ic3.gov",
+    L.push({type:"ic3",name:tr("FBI Internet Crime Complaint Center (IC3)","Centro de Denuncias de Delitos en Internet del FBI (IC3)"),web:"https://www.ic3.gov",
       when:tr("This week.","Esta semana."),how:tr("File online. Include the phone numbers, websites, and payment details from this report.","Presente la denuncia en línea con los números, sitios y datos de pago de este reporte.")});
-  if(s.org&&s.org!==s.bank&&ORGS[s.org]){const g=ORGS[s.org];L.push({name:orgName(s.org,s.pretend)||tr("The company they pretended to be","La empresa que suplantaron"),lines:g.lines,web:g.w,mail:g.mail,
+  if(s.org&&s.org!==s.bank&&ORGS[s.org]){const g=ORGS[s.org];L.push({type:"company",name:orgName(s.org,s.pretend)||tr("The company they pretended to be","La empresa que suplantaron"),lines:g.lines,web:g.w,mail:g.mail,
     when:tr("This week.","Esta semana."),how:g.en?tr(g.en,g.es):tr("Report that someone is pretending to be them.","Reporte que alguien se hace pasar por ellos.")});}
-  if(s.what.includes("ssn")) L.push({name:"IdentityTheft.gov",web:"https://www.identitytheft.gov",when:tr("Today.","Hoy."),
+  if(s.what.includes("ssn")) L.push({type:"idt",name:"IdentityTheft.gov",web:"https://www.identitytheft.gov",when:tr("Today.","Hoy."),
     how:tr("Get a recovery plan, then freeze your credit for free: Equifax 1-800-685-1111, Experian 1-888-397-3742, TransUnion 1-888-909-8872.","Reciba un plan de recuperación y congele su crédito gratis: Equifax 1-800-685-1111, Experian 1-888-397-3742, TransUnion 1-888-909-8872.")});
-  L.push({name:tr("National Elder Fraud Hotline (age 60+)","Línea Nacional de Fraude contra Mayores (60+)"),lines:[["","","1-833-372-8311"]],
+  L.push({type:"elder",name:tr("National Elder Fraud Hotline (age 60+)","Línea Nacional de Fraude contra Mayores (60+)"),lines:[["","","1-833-372-8311"]],
     when:tr("Anytime you want help.","Cuando necesite ayuda."),how:tr("A free case manager can help you file these reports.","Un especialista gratuito le ayuda a presentar estos reportes.")});
   return L;
 }
-function sendListHTML(L){
+function sendListHTML(L,withDocs){
   return `<ol class="sendlist">${L.map((x,i)=>`<li class="${i===0?"best":""}">${i===0?`<span class="besttag">${tr("Best first step","Mejor primer paso")}</span>`:""}
     <b>${esc(x.name)}</b><span class="small"><b>${tr("When","Cuándo")}:</b> ${esc(x.when)}</span><span class="small">${esc(x.how)}</span>
-    ${x.note&&!x.how.includes(x.note)?`<span class="small muted">${esc(x.note)}</span>`:""}
     <span class="contact-acts">${(x.lines||[]).map(l=>`<a class="btn ghost sm" href="tel:${l[2].replace(/[^\d]/g,"")}">📞 ${esc(l[2])}${l[0]?` · ${esc(tr(l[0],l[1]))}`:""}</a>`).join("")}
-    ${x.web?`<a class="btn ghost sm" href="${x.web}" target="_blank" rel="noopener">${esc(x.web.replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""))} ↗</a>`:""}${x.mail?`<span class="btn ghost sm" style="user-select:all">✉ ${esc(x.mail)}</span>`:""}</span></li>`).join("")}</ol>`;
+    ${x.web?`<a class="btn ghost sm" href="${x.web}" target="_blank" rel="noopener">${esc(x.web.replace(/^https?:\/\/(www\.)?/,"").replace(/\/$/,""))} ↗</a>`:""}${x.mail?`<span class="btn ghost sm" style="user-select:all">✉ ${esc(x.mail)}</span>`:""}</span>
+    ${withDocs&&x.type!=="elder"?`<button class="btn primary sm docbtn" data-doc="${i}">📄 ${tr("Get the document for","Obtener el documento para")} ${esc(shortName(x))}</button>`:""}</li>`).join("")}</ol>`;
+}
+const shortName=x=>({ftc:"FTC",ic3:"IC3",police:tr("the police","la policía"),idt:"IdentityTheft.gov"})[x.type]||x.name;
+
+/* ================= PDF documents (made on this device with jsPDF; nothing is uploaded) ================= */
+const pdfSafe=s=>String(s==null?"":s).replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[•]/g,"-").replace(/[—–]/g,"-").replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,"");
+function pdfKit(title,subtitle,example){
+  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"letter"});
+  const W=612,H=792,M=50,CW=W-2*M;const K={doc,y:0,M,CW};
+  const teal=[14,124,123],ink=[14,59,67],muted=[90,110,115],red=[180,35,24];K.c={teal,ink,muted,red};
+  K.newPage=()=>{doc.addPage();K.y=M};
+  K.need=h=>{if(K.y+h>H-60)K.newPage()};
+  K.text=(s,{size=11,bold=false,color=ink,indent=0,gap=4}={})=>{doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);doc.setTextColor(...color);
+    String(pdfSafe(s)).split("\n").forEach(par=>{const ls=par?doc.splitTextToSize(par,CW-indent):[""];ls.forEach(l=>{K.need(size*1.35);doc.text(l,M+indent,K.y+size);K.y+=size*1.35})});K.y+=gap};
+  K.h2=s=>{K.need(40);K.y+=8;doc.setFillColor(...teal);doc.rect(M,K.y,4,18,"F");K.text(s,{size:14,bold:true,indent:12,gap:6})};
+  K.kv=rows=>rows.forEach(([k,v])=>{K.need(18);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...muted);doc.text(doc.splitTextToSize(pdfSafe(k),160)[0],M,K.y+10);
+    doc.setFont("helvetica","normal");doc.setTextColor(...ink);doc.splitTextToSize(pdfSafe(v||"-"),CW-170).forEach(l=>{K.need(14);doc.text(l,M+170,K.y+10);K.y+=14});K.y+=4;doc.setDrawColor(225,232,231);doc.line(M,K.y,M+CW,K.y);K.y+=6});
+  K.box=(lines,{fill=[226,241,240],stroke=teal,head=""}={})=>{doc.setFont("helvetica","normal");doc.setFontSize(11);
+    const wrapped=lines.map(l=>doc.splitTextToSize(pdfSafe(l),CW-28));const h=(head?22:0)+wrapped.reduce((a,w)=>a+w.length*15+4,0)+20;K.need(h);
+    doc.setFillColor(...fill);doc.setDrawColor(...stroke);doc.setLineWidth(1.5);doc.roundedRect(M,K.y,CW,h,8,8,"FD");doc.setLineWidth(.5);let yy=K.y+20;
+    if(head){doc.setFont("helvetica","bold");doc.setFontSize(12);doc.setTextColor(...stroke);doc.text(pdfSafe(head),M+14,yy);yy+=20}
+    doc.setFont("helvetica","normal");doc.setFontSize(11);doc.setTextColor(...ink);wrapped.forEach(w=>{w.forEach(l=>{doc.text(l,M+14,yy);yy+=15});yy+=4});K.y+=h+12};
+  K.images=(imgs)=>{const colW=(CW-20)/2;let col=0,rowH=0;
+    imgs.forEach((e,i)=>{const sc=Math.min(colW/e.w,300/e.h);const iw=e.w*sc,ih=e.h*sc;const cap=doc.splitTextToSize(pdfSafe(`${tr("Figure","Figura")} ${i+1}. ${e.cap}`),colW);const bh=ih+cap.length*12+16;
+      if(col===0)K.need(bh);const x=M+col*(colW+20);doc.setDrawColor(213,226,224);doc.rect(x,K.y,iw,ih);doc.addImage(e.src,"JPEG",x,K.y,iw,ih);
+      doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...muted);cap.forEach((l,j)=>doc.text(l,x,K.y+ih+12+j*12));
+      rowH=Math.max(rowH,bh);col++;if(col===2){col=0;K.y+=rowH+8;rowH=0}});if(col===1)K.y+=rowH+8};
+  K.evidence=(imgs,n)=>{if(!imgs.length)return;const colW=(CW-20)/2;const e0=imgs[0];K.need(Math.min(colW/e0.w,300/e0.h)*e0.h+90);K.h2(`${n}. ${tr("Evidence (screenshots)","Pruebas (capturas de pantalla)")}`);K.images(imgs)};
+  // header band
+  doc.setFillColor(...teal);doc.rect(0,0,W,84,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(20);doc.text(doc.splitTextToSize(pdfSafe(title),CW)[0],M,42);
+  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(pdfSafe(subtitle),M,62);
+  K.y=104;
+  if(example){doc.setFillColor(253,231,228);doc.setDrawColor(...red);doc.roundedRect(M,K.y,CW,36,6,6,"FD");doc.setTextColor(...red);doc.setFont("helvetica","bold");doc.setFontSize(11);
+    doc.text(pdfSafe(tr("EXAMPLE: a made-up case for demonstration. Not a real report.","EJEMPLO: caso inventado para demostración. No es un reporte real.")),M+12,K.y+22);K.y+=50;}
+  K.finish=()=>{const pages=doc.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...muted);
+    doc.text(pdfSafe(tr("Prepared with ScamSense. Facts as reported by the person filing.","Preparado con ScamSense. Hechos según la persona que reporta.")),M,H-28);doc.text(`${i} / ${pages}`,W-M,H-28,{align:"right"});}return doc};
+  return K;
+}
+const stamp=()=>new Date().toLocaleString(uiLang()==="es"?"es-US":"en-US");
+
+/* 1) My case file: everything, for the person to keep */
+function makeCaseFilePDF(P){
+  const K=pdfKit(tr("My Scam Case File","Mi expediente de estafa"),`${tr("Keep this copy for yourself. Don't send this one.","Guarde esta copia. No envíe esta.")} · ${stamp()}`,P.example);
+  K.box([tr("This file keeps everything in one place: what happened, your screenshots, where you reported it, and your case numbers.","Este archivo guarda todo en un lugar: qué pasó, sus capturas, dónde lo reportó y sus números de caso."),
+    tr("To report to an office, use the separate document made for that office.","Para reportar a una oficina, use el documento separado para esa oficina.")],{head:tr("Keep this copy","Guarde esta copia")});
+  K.h2(tr("1. Case summary","1. Resumen del caso"));K.kv(P.summary);
+  K.h2(tr("2. What happened","2. Qué pasó"));K.text(P.story||"-");
+  K.evidence(P.evidence,3);
+  const n=P.evidence.length?4:3;
+  K.h2(`${n}. ${tr("Where I reported it (fill in as you go)","Dónde lo reporté (anótelo al hacerlo)")}`);
+  const cols=[tr("Office","Oficina"),tr("Date","Fecha"),tr("Case / report number","Número de caso"),tr("Person you spoke with","Persona con quien habló")];
+  const cw=[170,70,140,K.CW-380];const d=K.doc;
+  const row=(vals,head)=>{K.need(26);let x=K.M;d.setFont("helvetica",head?"bold":"normal");d.setFontSize(9);d.setTextColor(...(head?K.c.muted:K.c.ink));
+    vals.forEach((v,i)=>{d.setDrawColor(200,210,208);d.rect(x,K.y,cw[i],24);d.text(d.splitTextToSize(pdfSafe(v),cw[i]-8)[0]||"",x+4,K.y+15);x+=cw[i]});K.y+=24};
+  row(cols,true);P.send.forEach(x=>row([x.name,"","",""]));K.y+=10;
+  K.text(tr("Never pay anyone who offers to recover your money for a fee. No real agency charges to recover money.","Nunca pague a quien ofrezca recuperar su dinero a cambio de un pago. Ninguna agencia real cobra por eso."),{size:10,bold:true,color:K.c.red});
+  return K.finish();
 }
 
-/* PDF report (built on this device with jsPDF; nothing is uploaded) */
-const pdfSafe=s=>String(s==null?"":s).replace(/[“”]/g,'"').replace(/[‘’]/g,"'").replace(/[•]/g,"-").replace(/[—–]/g,"-").replace(/[^\x09\x0A\x0D\x20-\x7E -ÿ]/g,"");
-function makeReportPDF(P){
-  const {jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"letter"});
-  const W=612,H=792,M=50,CW=W-2*M;let y=0;
-  const teal=[14,124,123],ink=[14,59,67],muted=[90,110,115],red=[180,35,24];
-  const newPage=()=>{doc.addPage();y=M};
-  const need=h=>{if(y+h>H-60)newPage()};
-  const text=(s,{size=11,bold=false,color=ink,indent=0,gap=4}={})=>{doc.setFont("helvetica",bold?"bold":"normal");doc.setFontSize(size);doc.setTextColor(...color);
-    String(pdfSafe(s)).split("\n").forEach(par=>{const ls=par?doc.splitTextToSize(par,CW-indent):[""];ls.forEach(l=>{need(size*1.35);doc.text(l,M+indent,y+size);y+=size*1.35})});y+=gap};
-  const h2=s=>{need(40);y+=8;doc.setFillColor(...teal);doc.rect(M,y,4,18,"F");text(s,{size:14,bold:true,indent:12,gap:6})};
-  // header band
-  doc.setFillColor(...teal);doc.rect(0,0,W,78,"F");doc.setTextColor(255,255,255);doc.setFont("helvetica","bold");doc.setFontSize(22);doc.text(pdfSafe(tr("Scam Report","Reporte de estafa")),M,44);
-  doc.setFont("helvetica","normal");doc.setFontSize(10);doc.text(pdfSafe(`${tr("Prepared with ScamSense","Preparado con ScamSense")} · ${new Date().toLocaleString(uiLang()==="es"?"es-US":"en-US")}`),M,62);
-  y=100;
-  if(P.example){doc.setFillColor(253,231,228);doc.setDrawColor(...red);doc.roundedRect(M,y,CW,40,6,6,"FD");doc.setTextColor(...red);doc.setFont("helvetica","bold");doc.setFontSize(11);
-    doc.text(pdfSafe(tr("EXAMPLE REPORT: a made-up case for demonstration. Not a real report.","REPORTE DE EJEMPLO: caso inventado para demostración. No es un reporte real.")),M+12,y+24);y+=56;}
-  h2(tr("1. Case summary","1. Resumen del caso"));
-  P.summary.forEach(([k,v])=>{need(18);doc.setFont("helvetica","bold");doc.setFontSize(10);doc.setTextColor(...muted);doc.text(pdfSafe(k),M,y+10);
-    doc.setFont("helvetica","normal");doc.setTextColor(...ink);const ls=doc.splitTextToSize(pdfSafe(v||"-"),CW-170);ls.forEach((l,i)=>{need(14);doc.text(l,M+170,y+10);y+=14});y+=4;doc.setDrawColor(225,232,231);doc.line(M,y,M+CW,y);y+=6});
-  h2(tr("2. What happened","2. Qué pasó"));text(P.story||"-");
-  h2(tr("3. Where to send this report (best option first)","3. A dónde enviar este reporte (mejor opción primero)"));
-  text(tr("Online forms like ReportFraud.ftc.gov and IC3.gov ask you to type the details in. Use page 1 of this report to fill them in, and write each case number in section 6.","Los formularios en línea como ReportFraud.ftc.gov e IC3.gov piden escribir los datos. Use la página 1 de este reporte y anote cada número de caso en la sección 6."),{size:10,color:muted});
-  P.send.forEach((x,i)=>{need(70);const top=y;
-    text(`${i+1}. ${x.name}${i===0?"   ["+tr("BEST FIRST STEP","MEJOR PRIMER PASO")+"]":""}`,{size:12,bold:true,color:i===0?teal:ink,gap:2});
-    text(`${tr("When","Cuándo")}: ${x.when}`,{size:10,indent:14,gap:1});text(x.how,{size:10,indent:14,gap:1});
-    const c=[...(x.lines||[]).map(l=>`${tr("Phone","Teléfono")}: ${l[2]}${l[0]?" ("+tr(l[0],l[1])+(l[3]?", "+l[3]:"")+")":""}`),x.web?`${tr("Website","Sitio")}: ${x.web}`:"",x.mail?`Email: ${x.mail}`:""].filter(Boolean);
-    c.forEach(z=>text(z,{size:10,indent:14,gap:1,color:teal}));y+=6;});
-  text(tr("Never pay anyone who offers to recover your money for a fee. No real agency charges to recover money.","Nunca pague a quien ofrezca recuperar su dinero a cambio de un pago. Ninguna agencia real cobra por eso."),{size:10,bold:true,color:red});
-  if(P.evidence.length){const colW=(CW-20)/2;const e0=P.evidence[0];need(Math.min(colW/e0.w,300/e0.h)*e0.h+90);
-    h2(tr("4. Evidence (screenshots)","4. Pruebas (capturas de pantalla)"));let col=0,rowH=0;
-    P.evidence.forEach((e,i)=>{const sc=Math.min(colW/e.w,300/e.h);const iw=e.w*sc,ih=e.h*sc;const capLines=doc.splitTextToSize(pdfSafe(`${tr("Figure","Figura")} ${i+1}. ${e.cap}`),colW);const bh=ih+capLines.length*12+16;
-      if(col===0)need(bh);const x=M+col*(colW+20);
-      doc.setDrawColor(213,226,224);doc.rect(x,y,iw,ih);doc.addImage(e.src,"JPEG",x,y,iw,ih);
-      doc.setFont("helvetica","normal");doc.setFontSize(9);doc.setTextColor(...muted);capLines.forEach((l,j)=>doc.text(l,x,y+ih+12+j*12));
-      rowH=Math.max(rowH,bh);col++;if(col===2){col=0;y+=rowH+8;rowH=0}});
-    if(col===1)y+=rowH+8;}
-  const n=P.evidence.length?5:4;
-  if(P.bankLetter){newPage();h2(`${n}. ${tr("Letter to","Carta para")} ${P.bankNm}`);text(P.bankLetter,{size:11});}
-  if(P.orgLetter){need(120);h2(`${P.bankLetter?n+".b":n+"."} ${tr("Report to","Reporte para")} ${P.orgNm}`);text(P.orgLetter,{size:11});}
-  h2(`${P.bankLetter||P.orgLetter?n+1:n}. ${tr("Case numbers (fill in as you report)","Números de caso (anótelos al reportar)")}`);
-  const cols=[tr("Where","Dónde"),tr("Date","Fecha"),tr("Case / report number","Número de caso"),tr("Person you spoke with","Persona con quien habló")];
-  const cw=[170,70,140,CW-380];const row=(vals,head)=>{need(26);let x=M;doc.setFont("helvetica",head?"bold":"normal");doc.setFontSize(9);doc.setTextColor(...(head?muted:ink));
-    vals.forEach((v,i)=>{doc.setDrawColor(200,210,208);doc.rect(x,y,cw[i],24);doc.text(doc.splitTextToSize(pdfSafe(v),cw[i]-8)[0]||"",x+4,y+15);x+=cw[i]});y+=24};
-  row(cols,true);P.send.slice(0,6).forEach(x=>row([x.name,"","",""]));
-  // footer on every page
-  const pages=doc.getNumberOfPages();for(let i=1;i<=pages;i++){doc.setPage(i);doc.setFont("helvetica","normal");doc.setFontSize(8);doc.setTextColor(...muted);
-    doc.text(pdfSafe(tr("Prepared with ScamSense. Facts as reported by the person filing. Keep this report and your screenshots.","Preparado con ScamSense. Hechos según la persona que reporta. Guarde este reporte y sus capturas.")),M,H-28);
-    doc.text(`${i} / ${pages}`,W-M,H-28,{align:"right"});}
-  return doc;
+/* 2) One document per office, with only what that office needs */
+function howToSend(x){
+  const ph=(x.lines||[]).map(l=>`${l[2]}${l[0]?" ("+tr(l[0],l[1])+(l[3]?", "+l[3]:"")+")":""}`);
+  const S={
+    bank:[ph.length?tr(`Call the fraud line first: ${ph.join(" or ")}.`,`Llame primero a la línea de fraude: ${ph.join(" o ")}.`):tr("Call the fraud number on the back of your card or on your statement.","Llame al número de fraude del reverso de su tarjeta o de su estado de cuenta."),
+      tr("Tell them it's fraud and read them page 1. Ask them to lock your card and reverse the payment.","Diga que es fraude y léales la página 1. Pida bloquear su tarjeta y revertir el pago."),
+      tr("If they ask for it in writing, send this document through your bank's app (secure message) or bring it to a branch.","Si lo piden por escrito, envíe este documento por la app de su banco (mensaje seguro) o llévelo a una sucursal."),
+      tr("Write down the case number they give you.","Anote el número de caso que le den.")],
+    payment:[...(ph.length?[tr(`Call: ${ph.join(" or ")}.`,`Llame: ${ph.join(" o ")}.`)]:[]),x.how,tr("Read them page 1 and ask for a case number.","Léales la página 1 y pida un número de caso.")],
+    ftc:[tr("Go to ReportFraud.ftc.gov and click \"Report Now\".","Vaya a ReportFraud.ftc.gov y haga clic en \"Report Now\"."),
+      tr("Answer each question using the answers on page 1. You can copy and paste them.","Responda cada pregunta con las respuestas de la página 1. Puede copiarlas y pegarlas."),
+      tr("At the end, save or print your FTC report number. Your bank or police may ask for it.","Al final, guarde o imprima su número de reporte de la FTC. Su banco o la policía pueden pedirlo.")],
+    police:[tr("Call your local police non-emergency number, or go to the station. (If you're in danger, call 911.)","Llame al número que no es de emergencia de su policía local, o vaya a la estación. (Si está en peligro, llame al 911.)"),
+      tr("Say you want to file a report for fraud. Bring this document printed, with the screenshots.","Diga que quiere hacer un reporte de fraude. Lleve este documento impreso, con las capturas."),
+      tr("Ask for a police report number and write it down.","Pida un número de reporte policial y anótelo.")],
+    ic3:[tr("Go to IC3.gov and click \"File a Complaint\".","Vaya a IC3.gov y haga clic en \"File a Complaint\"."),
+      tr("Copy the answers on page 1 into the matching parts of the form: the money you lost, the scammer's details, and what happened.","Copie las respuestas de la página 1 en las partes del formulario: el dinero perdido, los datos del estafador y qué pasó."),
+      tr("Save the complaint ID you get at the end. Keep your screenshots in case the FBI asks for them.","Guarde el número de denuncia que reciba. Guarde sus capturas por si el FBI las pide.")],
+    company:[...(ph.length?[tr(`Call: ${ph.join(" or ")}.`,`Llame: ${ph.join(" o ")}.`)]:[]),...(x.mail?[tr(`Email this document and the screenshots to ${x.mail}.`,`Envíe este documento y las capturas a ${x.mail}.`)]:[]),...(x.web?[tr(`Or report it on their official website: ${x.web}`,`O repórtelo en su sitio oficial: ${x.web}`)]:[]),
+      tr("Use only the company's real contact details, never ones the scammer gave you.","Use solo los datos reales de la empresa, nunca los que le dio el estafador.")],
+    idt:[tr("Go to IdentityTheft.gov and click \"Get Started\".","Vaya a IdentityTheft.gov y haga clic en \"Get Started\"."),
+      tr("Use page 1 to answer the questions. You'll get a personal recovery plan.","Use la página 1 para responder. Recibirá un plan de recuperación."),
+      tr("Freeze your credit (free): Equifax 1-800-685-1111, Experian 1-888-397-3742, TransUnion 1-888-909-8872.","Congele su crédito (gratis): Equifax 1-800-685-1111, Experian 1-888-397-3742, TransUnion 1-888-909-8872.")]
+  };
+  return (S[x.type]||[x.how]).map((s,i)=>`${i+1}. ${s}`);
 }
-let lastPdf=null;
+function makeOfficePDF(P,x){
+  const t1={ftc:tr("Answers for the FTC report","Respuestas para el reporte de la FTC"),ic3:tr("Answers for the FBI (IC3) complaint","Respuestas para la denuncia al FBI (IC3)"),
+    police:tr("Statement for the police","Declaración para la policía"),idt:tr("Answers for IdentityTheft.gov","Respuestas para IdentityTheft.gov")}[x.type]
+    ||`${tr("Fraud report for","Reporte de fraude para")} ${x.name}`;
+  const K=pdfKit(t1,`${tr("For","Para")}: ${x.name} · ${stamp()}`,P.example);
+  K.box(howToSend(x),{head:tr("How to send this","Cómo enviar esto")});
+  const s=P.s;
+  const base=[[tr("Date it happened","Fecha"),s.date],[tr("How they contacted me","Cómo me contactaron"),s.how?t("c_"+s.how):""],[tr("They pretended to be","Se hicieron pasar por"),[orgName(s.org,""),s.pretend].filter(Boolean).join(" / ")],
+    [tr("Their phone, email, or website","Su teléfono, correo o sitio"),s.contact]];
+  const money=[[tr("Amount lost","Cantidad perdida"),s.amt?P.amount:tr("None","Ninguna")],[tr("How I paid","Cómo pagué"),s.method?t("m_"+s.method):""],[tr("Paid from","Pagado desde"),P.bankNm+(s.last4?` (${tr("ending in","termina en")} ${s.last4})`:"")]];
+  const gave=[[tr("What I gave them","Qué les di"),s.what.map(w=>t("w_"+w)).join("; ")]];
+  const me=[[tr("My name","Mi nombre"),"______________________________"],[tr("My phone","Mi teléfono"),"______________________________"],[tr("My email","Mi correo"),"______________________________"]];
+  if(x.type==="bank"||x.type==="payment"){
+    K.h2(tr("1. Details","1. Detalles"));K.kv([...me,[tr("Account or card","Cuenta o tarjeta"),s.last4?tr(`ending in ${s.last4}`,`termina en ${s.last4}`):"__________"],...money,...base,...gave]);
+    K.h2(tr("2. Letter","2. Carta"));K.text(x.type==="bank"&&P.bankLetter?P.bankLetter:(P.genericLetter(x.name)));
+    K.evidence(P.evidence,3);
+  }else if(x.type==="ftc"||x.type==="ic3"||x.type==="idt"){
+    K.h2(tr("1. Answers to copy into the online form","1. Respuestas para copiar en el formulario"));
+    K.kv([...base,...money,...gave]);
+    K.h2(tr("2. What happened (copy into the description box)","2. Qué pasó (copie en el cuadro de descripción)"));K.text(P.story||"-");
+    K.text(tr("You don't need to upload screenshots here. Keep them in case someone asks.","No necesita subir capturas aquí. Guárdelas por si se las piden."),{size:10,color:K.c.muted});
+  }else if(x.type==="police"){
+    K.h2(tr("1. My information","1. Mis datos"));K.kv([...me,[tr("My address","Mi dirección"),"______________________________"]]);
+    K.h2(tr("2. Details of the crime","2. Detalles del delito"));K.kv([...base,...money,...gave]);
+    K.h2(tr("3. Statement","3. Declaración"));K.text(P.story||"-");
+    K.text(`${tr("Signature","Firma")}: ______________________     ${tr("Date","Fecha")}: ____________`,{size:11});
+    K.evidence(P.evidence,4);
+  }else{ // company that was impersonated
+    K.h2(tr("1. Details","1. Detalles"));K.kv([...base,...gave]);
+    K.h2(tr("2. Report","2. Reporte"));K.text(P.orgLetter||P.genericLetter(x.name));
+    K.evidence(P.evidence,3);
+  }
+  return K.finish();
+}
+const fileSlug=s=>String(s).replace(/[^A-Za-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40);
+let lastUrls=[];
+function downloadDoc(doc,name){const url=URL.createObjectURL(doc.output("blob"));lastUrls.push(url);const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();return url}
+function pdfReady(){if(window.jspdf&&window.jspdf.jsPDF)return true;toast(tr("The PDF maker is still loading. Try again in a moment.","El creador de PDF aún está cargando. Intente de nuevo."));return false}
+function getCaseFile(P){if(!pdfReady())return null;try{return downloadDoc(makeCaseFilePDF(P),`ScamSense-My-Case-File-${P.s.date||"today"}${P.example?"-EXAMPLE":""}.pdf`)}catch(e){toast(tr("The PDF couldn't be made on this device.","No se pudo crear el PDF en este dispositivo."));return null}}
+function getOfficeDoc(P,i){if(!pdfReady())return null;const x=P.send[i];try{return downloadDoc(makeOfficePDF(P,x),`ScamSense-For-${fileSlug(shortName(x))}-${P.s.date||"today"}${P.example?"-EXAMPLE":""}.pdf`)}catch(e){toast(tr("The PDF couldn't be made on this device.","No se pudo crear el PDF en este dispositivo."));return null}}
+function bindDocButtons(root,P){root.querySelectorAll("[data-doc]").forEach(b=>b.onclick=()=>{if(getOfficeDoc(P,+b.dataset.doc)){b.textContent="✓ "+tr("Downloaded","Descargado");b.classList.add("done")}})}
 function showReportModal(P){
-  let doc;try{doc=makeReportPDF(P)}catch(e){toast(tr("The PDF couldn't be made on this device. Use Copy or Save as file instead.","No se pudo crear el PDF en este dispositivo. Use Copiar o Guardar archivo."));return}
-  const fname=`ScamSense-Report-${P.date||new Date().toISOString().slice(0,10)}${P.example?"-EXAMPLE":""}.pdf`;
-  const blob=doc.output("blob");if(lastPdf)URL.revokeObjectURL(lastPdf);lastPdf=URL.createObjectURL(blob);
-  const dl=()=>{const a=document.createElement("a");a.href=lastPdf;a.download=fname;document.body.appendChild(a);a.click();a.remove()};
-  dl();
-  const top=P.send.slice(0,3);
+  const url=getCaseFile(P);if(!url)return;
   const m=document.createElement("div");m.className="modal-bg";m.innerHTML=`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mtitle">
-    <div class="modal-ok" aria-hidden="true">✓</div><h2 id="mtitle">${tr("Your report is ready","Su reporte está listo")}</h2>
-    <p class="small muted" style="margin:0">${esc(fname)} ${tr("was downloaded to this device.","se descargó en este dispositivo.")}${P.example?" <b>"+tr("(Example case)","(Caso de ejemplo)")+"</b>":""}</p>
-    <div class="row"><a class="btn primary" href="${lastPdf}" target="_blank" rel="noopener">${tr("Open report","Abrir reporte")}</a><button class="btn ghost" id="mdl">${tr("Download again","Descargar otra vez")}</button></div>
-    <p class="label" style="margin-top:4px">${tr("Send it here, in this order","Envíelo aquí, en este orden")}</p>${sendListHTML(top)}
-    <p class="small muted" style="margin:0">${tr("The full list, letters, and a case-number log are inside the report.","La lista completa, las cartas y el registro de números de caso están en el reporte.")}</p>
+    <div class="modal-ok" aria-hidden="true">✓</div><h2 id="mtitle">${tr("Your case file is ready","Su expediente está listo")}</h2>
+    <p style="margin:0">${tr("<b>Keep this one for yourself.</b> It has everything: what happened, your screenshots, and a place to write your case numbers.","<b>Guárdelo para usted.</b> Tiene todo: qué pasó, sus capturas y un lugar para anotar sus números de caso.")}${P.example?" <b>"+tr("(Example case)","(Caso de ejemplo)")+"</b>":""}</p>
+    <div class="row"><a class="btn ghost" href="${url}" target="_blank" rel="noopener">${tr("Open my case file","Abrir mi expediente")}</a></div>
+    <hr class="sep">
+    <h3 class="modal-h3">${tr("Now choose where to report it","Ahora elija dónde reportarlo")}</h3>
+    <p class="small muted" style="margin:0">${tr("Each office gets its own document with only what it needs and the steps to send it. Start with number 1.","Cada oficina recibe su propio documento con solo lo que necesita y los pasos para enviarlo. Empiece por el número 1.")}</p>
+    ${sendListHTML(P.send,true)}
     <button class="btn ghost" id="mclose">${tr("Close","Cerrar")}</button></div>`;
-  document.body.appendChild(m);
+  document.body.appendChild(m);bindDocButtons(m,P);
   const close=()=>{m.remove();document.removeEventListener("keydown",onKey)};const onKey=e=>{if(e.key==="Escape")close()};document.addEventListener("keydown",onKey);
-  m.onclick=e=>{if(e.target===m)close()};m.querySelector("#mclose").onclick=close;m.querySelector("#mdl").onclick=dl;m.querySelector("#mclose").focus();
+  m.onclick=e=>{if(e.target===m)close()};m.querySelector("#mclose").onclick=close;m.querySelector("h2").setAttribute("tabindex","-1");m.querySelector("h2").focus();
 }
 
 function buildPlan(makePdf){
@@ -1356,7 +1430,7 @@ function buildPlan(makePdf){
   ].join("\n");
   const li=a=>a.map(x=>`<li>${esc(x)}</li>`).join("");
   const sendL=sendList(s,bankNm);
-  const P={example:scamExample,date:s.date,story:s.story,bankNm,orgNm:orgName(s.org,s.pretend),bankLetter,orgLetter,send:sendL,evidence:evidence.slice(),
+  const P={s,amount,genericLetter:(to)=>letter(to,tr("Fraud report","Reporte de fraude"),[tr(`On ${s.date||"(date)"}, someone pretending to be ${who} contacted me by ${s.how?t("c_"+s.how).toLowerCase():"(how)"}.`,`El ${s.date||"(fecha)"}, alguien que se hizo pasar por ${who} me contactó por ${s.how?t("c_"+s.how).toLowerCase():"(medio)"}.`),s.amt?tr(`I lost ${amount}, paid by ${methodName}.`,`Perdí ${amount}, pagado por ${methodName}.`):"",s.contact?tr(`The scammer used: ${s.contact}.`,`El estafador usó: ${s.contact}.`):"","",tr("Please stop or reverse the payment if possible, refund me, and give me a case number.","Por favor detengan o reviertan el pago si es posible, devuélvanme el dinero y denme un número de caso.")].filter(x=>x!=="")),example:scamExample,date:s.date,story:s.story,bankNm,orgNm:orgName(s.org,s.pretend),bankLetter,orgLetter,send:sendL,evidence:evidence.slice(),
     summary:[[tr("Date of scam","Fecha"),s.date],[tr("How it started","Cómo empezó"),s.how?t("c_"+s.how):""],[tr("Pretended to be","Se hicieron pasar por"),[orgName(s.org,""),s.pretend].filter(Boolean).join(" / ")],
       [tr("My bank or card","Mi banco o tarjeta"),bankNm+(s.last4?` (${tr("ending in","termina en")} ${s.last4})`:"")],[tr("What happened","Qué pasó"),s.what.map(w=>t("w_"+w)).join("; ")],
       [tr("Payment method","Forma de pago"),s.method?t("m_"+s.method):""],[tr("Amount","Cantidad"),s.amt?amount:""],[tr("Scammer's contact details","Contacto del estafador"),s.contact],[tr("Screenshots attached","Capturas adjuntas"),String(evidence.length)]]};
@@ -1368,30 +1442,26 @@ function buildPlan(makePdf){
       <p class="small muted" style="margin:0">${tr("These numbers come from each organization's official website. Always call the real number, never one the scammer gave you.","Estos números vienen del sitio oficial de cada organización. Llame siempre al número real, nunca a uno que le dio el estafador.")}</p></div>`:""}
     <div class="plan-block urgent"><p class="label">${t("plan_now")}</p><ol>${li(now)}</ol></div>
     ${protect.length?`<div class="plan-block"><p class="label">${t("plan_protect")}</p><ol>${li(protect)}</ol></div>`:""}
-    <div class="plan-block"><p class="label">${tr("3. Where to send your report (best option first)","3. A dónde enviar su reporte (mejor opción primero)")}</p>${sendListHTML(sendL)}
-      <button class="btn primary" id="pdfagain">📄 ${tr("Download my report (PDF)","Descargar mi reporte (PDF)")}</button></div>
+    <div class="plan-block docs-block"><p class="label">${tr("3. Your documents","3. Sus documentos")}</p>
+      <div class="keepdoc"><div><b>📁 ${tr("My case file","Mi expediente")}</b><span class="small">${tr("Keep this one for yourself: everything in one place, with your screenshots and a log for case numbers.","Guárdelo para usted: todo en un lugar, con sus capturas y un registro de números de caso.")}</span></div>
+        <button class="btn ghost sm" id="pdfagain">${tr("Download","Descargar")}</button></div>
+      <p class="label" style="margin-top:6px">${tr("Where to report it (one document for each office, best option first)","Dónde reportarlo (un documento por oficina, mejor opción primero)")}</p>${sendListHTML(sendL,true)}</div>
     <p class="small warnline">⚠️ ${t("recovery_warn")}</p>
-    ${bankLetter?`<div class="plan-block"><p class="label">${tr("Letter to ","Carta para ")}${esc(bankNm)}</p><textarea id="bankletter" class="reporttxt" dir="auto">${esc(bankLetter)}</textarea>
-      <div class="row"><button class="btn ghost" data-copy="bankletter">${t("copy")}</button></div></div>`:""}
-    ${orgLetter?`<div class="plan-block"><p class="label">${tr("Report to ","Reporte para ")}${esc(orgName(s.org,s.pretend)||tr("the company","la empresa"))}</p><textarea id="orgletter" class="reporttxt" dir="auto">${esc(orgLetter)}</textarea>
-      <div class="row"><button class="btn ghost" data-copy="orgletter">${t("copy")}</button></div></div>`:""}
     <div class="plan-block"><p class="label">${t("plan_script")}</p><div class="script" id="script" dir="auto">${esc(script)}</div>
       <div class="row"><button class="btn ghost" data-copy="script">${t("copy")}</button><button class="btn ghost" id="readscript">${t("read_aloud")}</button></div></div>
-    <div class="plan-block"><p class="label">${t("plan_report_txt")}</p><textarea id="reporttxt" class="reporttxt" dir="auto">${esc(reportTxt)}</textarea>
-      <div class="row"><button class="btn ghost" data-copy="reporttxt">${t("copy")}</button><button class="btn ghost" id="savefile">${t("save_file")}</button><button class="btn ghost" id="printit">${t("print")}</button></div>
-      ${cfg().apiKey?`<button class="btn ghost" id="aisum">${t("ai_summary")}</button>`:""}</div>
     <p class="small muted" style="margin:0">${tr("Source: FTC, \"What To Do if You Were Scammed\" (consumer.ftc.gov). Phone numbers checked Nov 2026.","Fuente: FTC, \"What To Do if You Were Scammed\" (consumer.ftc.gov). Números verificados en nov. 2026.")}</p></div>`;
   const plan=document.getElementById("splan");
   plan.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{const el=document.getElementById(b.dataset.copy);const txt=el.value!==undefined?el.value:el.textContent;try{await navigator.clipboard.writeText(txt);toast(t("copied"))}catch(e){if(el.select)el.select()}});
   document.getElementById("readscript").onclick=()=>speak(script);
-  document.getElementById("savefile").onclick=()=>{const blob=new Blob([document.getElementById("reporttxt").value],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ScamSense-report-"+(s.date||"today")+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
-  document.getElementById("printit").onclick=()=>window.print();
-  const aib=document.getElementById("aisum");
+  if(false)document.getElementById("savefile").onclick=()=>{const blob=new Blob([document.getElementById("reporttxt").value],{type:"text/plain"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="ScamSense-report-"+(s.date||"today")+".txt";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
+
+  const aib=null;
   if(aib) aib.onclick=async()=>{aib.disabled=true;aib.textContent=t("ai_writing");
     try{const out=await callClaude(`You help scam victims write a clear, factual report for their bank, the FTC, the FBI (IC3), and police. Write in ${LANGS[langCode()].ai}. Use short sentences. Include a short timeline. Don't invent facts; write "unknown" where a detail is missing. Plain text only, no markdown.`,document.getElementById("reporttxt").value,900);
       document.getElementById("reporttxt").value+="\n\n"+tr("AI SUMMARY","RESUMEN DE IA")+":\n"+out.trim();}catch(e){toast(e.message==="no-key"?t("paste_key"):e.message)}
     aib.disabled=false;aib.textContent=t("ai_summary")};
-  document.getElementById("pdfagain").onclick=()=>showReportModal(P);
+  document.getElementById("pdfagain").onclick=()=>getCaseFile(P);
+  bindDocButtons(plan,P);
   plan.scrollIntoView({behavior:"smooth",block:"start"});
   if(makePdf) showReportModal(P);
 }
