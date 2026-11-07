@@ -349,6 +349,7 @@ details.sect>summary::before{content:"▸ ";} details.sect[open]>summary::before
 .tile-tx span{color:var(--muted);font-size:.95rem}
 .chev{width:20px;height:20px;color:var(--muted)}
 .badge{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:4px 8px;background:var(--bg);color:var(--muted);box-shadow:0 0 0 1px var(--line);white-space:nowrap}
+.tile-tx .badge.tb{align-self:flex-start;margin-bottom:4px;font-size:.68rem}
 .badge.ok{background:var(--safe-bg);color:var(--safe);box-shadow:none}
 .footnote{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:.88rem;margin:0 2px}
 .footnote .ic{width:18px;height:18px;margin-top:2px}
@@ -847,7 +848,7 @@ const STR={
   fam_a1:"Mary got a fake PayPal email. ScamSense marked it as a scam. She didn't click it.",fam_a2:"Mary paused a $500 gift card payment. ScamSense explained it was a tech support scam.",
   fam_a3:"Weekly summary: {n} emails checked, {s} scams caught.",fam_t1:"Today 9:42 AM",fam_t2:"Yesterday 3:15 PM",fam_t3:"Monday",
   /* settings */
-  set_lang:"Language",set_lang_sub:"Screens are in English or Spanish. AI answers and read aloud use the language you pick.",
+  set_lang:"Language",set_lang_sub:"AI answers and read aloud use the language you pick.",
   set_gmail:"1. Connect Gmail",set_gmail_sub:"Read-only access. ScamSense can look at emails but can never send, delete, or change anything.",
   set_cid:"Google Client ID",connect:"Connect Gmail",reconnect:"Reconnect Gmail",disconnect:"Disconnect",
   set_ai:"2. Smart AI checks",set_key:"Anthropic API key",set_aim:"Which emails get an AI check?",aim_risky:"Only ones with warning signs (cheaper, more private)",aim_all:"Every email",aim_off:"Off: on-device checks only",
@@ -934,7 +935,7 @@ const STR={
   fam_sees:"Lo que ve su ayudante",fam_sample:"Alertas de ejemplo",fam_call:"Llamar",fam_talked:"Ya hablamos ✓",
   fam_a1:"Mary recibió un correo falso de PayPal. ScamSense lo marcó como estafa. No hizo clic.",fam_a2:"Mary pausó un pago de $500 con tarjetas de regalo. ScamSense explicó que era una estafa de soporte técnico.",
   fam_a3:"Resumen semanal: {n} correos revisados, {s} estafas detectadas.",fam_t1:"Hoy 9:42 AM",fam_t2:"Ayer 3:15 PM",fam_t3:"Lunes",
-  set_lang:"Idioma",set_lang_sub:"Las pantallas están en inglés o español. Las respuestas de la IA y la lectura en voz alta usan el idioma que elija.",
+  set_lang:"Idioma",set_lang_sub:"Las respuestas de la IA y la lectura en voz alta usan el idioma que elija.",
   set_gmail:"1. Conectar Gmail",set_gmail_sub:"Acceso de solo lectura. ScamSense puede ver correos, pero nunca enviar, borrar ni cambiar nada.",
   set_cid:"ID de cliente de Google",connect:"Conectar Gmail",reconnect:"Volver a conectar",disconnect:"Desconectar",
   set_ai:"2. Revisión inteligente con IA",set_key:"Clave de API de Anthropic",set_aim:"¿Qué correos revisa la IA?",aim_risky:"Solo los que tienen señales de alerta (más barato y privado)",aim_all:"Todos los correos",aim_off:"Apagado: solo revisión en el dispositivo",
@@ -1106,7 +1107,7 @@ const fname=f=>uiLang()==="es"?(FOLDER_ES[f]||f):xl(f);
 function folderSummary(items){
   const n={};items.forEach(i=>{if(i.folder)n[i.folder]=(n[i.folder]||0)+1});
   const order=["Inbox","Promotions","Social","Updates","Forums","Archived","Spam","Trash"].filter(k=>n[k]);
-  return order.length?` ${tr("across all folders","en todas las carpetas")} (${order.map(k=>`${fname(k)} ${n[k]}`).join(", ")})`:"";
+  return order.length?` ${tr("across all folders","en todas las carpetas")} (${order.map(k=>`${fname(k)} ${n[k]}`).join({fa:"، ",ar:"، ",zh:"、"}[langCode()]||", ")})`:"";
 }
 function explanation(it){
   if(it.ai&&it.ai.explanation) return it.ai.explanation;
@@ -1778,7 +1779,7 @@ const ICONS={
   user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2.5 2.5"/>'
 };
 const ic=(n,cls)=>`<svg class="ic ${cls||""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||""}</svg>`;
-const backBtn=(to)=>`<button class="backlink" data-back="${to}">${ic("back")}<span>${t("back").replace(/^←\s*/,"")}</span></button>`;
+const backBtn=(to)=>`<button class="backlink" data-back="${to}">${ic("back")}<span>${t("back").replace(/^[←→]\s*|\s*[←→]$/g,"")}</span></button>`;
 const pageHead=(title,sub,back)=>`<div class="pagehead">${back?backBtn(back):""}<h1>${title}</h1>${sub?`<p>${sub}</p>`:""}</div>`;
 function bindBack(){view.querySelectorAll("[data-back]").forEach(b=>b.onclick=()=>go(b.dataset.back))}
 const switchHTML=(id,on,label)=>`<label class="switch"><input type="checkbox" role="switch" id="${id}" ${on?"checked":""}><span aria-hidden="true"></span><span class="sr">${label||""}</span></label>`;
@@ -1817,7 +1818,7 @@ function numberInfo(raw){
   const s=String(raw||"").trim();if(!s)return null;
   let d=s.replace(/[^\d+]/g,"");
   if(d.startsWith("+")&&!d.startsWith("+1")){const n=d.slice(1);const code=["3","2","1"].map(l=>n.slice(0,+l)).find(c=>COUNTRIES[c]);
-    return {level:"warn",title:tr(`International number${code?` from ${COUNTRIES[code]}`:""}`,`Número internacional${code?` de ${COUNTRIES[code]}`:""}`),
+    return {level:"warn",title:code?tr(`International number from ${COUNTRIES[code]}`,`Número internacional de ${COUNTRIES[code]}`):tr("International number","Número internacional"),
       lines:[tr("If you don't know anyone there, don't call back, don't press any buttons, and don't send money.","Si no conoce a nadie ahí, no devuelva la llamada, no marque nada y no envíe dinero.")]};}
   d=d.replace(/^\+?1/,"").replace(/\D/g,"");
   if(d.length===11&&d[0]==="1")d=d.slice(1);
@@ -1898,7 +1899,7 @@ function renderCheckText(){
     <button class="btn primary" id="tgo">${tr("Check this text","Revisar este texto")}</button></div>
     <div id="result" aria-live="polite"></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Automatic filtering","Filtrado automático")}</h2>
-    <button class="tile" id="tprev"><span class="tile-ic t-dev">${ic("device")}</span><span class="tile-tx"><b>${tr("See how texts will be caught","Vea cómo se atraparán los textos")}</b><span>${tr("iPhone app preview: scam texts go straight to Junk","Vista previa: los textos de estafa van directo a Basura")}</span></span><span class="badge">${tr("Soon","Pronto")}</span>${ic("chev","chev")}</button></section>`;
+    <button class="tile" id="tprev"><span class="tile-ic t-dev">${ic("device")}</span><span class="tile-tx"><span class="badge tb">${tr("Soon","Pronto")}</span><b>${tr("See how texts will be caught","Vea cómo se atraparán los textos")}</b><span>${tr("iPhone app preview: scam texts go straight to Junk","Vista previa: los textos de estafa van directo a Basura")}</span></span>${ic("chev","chev")}</button></section>`;
   bindBack();
   view.querySelectorAll("[data-ts]").forEach(b=>b.onclick=()=>{const x=TEXT_SAMPLES[b.dataset.ts];document.getElementById("tn").value=x.num;document.getElementById("tb").value=x.text;runTextCheck(x.ai)});
   document.getElementById("tgo").onclick=()=>runTextCheck();
@@ -1922,7 +1923,7 @@ function renderCheckCall(){
     <button class="btn primary" id="cgo">${tr("Check this call","Revisar esta llamada")}</button></div>
     <div id="result" aria-live="polite"></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Automatic call labels","Etiquetas automáticas")}</h2>
-    <button class="tile" id="cprev"><span class="tile-ic t-dev">${ic("device")}</span><span class="tile-tx"><b>${tr("See how calls will be caught","Vea cómo se atraparán las llamadas")}</b><span>${tr("iPhone app preview: \"Scam Likely\" labels and blocking","Vista previa: etiquetas \"Posible estafa\" y bloqueo")}</span></span><span class="badge">${tr("Soon","Pronto")}</span>${ic("chev","chev")}</button></section>`;
+    <button class="tile" id="cprev"><span class="tile-ic t-dev">${ic("device")}</span><span class="tile-tx"><span class="badge tb">${tr("Soon","Pronto")}</span><b>${tr("See how calls will be caught","Vea cómo se atraparán las llamadas")}</b><span>${tr("iPhone app preview: \"Scam Likely\" labels and blocking","Vista previa: etiquetas \"Posible estafa\" y bloqueo")}</span></span>${ic("chev","chev")}</button></section>`;
   bindBack();
   const look=()=>{const v=document.getElementById("cn").value.trim();if(!v){toast(tr("Type a phone number first.","Escriba primero un número."));return}document.getElementById("lookres").innerHTML=intelHTML(numberInfo(v),"phone")};
   document.getElementById("clook").onclick=look;document.getElementById("cn").onkeydown=e=>{if(e.key==="Enter")look()};
@@ -2310,7 +2311,7 @@ function showOnboarding(){
       <div class="onb-dots">${steps.map((_,i)=>`<i class="${i===step?"on":""}"></i>`).join("")}</div>
       <div class="row">${step===3?`<button class="btn primary" id="ob-demo">${t("try_demo")}</button><button class="btn ghost" id="ob-gmail">${tr("Connect Gmail","Conectar Gmail")}</button>`
         :`<button class="btn primary" id="ob-next" ${step===2?"disabled":""}>${tr("Continue","Continuar")}</button>`}</div></div>`;
-    m.querySelectorAll("[data-l]").forEach(b=>b.onclick=async()=>{saveCfg(Object.assign(cfg(),{lang:b.dataset.l}));await loadDict();applyLang();draw()});
+    m.querySelectorAll("[data-l]").forEach(b=>b.onclick=async()=>{saveCfg(Object.assign(cfg(),{lang:b.dataset.l}));await loadDict();applyLang();const h=location.hash.slice(1);go(TAB_OF[h]?h:"today");draw()});
     const a=m.querySelector("#age13");if(a)a.onchange=()=>{m.querySelector("#ob-next").disabled=!a.checked};
     const nx=m.querySelector("#ob-next");if(nx)nx.onclick=()=>{step++;draw()};
     const fin=()=>{S.set("onboarded",true);m.remove();go("today")};
