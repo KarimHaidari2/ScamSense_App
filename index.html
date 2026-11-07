@@ -33,7 +33,12 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 [hidden]{display:none!important}
-#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:center;z-index:9;width:max-content;max-width:90vw}
+#player{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:8;display:flex;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--brand);border-radius:16px;padding:8px 8px 8px 14px;box-shadow:0 6px 24px rgba(0,0,0,.18);width:max-content;max-width:calc(100vw - 32px)}
+#player .pl-label{font-weight:700;font-size:.95rem;white-space:nowrap}
+#player button{font:inherit;font-weight:700;font-size:.95rem;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;min-width:84px}
+#player .pl-pause{background:var(--brand);color:var(--brand-ink)}
+#player .pl-stop{background:var(--scam-bg);color:var(--scam)}
+#toasts{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(160px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:8px;align-items:center;z-index:9;width:max-content;max-width:90vw}
 body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:18px;line-height:1.5;-webkit-text-size-adjust:100%}
 .app{max-width:620px;margin:0 auto;padding:calc(env(safe-area-inset-top,0px) + 14px) max(16px,env(safe-area-inset-right,0px)) calc(96px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:16px}
 header{display:flex;align-items:center;gap:12px}
@@ -451,7 +456,49 @@ const ADVICE={
 function toast(m){let box=document.getElementById("toasts");if(!box){box=document.createElement("div");box.id="toasts";document.body.appendChild(box)}const t=document.createElement("div");t.className="toast";t.setAttribute("role","status");t.textContent=m;box.appendChild(t);setTimeout(()=>t.remove(),4500)}
 function setStatus(){const el=document.getElementById("status");const on=S.get("connected",false)&&cfg().clientId;el.textContent=on?"Gmail connected":"Not connected";el.classList.toggle("on",!!on)}
 function fmtTime(t){const d=new Date(t);return d.toLocaleString([], {weekday:"short",hour:"numeric",minute:"2-digit"})}
-function speak(text){try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.rate=.92;speechSynthesis.speak(u)}catch(e){toast("Read aloud isn't available on this device.")}}
+/* Read aloud with Pause / Resume / Stop. Text is read in short pieces so long reports don't cut off. */
+const Reader={queue:[],i:0,paused:false,active:false};
+function playerBar(){
+  let el=document.getElementById("player");
+  if(!el){el=document.createElement("div");el.id="player";el.setAttribute("role","region");el.setAttribute("aria-label","Read aloud controls");
+    el.innerHTML='<span class="pl-label" aria-live="polite">🔊 Reading aloud</span><button class="pl-pause" type="button">Pause</button><button class="pl-stop" type="button">Stop</button>';
+    document.body.appendChild(el);
+    el.querySelector(".pl-pause").onclick=togglePause;
+    el.querySelector(".pl-stop").onclick=stopSpeaking;}
+  return el;
+}
+function updatePlayer(){
+  const el=playerBar();el.hidden=!Reader.active;
+  el.querySelector(".pl-pause").textContent=Reader.paused?"Resume":"Pause";
+  el.querySelector(".pl-label").textContent=Reader.paused?"⏸ Paused":"🔊 Reading aloud";
+}
+function speakNext(){
+  if(!Reader.active)return;
+  if(Reader.i>=Reader.queue.length){stopSpeaking();return}
+  const u=new SpeechSynthesisUtterance(Reader.queue[Reader.i++]);u.rate=.92;
+  u.onend=()=>{if(Reader.active&&!Reader.paused)speakNext()};
+  u.onerror=()=>{if(Reader.active&&!Reader.paused)speakNext()};
+  speechSynthesis.speak(u);
+}
+function speak(text){
+  try{
+    if(!("speechSynthesis" in window))throw 0;
+    speechSynthesis.cancel();
+    Reader.queue=(String(text).replace(/\s+/g," ").match(/[^.!?]+[.!?]*\s*/g)||[text]).map(x=>x.trim()).filter(Boolean);
+    Reader.i=0;Reader.paused=false;Reader.active=true;updatePlayer();speakNext();
+  }catch(e){toast("Read aloud isn't available on this device.")}
+}
+function togglePause(){
+  if(!Reader.active)return;
+  if(Reader.paused){
+    Reader.paused=false;
+    // Resume from the sentence that was interrupted (works the same on iPhone and computer)
+    Reader.i=Math.max(0,Reader.i-1);speechSynthesis.cancel();updatePlayer();speakNext();
+  }else{
+    Reader.paused=true;speechSynthesis.cancel();updatePlayer();
+  }
+}
+function stopSpeaking(){Reader.active=false;Reader.paused=false;Reader.queue=[];try{speechSynthesis.cancel()}catch(e){}updatePlayer()}
 
 let filter="risky";
 function renderToday(opt){
@@ -626,6 +673,7 @@ function renderSettings(){
 
 /* ----- navigation ----- */
 function go(tab){
+  if(Reader.active)stopSpeaking();
   document.querySelectorAll("nav.tabs button").forEach(b=>{if(b.dataset.tab===tab)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
   if(tab==="today")renderToday();else if(tab==="check")renderCheck();else renderSettings();
   window.scrollTo(0,0);
