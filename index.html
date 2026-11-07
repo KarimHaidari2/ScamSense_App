@@ -16,7 +16,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Vazirmatn:wght@400;700;800&display=swap">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <style>
@@ -36,6 +36,70 @@
 *{box-sizing:border-box}
 html,body{margin:0}
 [hidden]{display:none!important}
+/* ===== New screens ===== */
+.t-sos{background:var(--scam-bg);color:var(--scam)}.t-crypto{background:#F1EAFE;color:#6B3FD4}
+@media (prefers-color-scheme: dark){.t-crypto{background:#2A1F45;color:#C3A8FF}}
+.tile-ic.sm{width:40px;height:40px;border-radius:12px}.tile-ic.sm .ic{width:22px;height:22px}
+.quick{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.qa{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:var(--surface);box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(14,59,67,.05);min-height:104px}
+.qa b{font-size:.98rem;line-height:1.25}
+.qa:hover{box-shadow:0 0 0 2px var(--brand)}.qa:focus-visible{outline:3px solid var(--amber)}
+.progresscard{display:flex;flex-direction:column;gap:8px;background:var(--surface);border-radius:18px;padding:14px 16px;box-shadow:0 0 0 1px var(--line)}
+.progresscard b{font-family:var(--display);font-size:1.5rem}.progresscard span{color:var(--muted);margin-inline-start:6px}
+.lead{font-size:1.1rem;margin:0}
+.ticks{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.ticks li{display:flex;gap:10px;align-items:flex-start}.ticks .ic{width:20px;height:20px;margin-top:3px;color:var(--warn)}
+.ticks.ok .ic{color:var(--safe)}
+.qq{font-weight:700;font-size:1.1rem;margin:0}
+.qopts{display:flex;flex-direction:column;gap:8px}
+.qopt{font:inherit;text-align:start;padding:14px 16px;border-radius:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;font-weight:700}
+.qopt.right{border-color:var(--safe);background:var(--safe-bg)}.qopt.wrong{border-color:var(--scam);background:var(--scam-bg)}
+.qres{margin:0;font-weight:700}.qres.good{color:var(--safe)}.qres.bad{color:var(--scam)}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.stats div{background:var(--surface);border-radius:16px;padding:14px;box-shadow:0 0 0 1px var(--line);display:flex;flex-direction:column}
+.stats b{font-family:var(--display);font-size:1.9rem;line-height:1.1;font-variant-numeric:tabular-nums}.stats span{color:var(--muted);font-size:.9rem}
+.chat{gap:12px}
+.chatlog{display:flex;flex-direction:column;gap:10px;max-height:52vh;overflow:auto;padding:2px}
+.bubble{max-width:86%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;line-height:1.45}
+.bubble.me{align-self:flex-end;background:var(--brand);color:var(--brand-ink);border-end-end-radius:6px}
+.bubble.ai{align-self:flex-start;background:var(--bg);box-shadow:inset 0 0 0 1px var(--line);border-end-start-radius:6px}
+.bubble.typing{display:flex;gap:6px;align-items:center;color:var(--muted)}
+.composer{display:flex;gap:8px;align-items:flex-end}.composer textarea{min-height:52px;flex:1}
+.note{display:flex;gap:8px;align-items:flex-start;background:var(--warn-bg);color:var(--ink);border-radius:12px;padding:10px 12px;margin:0;font-size:.92rem}
+.note .ic{width:18px;height:18px;margin-top:2px;color:var(--warn)}
+textarea.short{min-height:84px;font-family:ui-monospace,Menlo,monospace;font-size:.9rem}
+.seg2{display:grid;grid-template-columns:1fr 1fr;background:var(--line);border-radius:14px;padding:4px;gap:4px}
+.seg2 button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px;background:transparent;color:var(--ink);cursor:pointer}
+.seg2 button[aria-pressed="true"]{background:var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.plans{display:grid;gap:12px}@media(min-width:600px){.plans{grid-template-columns:1fr 1fr}}
+.plan-card.best{box-shadow:0 0 0 2px var(--brand)}
+.price{margin:0;display:flex;align-items:baseline;gap:4px}.price b{font-family:var(--display);font-size:2.2rem}.price span{color:var(--muted)}
+.lockscreen,.onb{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));overflow:auto}
+.lockbox,.onb-box{width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center}
+.lockowl,.onb-ic{width:72px;height:72px;border-radius:22px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center}
+.lockowl .ic,.onb-ic .ic{width:36px;height:36px}.onb-ic.owl{background:transparent}.onb-ic.owl svg{width:64px;height:70px}
+.lockbox h2,.onb-box h2{font-size:1.6rem}
+.dots{display:flex;gap:10px}.dots i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--muted)}.dots i.on{background:var(--brand);box-shadow:none}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px}
+.key{font:inherit;font-size:1.6rem;font-weight:700;width:72px;height:72px;border-radius:50%;border:0;background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line);cursor:pointer}
+.key:active{background:var(--brand-soft)}
+.lockbox .btn,.onb-box .row{width:100%}
+.langgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+.langbtn{font:inherit;font-weight:700;font-size:1.1rem;padding:14px;border-radius:14px;border:2px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.langbtn.on{border-color:var(--brand);background:var(--brand-soft)}
+.onb-box .ticks{text-align:start;align-self:stretch}
+.onb-dots{display:flex;gap:8px}.onb-dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}.onb-dots i.on{background:var(--brand);width:22px;border-radius:4px}
+.checkrow.big{font-size:1.1rem;font-weight:700;justify-content:center}
+/* Right-to-left (Arabic, Farsi) */
+[dir=rtl] body{font-family:"Vazirmatn",var(--body)}
+[dir=rtl] .pagehead h1,[dir=rtl] .tile-tx b,[dir=rtl] h2,[dir=rtl] .hero .big{font-family:"Vazirmatn",var(--display)}
+[dir=rtl] .chev,[dir=rtl] .backlink .ic{transform:scaleX(-1)}
+[dir=rtl] .steps,[dir=rtl] .detail ul,[dir=rtl] .detail ol,[dir=rtl] .intel ul,[dir=rtl] .plan-block ol,[dir=rtl] .sendlist,[dir=rtl] .steps2{padding-left:0;padding-right:1.2em}
+[dir=rtl] .langpick{padding:0 10px 0 4px}
+[dir=rtl] .mono,[dir=rtl] input[inputmode=tel],[dir=rtl] input[type=email],[dir=rtl] input[inputmode=url]{direction:ltr;unicode-bidi:isolate}
+[dir=rtl] .switch input:checked+span::after{transform:translateX(-20px)}[dir=rtl] .switch span[aria-hidden]::after{left:auto;right:3px}
+:lang(zh) body,:lang(ko) body{font-family:system-ui,-apple-system,"PingFang SC","Apple SD Gothic Neo","Noto Sans CJK SC",sans-serif}
+
 #player{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:8;display:flex;align-items:center;gap:8px;background:var(--surface);border:2px solid var(--brand);border-radius:16px;padding:8px 8px 8px 14px;box-shadow:0 6px 24px rgba(0,0,0,.18);width:max-content;max-width:calc(100vw - 32px)}
 #player .pl-label{font-weight:700;font-size:.95rem;white-space:nowrap}
 #player button{font:inherit;font-weight:700;font-size:.95rem;border:0;border-radius:10px;padding:10px 14px;cursor:pointer;min-width:84px}
@@ -393,13 +457,35 @@ const DEFAULT_CLIENT_ID="848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.goog
 const cfg=()=>{const c=Object.assign({clientId:"",apiKey:"",model:"claude-haiku-5-5",aiMode:"risky",days:1,max:50,rememberKey:true,lang:"en"},S.get("cfg",{}));
   if(!c.clientId) c.clientId=DEFAULT_CLIENT_ID;
   if(!c.rememberKey) c.apiKey=SS.get("key"); return c;};
-const LANGS={en:{name:"English",ui:"en",speech:"en-US",ai:"English"},es:{name:"Español",ui:"es",speech:"es-US",ai:"Spanish"},
-  zh:{name:"中文 (Chinese)",ui:"en",speech:"zh-CN",ai:"Simplified Chinese"},tl:{name:"Tagalog",ui:"en",speech:"fil-PH",ai:"Tagalog"},
-  vi:{name:"Tiếng Việt",ui:"en",speech:"vi-VN",ai:"Vietnamese"},ar:{name:"العربية (Arabic)",ui:"en",speech:"ar-SA",ai:"Arabic"},
-  ko:{name:"한국어 (Korean)",ui:"en",speech:"ko-KR",ai:"Korean"},fa:{name:"فارسی (Farsi)",ui:"en",speech:"fa-IR",ai:"Persian (Farsi)"}};
+const LANGS={en:{name:"English",speech:"en-US",ai:"English"},es:{name:"Español",speech:"es-US",ai:"Spanish"},
+  zh:{name:"中文",speech:"zh-CN",ai:"Simplified Chinese"},tl:{name:"Tagalog",speech:"fil-PH",ai:"Tagalog"},
+  vi:{name:"Tiếng Việt",speech:"vi-VN",ai:"Vietnamese"},ar:{name:"العربية",speech:"ar-SA",ai:"Arabic",rtl:true},
+  ko:{name:"한국어",speech:"ko-KR",ai:"Korean"},fa:{name:"فارسی",speech:"fa-IR",ai:"Persian (Farsi)",rtl:true}};
 const langCode=()=>LANGS[cfg().lang]?cfg().lang:"en";
-const uiLang=()=>LANGS[langCode()].ui;
-const tr=(en,es)=>uiLang()==="es"&&es?es:en;
+const uiLang=()=>langCode();
+/* Translations for languages other than English and Spanish live in i18n/<lang>.json (loaded on demand).
+   Text with changing parts is matched with patterns, so it's translated too. Documents for US offices stay in English. */
+let DICT={lang:"",exact:new Map(),pats:[]};
+async function loadDict(){
+  const L=langCode();if(L==="en"||L==="es"){DICT={lang:L,exact:new Map(),pats:[]};return}
+  if(DICT.lang===L)return;
+  try{const [en,tx]=await Promise.all([fetch("i18n/en.json").then(r=>r.json()),fetch(`i18n/${L}.json`).then(r=>r.json())]);
+    const exact=new Map(),pats=[];
+    for(const id in en){const src=en[id],dst=tx[id];if(!dst)continue;
+      if(/\{\d+\}/.test(src)){const parts=src.split(/\{(\d+)\}/);let re="^",order=[];
+        parts.forEach((p,i)=>{if(i%2)order.push(+p),re+="([\\s\\S]*?)";else re+=p.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")});
+        pats.push({re:new RegExp(re+"$"),order,dst})}
+      else exact.set(src,dst)}
+    DICT={lang:L,exact,pats};
+  }catch(e){DICT={lang:L,exact:new Map(),pats:[]}}
+}
+function xl(en){
+  if(en==null)return en;const L=langCode();if(L==="en"||L==="es"||DICT.lang!==L)return en;
+  const hit=DICT.exact.get(en);if(hit)return hit;
+  for(const p of DICT.pats){const m=en.match(p.re);if(m){let out=p.dst;p.order.forEach((n,i)=>{out=out.split("{"+n+"}").join(xl(m[i+1]))});return out}}
+  return en;
+}
+const tr=(en,es)=>{const L=langCode();return L==="es"&&es?es:L==="en"?en:xl(en)};
 function saveCfg(c){const keep=Object.assign({},c); if(!c.rememberKey){SS.set("key",c.apiKey);keep.apiKey=""} else SS.set("key",""); S.set("cfg",keep);}
 /* Reports keep only the verdicts and reasons, never the email text, and are deleted after 7 days. */
 const REPORT_DAYS=7;
@@ -423,11 +509,16 @@ const RULES=[
   {re:/refund department|call (us|our|this number|now)|call .{0,30}\(?\d{3}\)?[-. ]\d{3}[-. ]\d{4}|1-8(00|88|77|66|55|44|33)/i, pts:2, why:"Gives you a phone number to call. Use the number on your card or the company's real website instead.", es:"Le da un número para llamar. Use el número de su tarjeta o del sitio web real de la empresa.", type:"callback"},
   {re:/anydesk|teamviewer|ultraviewer|remote access|screen ?share/i, pts:5, why:"Asks you to install remote access software. That gives a stranger control of your device.", es:"Le pide instalar un programa de acceso remoto. Eso le da a un extraño control de su dispositivo.", type:"tech"},
   {re:/unpaid toll|toll (balance|payment|violation)|package (could not|can'?t|cannot) be delivered|redelivery|customs fee|incomplete (address|shipping)/i, pts:3, why:"Unpaid toll or missed delivery. These fake messages are very common right now.", es:"Peaje sin pagar o paquete no entregado. Estos mensajes falsos son muy comunes ahora.", type:"toll"},
+  {re:/guaranteed (returns?|profits?)|daily (profits?|returns?|income)|\d+(\.\d+)?% (daily|per day|a day)|risk[- ]free invest/i, pts:5, why:"Promises guaranteed or daily profits. Real investments never guarantee returns.", es:"Promete ganancias garantizadas o diarias. Las inversiones reales nunca garantizan ganancias.", type:"crypto"},
+  {re:/withdraw(al)?.{0,40}(fee|tax|deposit|unlock)|pay (a |the )?(tax|fee) to (withdraw|release|unlock)/i, pts:6, why:"Asks you to pay a fee or tax before you can withdraw. That's how crypto investment scams take more money.", es:"Le pide pagar un cargo o impuesto antes de retirar. Así las estafas cripto le quitan más dinero.", type:"crypto"},
+  {re:/mining pool|liquidity mining|cloud mining|trading bot|arbitrage bot|\busdt\b|tether/i, pts:2, why:"Talks about crypto mining, trading bots, or USDT, which are common in crypto investment scams.", es:"Habla de minería cripto, bots de inversión o USDT, comunes en estafas de inversión.", type:"crypto"},
+  {re:/(talk|chat|message|text|add me) (on|to|in) (whatsapp|telegram|signal|line)|(move|switch) to (whatsapp|telegram)/i, pts:3, why:"Asks to move the chat to WhatsApp or Telegram, a common step in investment and romance scams.", es:"Pide pasar la conversación a WhatsApp o Telegram, un paso común en estafas de inversión y romance.", type:"crypto"},
+  {re:/wrong number/i, pts:2, why:"Starts as a \"wrong number\" message. Scammers use this to start friendly chats that later turn to investing.", es:"Empieza como un mensaje de \"número equivocado\". Los estafadores lo usan para iniciar charlas que luego terminan en inversiones.", type:"crypto"},
   {re:/auto[- ]?renew(al|ed)? .{0,40}\$\d|subscription (has been )?renewed|invoice #|charged \$\d|purchase of \$\d|did not (make|authorize) this/i, pts:2, why:"Claims a charge or renewal you may not recognize, to get you to call or click.", es:"Dice que hay un cargo o renovación que quizás no reconoce, para que llame o haga clic.", type:"callback"}
 ];
-const TYPES_EN={payment:"payment scam",account:"account takeover scam",pressure:"pressure scam",threat:"fake police or government scam",family:"family emergency scam",prize:"fake prize scam",callback:"fake refund or support scam",tech:"tech support scam",toll:"fake toll or delivery scam",sender:"fake sender (impersonation)",link:"fake link (phishing)"};
-const TYPES_ES={payment:"estafa de pago",account:"robo de cuenta",pressure:"estafa de presión",threat:"falsa policía o gobierno",family:"emergencia familiar falsa",prize:"premio falso",callback:"reembolso o soporte falso",tech:"falso soporte técnico",toll:"peaje o entrega falsa",sender:"remitente falso",link:"enlace falso (phishing)"};
-const TYPES=new Proxy({}, {get:(o,k)=>(uiLang()==="es"?TYPES_ES:TYPES_EN)[k]});
+const TYPES_EN={payment:"payment scam",account:"account takeover scam",pressure:"pressure scam",threat:"fake police or government scam",family:"family emergency scam",prize:"fake prize scam",callback:"fake refund or support scam",tech:"tech support scam",toll:"fake toll or delivery scam",sender:"fake sender (impersonation)",link:"fake link (phishing)",crypto:"crypto investment scam"};
+const TYPES_ES={payment:"estafa de pago",account:"robo de cuenta",pressure:"estafa de presión",threat:"falsa policía o gobierno",family:"emergencia familiar falsa",prize:"premio falso",callback:"reembolso o soporte falso",tech:"falso soporte técnico",toll:"peaje o entrega falsa",sender:"remitente falso",link:"enlace falso (phishing)",crypto:"estafa de inversión cripto"};
+const TYPES=new Proxy({}, {get:(o,k)=>uiLang()==="es"?TYPES_ES[k]:xl(TYPES_EN[k])});
 
 const BRANDS={
   "amazon":["amazon.com","amazon.co.uk","amazon.ca","amazonses.com","amazonaws.com"],
@@ -533,8 +624,9 @@ function analyze(msg){
   let kind=ranked.length?TYPES[ranked[0][0]]:(types.pressure?TYPES.pressure:"");
   if(types.family&&types.payment) kind=TYPES.family;
   if(types.toll) kind=TYPES.toll;
+  let kindKey=ranked.length?ranked[0][0]:(types.pressure?"pressure":"");if(types.family&&types.payment)kindKey="family";if(types.toll)kindKey="toll";
   const level=score>=8?"scam":score>=4?"warn":"safe";
-  return {score,reasons:[...new Set(reasons)],kind,level,trusted};
+  return {score,reasons:[...new Set(reasons)],kind,kindKey,level,trusted};
 }
 
 /* ================= AI check (Claude) ================= */
@@ -567,7 +659,7 @@ async function aiCheck(item){
 }
 async function callClaude(system,user,maxTokens){
   const c=cfg(); if(!c.apiKey) throw new Error("no-key");
-  const body={model:c.model,max_tokens:maxTokens||700,system,messages:[{role:"user",content:user}]};
+  const body={model:c.model,max_tokens:maxTokens||700,system,messages:Array.isArray(user)?user:[{role:"user",content:user}]};
   let res,tries=0;
   while(true){
     res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":c.apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify(body)});
@@ -672,7 +764,7 @@ async function finishScan(items,source){
   items.sort((a,b)=>order[a.level]-order[b.level]||b.date-a.date);
   const report={at:Date.now(),source,days:c.days,ai:!!wantsAI,aiChecked:aiList.length,items};
   S.set("report",Object.assign({},report,{items:report.items.map(slimItem)}));
-  const hist=S.get("history",[]);hist.push({at:report.at,checked:items.length,scam:items.filter(i=>i.level==="scam").length,warn:items.filter(i=>i.level==="warn").length});S.set("history",hist.slice(-90));
+  const hist=S.get("history",[]);const kinds={};items.filter(i=>i.level!=="safe").forEach(i=>{const k=i.local.kindKey;if(k)kinds[k]=(kinds[k]||0)+1});hist.push({at:report.at,checked:items.length,scam:items.filter(i=>i.level==="scam").length,warn:items.filter(i=>i.level==="warn").length,kinds});S.set("history",hist.slice(-90));
   if(aiErr) toast(aiErr);
   renderToday();
 }
@@ -858,13 +950,13 @@ const STR={
   prog_connect:"Conectando con Gmail…",prog_find:"Buscando correos nuevos…",prog_read:"Leyendo correos en este dispositivo… {d} de {n}",prog_ai:"La IA revisa mensajes riesgosos… {d} de {n}",prog_demo:"Revisando la demostración…"
  }
 };
-function t(k,v){let s=(STR[uiLang()]&&STR[uiLang()][k])||STR.en[k]||k;if(v)for(const x in v)s=s.split("{"+x+"}").join(v[x]);return s}
+function t(k,v){const L=uiLang();let s=(STR[L]&&STR[L][k])||(L==="en"||L==="es"?STR.en[k]:xl(STR.en[k]))||k;if(v)for(const x in v)s=s.split("{"+x+"}").join(v[x]);return s}
 const ADVICE_ES={
   scam:["No haga clic en enlaces, no abra adjuntos, no llame ni responda.","No envíe dinero, tarjetas de regalo ni códigos.","Si le preocupa, contacte usted a la empresa o persona con un número de confianza.","Repórtelo: en Gmail toque ⋮ y \"Denunciar phishing\". Reenvíe textos de estafa al 7726. Reporte en ReportFraud.ftc.gov."],
   warn:["Vaya despacio. No haga clic ni llame todavía.","Verifíquelo usted: abra la app de la empresa o llame al número de su tarjeta.","Pida a un familiar o ayudante que lo revise."],
   safe:["No se encontraron señales de estafa.","Aun así, nunca comparta códigos ni contraseñas."]
 };
-const advice=l=>(uiLang()==="es"?ADVICE_ES:ADVICE)[l];
+const advice=l=>uiLang()==="es"?ADVICE_ES[l]:ADVICE[l].map(xl);
 
 /* ================= demo data with sample AI answers (for visitors without a key) ================= */
 const DEMO=[
@@ -891,7 +983,8 @@ const DEMO=[
  {fromName:"Chase",fromEmail:"no.reply.alerts@chase.com",subject:"Your monthly statement is ready",auth:"spf=pass dkim=pass dmarc=pass",listUnsub:true,
   text:"Your statement for your account ending in 4421 is ready. Sign in to chase.com or the Chase Mobile app to view it.",links:[{text:"chase.com",href:"https://www.chase.com/"}]}
 ];
-const pickDemoAI=d=>d&&(d[uiLang()]||d.en);
+const deepXl=o=>typeof o==="string"?xl(o):Array.isArray(o)?o.map(deepXl):o&&typeof o==="object"?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,k==="verdict"?v:deepXl(v)])):o;
+const pickDemoAI=d=>d&&(d[uiLang()]||(uiLang()==="en"?d.en:deepXl(d.en)));
 async function loadDemo(){
   const now=Date.now();
   const items=DEMO.map((d,i)=>{const it=Object.assign({id:"demo"+i,channel:"email",source:"demo",folder:i<2?"Inbox":i===2?"Spam":i===3?"Inbox":i===4?"Updates":"Inbox",replyTo:"",attachments:[],links:[],listUnsub:false,date:now-i*3600e3*2},JSON.parse(JSON.stringify(d)));delete it.demoAI;it._demoAI=d.demoAI;return it});
@@ -923,7 +1016,7 @@ const ADVICE={
 };
 function toast(m){let box=document.getElementById("toasts");if(!box){box=document.createElement("div");box.id="toasts";document.body.appendChild(box)}const x=document.createElement("div");x.className="toast";x.setAttribute("role","status");x.textContent=m;box.appendChild(x);while(box.children.length>2)box.firstChild.remove();setTimeout(()=>x.remove(),3500)}
 function setStatus(){const el=document.getElementById("status");const on=S.get("connected",false);el.textContent=on?t("connected"):"";el.hidden=!on;el.classList.toggle("on",!!on)}
-function fmtTime(ts){const d=new Date(ts);return d.toLocaleString(uiLang()==="es"?"es-US":[], {weekday:"short",hour:"numeric",minute:"2-digit"})}
+function fmtTime(ts){const d=new Date(ts);return d.toLocaleString(LANGS[langCode()].speech, {weekday:"short",hour:"numeric",minute:"2-digit"})}
 
 /* Read aloud with Pause / Resume / Stop. Text is read in short pieces so long reports don't cut off. */
 const Reader={queue:[],i:0,paused:false,active:false};
@@ -982,11 +1075,11 @@ function renderToday(opt){
     h+=`<section class="card hero"><p class="label">${t("welcome")}</p><p class="big">${t("welcome_big")}</p>
       <p class="muted" style="margin:0">${t("welcome_sub")}</p>
       <div class="row"><button class="btn primary" id="demo">${t("try_demo")}</button><button class="btn ghost" id="scan">${t("scan_my")}</button></div></section>
-      <div class="privacy"><span aria-hidden="true">🔒</span><div><b>${t("private_title")}</b> ${t("private_body")}</div></div>
-      ${helpCardsHTML()}`;
+      ${todayExtrasHTML()}
+      <p class="footnote">${ic("lock")}<span><b>${t("private_title")}</b> ${t("private_body")}</span></p>`;
     view.innerHTML=h;
     document.getElementById("scan").onclick=scanGmail;
-    document.getElementById("demo").onclick=loadDemo;bindHelpCards();return;
+    document.getElementById("demo").onclick=loadDemo;bindGo();return;
   }
   const n={scam:0,warn:0,safe:0};rep.items.forEach(i=>n[i.level]++);
   const headline=headlineOf(n);
@@ -995,7 +1088,7 @@ function renderToday(opt){
     <p class="big">${esc(headline)}</p>
     <div class="counts"><div class="count c-scam"><b>${n.scam}</b><span>${t("scam")}</span></div><div class="count c-warn"><b>${n.warn}</b><span>${t("warn")}</span></div><div class="count c-safe"><b>${n.safe}</b><span>${t("safe")}</span></div></div>
     <p class="muted small" style="margin:0">${t("checked",{n:rep.items.length,d:dtxt})}${folderSummary(rep.items)}. ${rep.source==="demo"&&!rep.ai?t("ai_demo"):rep.ai?t("ai_checked",{n:rep.aiChecked}):t("ai_off")}</p>
-    <div class="row"><button class="btn primary" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button><button class="btn ghost" id="readsum">${t("read_aloud")}</button></div></section>`;
+    <div class="row"><button class="btn primary" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button><button class="btn ghost" id="readsum">${t("read_aloud")}</button></div></section>${todayExtrasHTML()}`;
   h+=`<div class="filters" role="group">
       <button class="chip" data-f="risky" aria-pressed="${filter==="risky"}">${t("f_risky",{n:n.scam+n.warn})}</button>
       <button class="chip" data-f="all" aria-pressed="${filter==="all"}">${t("f_all",{n:rep.items.length})}</button></div>`;
@@ -1005,11 +1098,11 @@ function renderToday(opt){
   view.innerHTML=h;
   document.getElementById("scan").onclick=scanGmail;
   document.getElementById("readsum").onclick=()=>speak(`${headline} `+rep.items.filter(i=>i.level!=="safe").map(i=>` ${LV[i.level].word}: ${i.fromName||i.fromEmail}, ${i.subject}.`).join(""));
-  view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderToday()});
+  view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderToday()});bindGo();
   bindItems(shown);
 }
 const FOLDER_ES={Inbox:"Recibidos",Promotions:"Promociones",Social:"Social",Updates:"Notificaciones",Forums:"Foros",Archived:"Archivados",Spam:"Spam",Trash:"Papelera"};
-const fname=f=>uiLang()==="es"?(FOLDER_ES[f]||f):f;
+const fname=f=>uiLang()==="es"?(FOLDER_ES[f]||f):xl(f);
 function folderSummary(items){
   const n={};items.forEach(i=>{if(i.folder)n[i.folder]=(n[i.folder]||0)+1});
   const order=["Inbox","Promotions","Social","Updates","Forums","Archived","Spam","Trash"].filter(k=>n[k]);
@@ -1152,8 +1245,15 @@ function helpCardsHTML(){
 }
 function bindHelpCards(){view.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>go(b.dataset.h==="pause"?"pause":"scammed"))}
 function renderHelp(){
-  view.innerHTML=`${pageHead(t("help_title"),t("help_sub"))}${helpCardsHTML()}`;
-  bindHelpCards();
+  const tile=(go,icn,cls,title,sub)=>`<button class="tile" data-go="${go}"><span class="tile-ic ${cls}">${ic(icn)}</span><span class="tile-tx"><b>${title}</b><span>${sub}</span></span>${ic("chev","chev")}</button>`;
+  view.innerHTML=`${pageHead(t("help_title"),tr("Get an answer, stop a payment, or recover after a scam.","Obtenga una respuesta, detenga un pago o recupérese de una estafa."))}
+  <div class="tiles">${tile("helper","msg","t-msg",tr("Ask ScamSense","Pregúntele a ScamSense"),tr("Chat with the AI Helper about anything that worries you.","Converse con la IA sobre lo que le preocupe."))}
+    ${tile("pause","hand","t-call",t("pause_card"),t("pause_card_sub"))}
+    ${tile("scammed","sos","t-sos",t("scammed_card"),t("scammed_card_sub"))}</div>
+  <section class="sect"><h2 class="sect-h">${tr("Stay sharp","Manténgase alerta")}</h2><div class="tiles">
+    ${tile("learn","spark","t-dev",tr("Learn about scams","Aprenda sobre estafas"),tr("Short lessons, one minute each.","Lecciones cortas, de un minuto."))}
+    ${tile("monthly","bell","t-mail",tr("Your monthly report","Su reporte mensual"),tr("What reached you, and lessons picked for you.","Qué le llegó y lecciones para usted."))}</div></section>`;
+  bindGo();
 }
 const opt=(v,key,sel)=>`<option value="${v}" ${sel===v?"selected":""}>${t(key)}</option>`;
 let pauseState={who:"",how:"",amt:"",note:""};
@@ -1292,6 +1392,7 @@ function renderScammed(){
       <div class="field"><label for="sl4">${tr("Last 4 digits of card or account","Últimos 4 dígitos de tarjeta o cuenta")}</label><input id="sl4" inputmode="numeric" maxlength="4" pattern="[0-9]{4}" placeholder="1234" value="${esc(s.last4||"")}"></div></div>
     <p class="small muted" style="margin:0">🔒 ${tr("Only the last 4 digits. Never type a full card or account number into any app.","Solo los últimos 4 dígitos. Nunca escriba el número completo en ninguna app.")}</p>
     <div class="field"><label for="sc">${t("s_contact")}</label><input id="sc" value="${esc(s.contact)}"></div>
+    <div class="field"><label for="sx">${tr("Crypto details (if you paid with crypto)","Datos cripto (si pagó con cripto)")}</label><textarea id="sx" class="short" dir="ltr" spellcheck="false" placeholder="${esc(tr("Wallet addresses, transaction IDs, and the website","Billeteras, IDs de transacción y el sitio web"))}">${esc(s.crypto||"")}</textarea></div>
     <div class="field"><label for="ss">${t("s_story")}</label><textarea id="ss" dir="auto" placeholder="${esc(t("s_story_ph"))}">${esc(s.story)}</textarea></div>
     <div class="field"><label for="sf">${tr("Screenshots or photos (optional)","Capturas o fotos (opcional)")}</label>
       <input id="sf" type="file" accept="image/*" multiple>
@@ -1392,6 +1493,8 @@ function sendList(s,bankNm){
   if(["email","text","web","social"].includes(s.how)||["crypto","wire"].includes(s.method)||parseFloat(String(s.amt).replace(/[^\d.]/g,""))>=1000)
     L.push({type:"ic3",name:tr("FBI Internet Crime Complaint Center (IC3)","Centro de Denuncias de Delitos en Internet del FBI (IC3)"),web:"https://www.ic3.gov",
       when:tr("This week.","Esta semana."),how:tr("File online. Include the phone numbers, websites, and payment details from this report.","Presente la denuncia en línea con los números, sitios y datos de pago de este reporte.")});
+  if(s.method==="crypto"||s.crypto) L.push({type:"company",name:tr("Chainabuse (public crypto scam reports)","Chainabuse (reportes públicos de estafas cripto)"),web:"https://www.chainabuse.com/report",
+    when:tr("This week.","Esta semana."),how:tr("Report the scammer's wallet addresses and website so others are warned, like the ScamBusters do.","Reporte las billeteras y el sitio del estafador para advertir a otros, como hacen los ScamBusters.")});
   if(s.org&&s.org!==s.bank&&ORGS[s.org]){const g=ORGS[s.org];L.push({type:"company",name:orgName(s.org,s.pretend)||tr("The company they pretended to be","La empresa que suplantaron"),lines:g.lines,web:g.w,mail:g.mail,
     when:tr("This week.","Esta semana."),how:g.en?tr(g.en,g.es):tr("Report that someone is pretending to be them.","Reporte que alguien se hace pasar por ellos.")});}
   if(s.what.includes("ssn")) L.push({type:"idt",name:"IdentityTheft.gov",web:"https://www.identitytheft.gov",when:tr("Today.","Hoy."),
@@ -1498,7 +1601,7 @@ function makeOfficePDF(P,x){
   K.box(howToSend(x),{head:tr("How to send this","Cómo enviar esto")});
   const s=P.s;
   const base=[[tr("Date it happened","Fecha"),s.date],[tr("How they contacted me","Cómo me contactaron"),s.how?t("c_"+s.how):""],[tr("They pretended to be","Se hicieron pasar por"),[orgName(s.org,""),s.pretend].filter(Boolean).join(" / ")],
-    [tr("Their phone, email, or website","Su teléfono, correo o sitio"),s.contact]];
+    [tr("Their phone, email, or website","Su teléfono, correo o sitio"),s.contact],...(s.crypto?[[tr("Crypto details","Datos cripto"),s.crypto]]:[])];
   const money=[[tr("Amount lost","Cantidad perdida"),s.amt?P.amount:tr("None","Ninguna")],[tr("How I paid","Cómo pagué"),s.method?t("m_"+s.method):""],[tr("Paid from","Pagado desde"),P.bankNm+(s.last4?` (${tr("ending in","termina en")} ${s.last4})`:"")]];
   const gave=[[tr("What I gave them","Qué les di"),s.what.map(w=>t("w_"+w)).join("; ")]];
   const me=[[tr("My name","Mi nombre"),"______________________________"],[tr("My phone","Mi teléfono"),"______________________________"],[tr("My email","Mi correo"),"______________________________"]];
@@ -1549,7 +1652,7 @@ function showReportModal(P){
 
 function buildPlan(makePdf){
   const g=id=>document.getElementById(id).value.trim();
-  scamState={how:g("sh"),what:[...view.querySelectorAll(".checks input:checked")].map(x=>x.value),method:g("sm"),amt:g("sa"),date:g("sd"),pretend:g("sp"),org:g("so")||detectOrg(g("sp")),bank:g("sb"),bankName:g("sbn"),last4:g("sl4").replace(/\D/g,"").slice(0,4),contact:g("sc"),story:g("ss")};
+  scamState={how:g("sh"),what:[...view.querySelectorAll(".checks input:checked")].map(x=>x.value),method:g("sm"),amt:g("sa"),date:g("sd"),pretend:g("sp"),org:g("so")||detectOrg(g("sp")),bank:g("sb"),bankName:g("sbn"),last4:g("sl4").replace(/\D/g,"").slice(0,4),contact:g("sc"),crypto:g("sx"),story:g("ss")};
   if(!scamState.bank&&ORGS[scamState.org]&&ORGS[scamState.org].kind==="bank"&&(scamState.what.includes("bank")||["debit","bank","credit"].includes(scamState.method)))scamState.bank=scamState.org;
   const s=scamState;const E=uiLang()==="es";
   const now=[],protect=[],report=["ftc"],extra=[];
@@ -1623,7 +1726,7 @@ function buildPlan(makePdf){
   const P={s,amount,genericLetter:(to)=>letter(to,tr("Fraud report","Reporte de fraude"),[tr(`On ${s.date||"(date)"}, someone pretending to be ${who} contacted me by ${s.how?t("c_"+s.how).toLowerCase():"(how)"}.`,`El ${s.date||"(fecha)"}, alguien que se hizo pasar por ${who} me contactó por ${s.how?t("c_"+s.how).toLowerCase():"(medio)"}.`),s.amt?tr(`I lost ${amount}, paid by ${methodName}.`,`Perdí ${amount}, pagado por ${methodName}.`):"",s.contact?tr(`The scammer used: ${s.contact}.`,`El estafador usó: ${s.contact}.`):"","",tr("Please stop or reverse the payment if possible, refund me, and give me a case number.","Por favor detengan o reviertan el pago si es posible, devuélvanme el dinero y denme un número de caso.")].filter(x=>x!=="")),example:scamExample,date:s.date,story:s.story,bankNm,orgNm:orgName(s.org,s.pretend),bankLetter,orgLetter,send:sendL,evidence:evidence.slice(),
     summary:[[tr("Date of scam","Fecha"),s.date],[tr("How it started","Cómo empezó"),s.how?t("c_"+s.how):""],[tr("Pretended to be","Se hicieron pasar por"),[orgName(s.org,""),s.pretend].filter(Boolean).join(" / ")],
       [tr("My bank or card","Mi banco o tarjeta"),bankNm+(s.last4?` (${tr("ending in","termina en")} ${s.last4})`:"")],[tr("What happened","Qué pasó"),s.what.map(w=>t("w_"+w)).join("; ")],
-      [tr("Payment method","Forma de pago"),s.method?t("m_"+s.method):""],[tr("Amount","Cantidad"),s.amt?amount:""],[tr("Scammer's contact details","Contacto del estafador"),s.contact],[tr("Screenshots attached","Capturas adjuntas"),String(evidence.length)]]};
+      [tr("Payment method","Forma de pago"),s.method?t("m_"+s.method):""],[tr("Amount","Cantidad"),s.amt?amount:""],[tr("Scammer's contact details","Contacto del estafador"),s.contact],[tr("Crypto details","Datos cripto"),s.crypto],[tr("Screenshots attached","Capturas adjuntas"),String(evidence.length)]]};
   document.getElementById("splan").innerHTML=`<div class="card plan">
     <h2>${t("plan_title")}</h2>
     ${(s.bank||s.org)?`<div class="plan-block"><p class="label">${tr("Call these first","Llame primero a estos")}</p>
@@ -1747,6 +1850,7 @@ function renderCheck(){
     <button class="tile" data-go="checkEmail"><span class="tile-ic t-mail">${ic("mail")}</span><span class="tile-tx"><b>${tr("Email","Correo")}</b><span>${tr("Gmail, Outlook, Yahoo, and more","Gmail, Outlook, Yahoo y más")}</span></span>${conn?`<span class="badge ok">${tr("Gmail on","Gmail activo")}</span>`:""}${ic("chev","chev")}</button>
     <button class="tile" data-go="checkText"><span class="tile-ic t-msg">${ic("msg")}</span><span class="tile-tx"><b>${tr("Text messages","Mensajes de texto")}</b><span>${tr("Check a text and who sent it","Revise un texto y quién lo envió")}</span></span>${ic("chev","chev")}</button>
     <button class="tile" data-go="checkCall"><span class="tile-ic t-call">${ic("phone")}</span><span class="tile-tx"><b>${tr("Phone calls","Llamadas")}</b><span>${tr("Look up a number or describe a call","Busque un número o describa una llamada")}</span></span>${ic("chev","chev")}</button>
+    <button class="tile" data-go="checkCrypto"><span class="tile-ic t-crypto">${ic("spark")}</span><span class="tile-tx"><b>${tr("Crypto","Cripto")}</b><span>${tr("Websites, wallets, and investment offers","Sitios, billeteras y ofertas de inversión")}</span></span>${ic("chev","chev")}</button>
   </div>
   <p class="footnote">${ic("lock")}${tr("Checks run on this device. Nothing you type is saved.","Las revisiones se hacen en este dispositivo. No se guarda lo que escribe.")}</p>`;
   view.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
@@ -1846,6 +1950,7 @@ async function showVerdict(it,info,kind,sample){
   out.innerHTML=`<div class="card result"><div class="verdict v-${it.level}"><span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span><div><h3>${L.title}</h3>${it.level!=="safe"&&k?`<p dir="auto">${t("looks_like",{k:esc(cap(k))})}</p>`:""}</div></div>
     ${intelHTML(info,kind)}${detailHTML(it)}</div>`;
   out.querySelector("[data-speak]").onclick=()=>speakItem(it);
+  const hist=S.get("checks",[]);hist.push({at:Date.now(),channel:it.channel,level:it.level,kind:it.local.kindKey});S.set("checks",hist.slice(-200));
   out.scrollIntoView({behavior:"smooth",block:"start"});
 }
 let previewMode="text";
@@ -1914,6 +2019,10 @@ function renderSettings(){
     <div class="grow"><label for="aim" class="gl"><b>${tr("What the AI checks","Qué revisa la IA")}</b></label><select id="aim" class="inline">
       <option value="risky" ${c.aiMode==="risky"?"selected":""}>${tr("Only risky messages","Solo los riesgosos")}</option><option value="all" ${c.aiMode==="all"?"selected":""}>${tr("Every message","Todos")}</option><option value="off" ${c.aiMode==="off"?"selected":""}>${tr("Off","Apagado")}</option></select></div>
     <div class="grow"><span class="gl"><b>${tr("Remember my key on this device","Recordar mi clave en este dispositivo")}</b><span>${tr("Off is safer: you paste it again after closing the tab.","Apagado es más seguro: la pega de nuevo al cerrar.")}</span></span>${switchHTML("remk",c.rememberKey!==false,"")}</div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Security","Seguridad")}</h2><div class="group">
+    <div class="grow"><span class="gl"><b>${tr("Lock ScamSense with a PIN","Bloquear ScamSense con un PIN")}</b><span>${tr("Asks for your PIN when you open the app or come back after 2 minutes.","Pide su PIN al abrir la app o al volver después de 2 minutos.")}</span></span>${switchHTML("applock",!!S.get("lock",null),"")}</div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Plan","Plan")}</h2><div class="group">
+    <button class="grow linkrow" data-go="plans"><span class="gl"><b>${tr("Plans and pricing","Planes y precios")}</b><span>${tr("Personal $9.99/month · Family $15.99/month","Personal $9.99/mes · Familia $15.99/mes")}</span></span>${ic("chev","chev")}</button></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Language","Idioma")}</h2><div class="group">
     <div class="grow"><label for="lang" class="gl"><b>${tr("App language","Idioma de la app")}</b><span>${tr("AI answers and read-aloud use it too.","Las respuestas de IA y la lectura también.")}</span></label><select id="lang" class="inline">${Object.entries(LANGS).map(([k,v])=>`<option value="${k}" ${c.lang===k?"selected":""}>${v.name}</option>`).join("")}</select></div></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Daily scan","Revisión diaria")}</h2><div class="group">
@@ -1931,8 +2040,9 @@ function renderSettings(){
     <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div></div></details>
   <p class="footnote center">${t("footer")}</p>`;
   const save=()=>{saveCfg(Object.assign(cfg(),{lang:document.getElementById("lang").value,rememberKey:document.getElementById("remk").checked,clientId:document.getElementById("cid").value.trim()||DEFAULT_CLIENT_ID,apiKey:document.getElementById("key").value.trim(),aiMode:document.getElementById("aim").value,model:document.getElementById("mdl").value.trim()||"claude-haiku-5-5",days:+document.getElementById("days").value,max:+document.getElementById("max").value}));setStatus()};
-  view.querySelectorAll("input,select").forEach(x=>x.onchange=save);
-  document.getElementById("lang").onchange=()=>{save();applyLang();renderSettings()};
+  view.querySelectorAll("input,select").forEach(x=>{if(x.id!=="applock")x.onchange=save});
+  document.getElementById("applock").onchange=e=>{if(e.target.checked){setupPin(ok=>{if(!ok)e.target.checked=false})}else{S.del("lock");toast(tr("App lock is off.","El bloqueo está apagado."))}};
+  document.getElementById("lang").onchange=async()=>{save();await loadDict();applyLang();renderSettings()};
   view.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
   const cn=document.getElementById("conn");if(cn)cn.onclick=async()=>{save();try{await getToken(true);toast(t("gmail_ok"));go("today");scanGmail()}catch(e){toast(e.message)}};
   const dc=document.getElementById("disc");if(dc)dc.onclick=()=>{try{if(token)google.accounts.oauth2.revoke(token,()=>{})}catch(e){}token=null;S.set("connected",false);S.del("report");setStatus();renderSettings();toast(t("gmail_off"))};
@@ -1942,14 +2052,293 @@ function renderSettings(){
   document.getElementById("wipe").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k));Object.keys(sessionStorage).filter(k=>k.startsWith("ss_")).forEach(k=>sessionStorage.removeItem(k))}catch(e){}token=null;setStatus();applyLang();toast(t("wiped"));go("today")}else{this.dataset.sure="1";this.querySelector("b").textContent=t("wipe_sure")}};
 }
 
+/* ================= Learn: short lessons with one question each ================= */
+function LESSONS(){return [
+ {id:"payment",icon:"hand",title:tr("Gift cards, crypto, and wires","Tarjetas de regalo, cripto y transferencias"),
+  how:tr("Scammers ask you to pay in ways that can't be undone: gift cards, Bitcoin ATMs, wire transfers, or Zelle to a stranger.","Los estafadores piden pagos que no se pueden deshacer: tarjetas de regalo, cajeros de Bitcoin, transferencias o Zelle a un desconocido."),
+  flags:[tr("They tell you exactly how to pay","Le dicen exactamente cómo pagar"),tr("They want the gift card numbers read out loud","Quieren que lea en voz alta los números de la tarjeta"),tr("They stay on the phone while you go to the store","Se quedan en el teléfono mientras va a la tienda")],
+  todo:[tr("No real company or agency takes gift cards as payment.","Ninguna empresa o agencia real acepta tarjetas de regalo como pago."),tr("Hang up and talk to someone you trust.","Cuelgue y hable con alguien de confianza.")],
+  q:{q:tr("Someone from \"the IRS\" says you can settle your taxes with Apple gift cards. What is it?","Alguien del \"IRS\" dice que puede pagar sus impuestos con tarjetas de regalo de Apple. ¿Qué es?"),o:[tr("A scam","Una estafa"),tr("A real way to pay the IRS","Una forma real de pagarle al IRS")],a:0}},
+ {id:"impostor",icon:"user",title:tr("Fake bank, government, and company calls","Llamadas falsas de bancos, gobierno y empresas"),
+  how:tr("Scammers pretend to be your bank, Social Security, Medicare, the IRS, or Amazon. Caller ID can be faked to show a real name.","Se hacen pasar por su banco, el Seguro Social, Medicare, el IRS o Amazon. El identificador de llamadas se puede falsificar."),
+  flags:[tr("Urgent problem with your account","Un problema urgente con su cuenta"),tr("Threats of arrest or losing benefits","Amenazas de arresto o de perder beneficios"),tr("Asks you to move money to a \"safe account\"","Le pide mover dinero a una \"cuenta segura\"")],
+  todo:[tr("Hang up. Call the number on your card, bill, or the official website.","Cuelgue. Llame al número de su tarjeta, factura o sitio oficial."),tr("Your bank will never ask you to move money to protect it.","Su banco nunca le pedirá mover dinero para protegerlo.")],
+  q:{q:tr("Your phone shows \"Chase Fraud Dept\" and the caller asks you to move money to a safe account. What do you do?","Su teléfono dice \"Chase Fraud Dept\" y le piden mover dinero a una cuenta segura. ¿Qué hace?"),o:[tr("Move the money quickly","Muevo el dinero rápido"),tr("Hang up and call the number on my card","Cuelgo y llamo al número de mi tarjeta")],a:1}},
+ {id:"codes",icon:"key",title:tr("Codes and passwords","Códigos y contraseñas"),
+  how:tr("A code texted to you lets someone log in to your account. Scammers call pretending to \"verify\" you and ask you to read it.","Un código que le llega por texto permite entrar a su cuenta. Los estafadores llaman para \"verificarle\" y le piden leerlo."),
+  flags:[tr("Anyone asking for a code sent to your phone","Cualquiera que pida un código enviado a su teléfono"),tr("\"I'm sending you a code to confirm it's you\"","\"Le envío un código para confirmar que es usted\"")],
+  todo:[tr("Never share a code, not even with your bank.","Nunca comparta un código, ni con su banco."),tr("If you shared one, change your password and call the company.","Si lo compartió, cambie su contraseña y llame a la empresa.")],
+  q:{q:tr("A caller says they're from your bank and asks for the 6-digit code they just texted you. Should you share it?","Alguien dice ser de su banco y pide el código de 6 dígitos que le acaba de llegar. ¿Lo comparte?"),o:[tr("Yes, they sent it","Sí, ellos lo enviaron"),tr("No, never","No, nunca")],a:1}},
+ {id:"family",icon:"user",title:tr("\"Grandma, it's me\" emergencies","Emergencias de \"Abuela, soy yo\""),
+  how:tr("Someone pretends to be a grandchild or relative in trouble and needs money now, often for bail or a hospital.","Alguien finge ser un nieto o familiar en problemas que necesita dinero ya, a menudo para una fianza o un hospital."),
+  flags:[tr("A new phone number or email","Un número o correo nuevo"),tr("\"Please don't tell Mom and Dad\"","\"Por favor no le digas a mamá y papá\""),tr("Gift cards or cash pickup","Tarjetas de regalo o recogida de efectivo")],
+  todo:[tr("Call your family member on the number you already have.","Llame a su familiar al número que ya tiene."),tr("Check with another relative before doing anything.","Hable con otro familiar antes de hacer nada.")],
+  q:{q:tr("A text says: \"Grandma it's me, new number. I need $2,000 for bail. Don't tell Mom.\" What's the first step?","Un texto dice: \"Abuela soy yo, número nuevo. Necesito $2,000 de fianza. No le digas a mamá.\" ¿Qué hace primero?"),o:[tr("Call my grandchild's usual number","Llamo al número de siempre de mi nieto"),tr("Send the money fast","Envío el dinero rápido")],a:0}},
+ {id:"tech",icon:"device",title:tr("Tech support and refund scams","Falso soporte técnico y reembolsos"),
+  how:tr("A pop-up, call, or email says your computer has a virus or you were charged for a renewal. They want remote access or a \"refund\" payment.","Un aviso, llamada o correo dice que su computadora tiene un virus o que le cobraron una renovación. Quieren acceso remoto o un pago de \"reembolso\"."),
+  flags:[tr("A phone number in a pop-up or invoice email","Un número en un aviso o correo de factura"),tr("Asks you to install AnyDesk or TeamViewer","Le pide instalar AnyDesk o TeamViewer"),tr("They \"refund too much\" and ask for it back","\"Reembolsan de más\" y piden que lo devuelva")],
+  todo:[tr("Close the pop-up. Don't call the number.","Cierre el aviso. No llame al número."),tr("Microsoft and Apple won't call you to offer tech support.","Microsoft y Apple no le llaman para ofrecer soporte técnico.")],
+  q:{q:tr("A pop-up says \"Virus found! Call Microsoft at 1-888…\" What do you do?","Un aviso dice \"¡Virus! Llame a Microsoft al 1-888…\" ¿Qué hace?"),o:[tr("Close it and don't call","Lo cierro y no llamo"),tr("Call so they can fix it","Llamo para que lo arreglen")],a:0}},
+ {id:"texts",icon:"msg",title:tr("Fake toll, delivery, and bank texts","Textos falsos de peaje, envíos y bancos"),
+  how:tr("Texts say you owe a toll, missed a package, or have a locked account. The link goes to a fake site that steals your card.","Textos dicen que debe un peaje, perdió un paquete o tiene la cuenta bloqueada. El enlace lleva a un sitio falso que roba su tarjeta."),
+  flags:[tr("A small fee and a short deadline","Un cargo pequeño y un plazo corto"),tr("Strange web addresses (.xyz, .top)","Direcciones raras (.xyz, .top)")],
+  todo:[tr("Don't tap the link. Forward the text to 7726.","No toque el enlace. Reenvíe el texto al 7726."),tr("Check your account on the official app or website.","Revise su cuenta en la app o sitio oficial.")],
+  q:{q:tr("Which web address is most likely real for USPS?","¿Qué dirección es más probable que sea real de USPS?"),o:["usps.com","usps-redelivery.top"],a:0}},
+ {id:"prize",icon:"spark",title:tr("Prizes, lotteries, and jobs","Premios, loterías y trabajos"),
+  how:tr("You \"won\" something you never entered, or got a job offer that pays too well. They ask for a fee or your bank details first.","Usted \"ganó\" algo en lo que no participó, o le ofrecen un trabajo demasiado bueno. Piden un pago o sus datos bancarios primero."),
+  flags:[tr("You must pay to get your prize","Debe pagar para recibir el premio"),tr("They send a check and ask you to send part back","Le envían un cheque y piden que devuelva una parte")],
+  todo:[tr("You can't win a contest you didn't enter.","No se puede ganar un concurso en el que no participó."),tr("Real jobs never ask you to pay to start.","Los trabajos reales nunca piden pagar para empezar.")],
+  q:{q:tr("You won $50,000 but must pay a $500 processing fee first. What is it?","Ganó $50,000 pero debe pagar $500 de trámite primero. ¿Qué es?"),o:[tr("Normal paperwork","Trámite normal"),tr("A scam","Una estafa")],a:1}},
+ {id:"crypto",icon:"spark",title:tr("Crypto investment and romance scams","Estafas de inversión cripto y romance"),
+  how:tr("It often starts with a \"wrong number\" text or a friendly stranger online. They show you big profits on a crypto site, then ask for \"taxes\" or \"fees\" before you can withdraw.","Suele empezar con un texto de \"número equivocado\" o un desconocido amable. Le muestran grandes ganancias en un sitio cripto y luego piden \"impuestos\" o \"cargos\" para retirar."),
+  flags:[tr("Guaranteed or daily profits","Ganancias garantizadas o diarias"),tr("Moving the chat to WhatsApp or Telegram","Pasar la conversación a WhatsApp o Telegram"),tr("Paying a fee to withdraw your own money","Pagar un cargo para retirar su propio dinero")],
+  todo:[tr("Never invest through someone you met online.","Nunca invierta con alguien que conoció en internet."),tr("Check the website and wallet in the Crypto section first.","Revise el sitio y la billetera en la sección Cripto primero.")],
+  q:{q:tr("Your crypto account shows $40,000 profit, but you must pay a $3,000 tax to withdraw. What's happening?","Su cuenta cripto muestra $40,000 de ganancia, pero debe pagar $3,000 de impuesto para retirar. ¿Qué pasa?"),o:[tr("It's a scam; the profit isn't real","Es una estafa; la ganancia no es real"),tr("Pay it so you can withdraw","Lo pago para poder retirar")],a:0}}
+];}
+const KIND_LESSON={payment:"payment",account:"codes",threat:"impostor",family:"family",prize:"prize",callback:"tech",tech:"tech",toll:"texts",sender:"impostor",link:"texts",pressure:"impostor",crypto:"crypto"};
+let currentLesson="payment";
+function lessonState(){return S.get("lessons",{})}
+function renderLearn(){
+  const st=lessonState();const L=LESSONS();const done=L.filter(l=>st[l.id]).length;
+  view.innerHTML=`${pageHead(tr("Learn about scams","Aprenda sobre estafas"),tr("Short lessons, about one minute each. Each ends with one question.","Lecciones cortas, de un minuto. Cada una termina con una pregunta."),"help")}
+  <div class="progresscard"><div><b>${done} / ${L.length}</b><span>${tr("lessons done","lecciones hechas")}</span></div><div class="progress"><i style="width:${Math.round(done/L.length*100)}%"></i></div></div>
+  <div class="group">${L.map(l=>`<button class="grow linkrow" data-lesson="${l.id}"><span class="tile-ic sm t-dev">${ic(l.icon)}</span><span class="gl"><b>${esc(l.title)}</b><span>${st[l.id]?(st[l.id].correct?tr("Done ✓","Hecha ✓"):tr("Done · review it","Hecha · repásela")):tr("1 minute","1 minuto")}</span></span>${ic("chev","chev")}</button>`).join("")}</div>`;
+  bindBack();view.querySelectorAll("[data-lesson]").forEach(b=>b.onclick=()=>{currentLesson=b.dataset.lesson;go("lesson")});
+}
+function renderLesson(){
+  const l=LESSONS().find(x=>x.id===currentLesson)||LESSONS()[0];
+  view.innerHTML=`${pageHead(esc(l.title),"","learn")}
+  <section class="card"><p class="lead">${esc(l.how)}</p>
+    <div><p class="label">${tr("Warning signs","Señales de alerta")}</p><ul class="ticks">${l.flags.map(x=>`<li>${ic("alert")}<span>${esc(x)}</span></li>`).join("")}</ul></div>
+    <div><p class="label">${tr("What to do","Qué hacer")}</p><ul class="ticks ok">${l.todo.map(x=>`<li>${ic("check")}<span>${esc(x)}</span></li>`).join("")}</ul></div>
+    <button class="btn ghost" id="lread">${t("read_aloud")}</button></section>
+  <section class="card"><p class="label">${tr("Quick question","Pregunta rápida")}</p><p class="qq">${esc(l.q.q)}</p>
+    <div class="qopts">${l.q.o.map((o,i)=>`<button class="qopt" data-o="${i}">${esc(o)}</button>`).join("")}</div><p id="qres" class="qres" hidden></p></section>`;
+  bindBack();
+  document.getElementById("lread").onclick=()=>speak(`${l.title}. ${l.how} ${l.flags.join(". ")}. ${l.todo.join(" ")}`);
+  view.querySelectorAll(".qopt").forEach(b=>b.onclick=()=>{const ok=+b.dataset.o===l.q.a;view.querySelectorAll(".qopt").forEach(x=>{x.disabled=true;if(+x.dataset.o===l.q.a)x.classList.add("right")});if(!ok)b.classList.add("wrong");
+    const r=document.getElementById("qres");r.hidden=false;r.className="qres "+(ok?"good":"bad");r.textContent=ok?tr("Right! You'd spot this one.","¡Correcto! Usted reconocería esta."):tr("Not quite. The highlighted answer is the safe one.","No exactamente. La respuesta resaltada es la segura.");
+    const st=lessonState();st[l.id]={correct:ok,at:Date.now()};S.set("lessons",st)});
+}
+
+/* ================= Monthly report and weak spots ================= */
+function monthData(){
+  const since=Date.now()-30*864e5;
+  const scans=S.get("history",[]).filter(h=>h.at>=since),checks=S.get("checks",[]).filter(h=>h.at>=since),paused=S.get("paused",[]).filter(h=>h.at>=since);
+  const kinds={};const addK=(k,n)=>{if(k)kinds[k]=(kinds[k]||0)+(n||1)};
+  scans.forEach(h=>Object.entries(h.kinds||{}).forEach(([k,n])=>addK(k,n)));checks.forEach(c=>{if(c.level!=="safe")addK(c.kind)});
+  return {scans:scans.length,checked:scans.reduce((a,h)=>a+h.checked,0),caught:scans.reduce((a,h)=>a+h.scam+h.warn,0)+checks.filter(c=>c.level!=="safe").length,checks:checks.length,paused:paused.length,kinds};
+}
+function renderMonthly(){
+  const m=monthData();const top=Object.entries(m.kinds).sort((a,b)=>b[1]-a[1]).slice(0,3);const st=lessonState();const L=LESSONS();
+  const rec=[...new Set([...top.map(([k])=>KIND_LESSON[k]).filter(Boolean),...L.filter(l=>st[l.id]&&!st[l.id].correct).map(l=>l.id)])].filter(id=>!(st[id]&&st[id].correct)).slice(0,3);
+  view.innerHTML=`${pageHead(tr("Your monthly report","Su reporte mensual"),tr("The last 30 days on this device.","Los últimos 30 días en este dispositivo."),"help")}
+  <div class="stats"><div><b>${m.checked}</b><span>${tr("emails scanned","correos revisados")}</span></div><div><b>${m.caught}</b><span>${tr("scams caught","estafas detectadas")}</span></div><div><b>${m.checks}</b><span>${tr("messages checked","mensajes revisados")}</span></div><div><b>${m.paused}</b><span>${tr("payments paused","pagos pausados")}</span></div></div>
+  <section class="sect"><h2 class="sect-h">${tr("Scams that reached you most","Estafas que más le llegaron")}</h2>
+    ${top.length?`<div class="group">${top.map(([k,n])=>`<div class="grow"><span class="gl"><b>${esc(cap(TYPES[k]||k))}</b></span><span class="badge">${n}</span></div>`).join("")}</div>`:`<div class="emptybox">${ic("check")}<b>${tr("Nothing yet","Nada todavía")}</b><span>${tr("Scan your email or check a message, and this fills in.","Revise su correo o un mensaje y esto se llenará.")}</span></div>`}</section>
+  <section class="sect"><h2 class="sect-h">${tr("Your lessons for this month","Sus lecciones de este mes")}</h2>
+    ${rec.length?`<div class="group">${rec.map(id=>{const l=L.find(x=>x.id===id);return `<button class="grow linkrow" data-lesson="${id}"><span class="tile-ic sm t-dev">${ic(l.icon)}</span><span class="gl"><b>${esc(l.title)}</b><span>${tr("Picked for you","Elegida para usted")}</span></span>${ic("chev","chev")}</button>`}).join("")}</div>`
+      :`<button class="tile" data-go="learn"><span class="tile-ic t-dev">${ic("spark")}</span><span class="tile-tx"><b>${tr("All caught up","Todo al día")}</b><span>${tr("Browse all lessons","Ver todas las lecciones")}</span></span>${ic("chev","chev")}</button>`}</section>`;
+  bindBack();view.querySelectorAll("[data-lesson]").forEach(b=>b.onclick=()=>{currentLesson=b.dataset.lesson;go("lesson")});view.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go));
+}
+
+/* ================= AI Helper chat ================= */
+let chatLog=[];
+const HELPER_SYSTEM=()=>`You are the ScamSense Helper, a calm, kind assistant that helps people, especially older adults, stay safe from scams. Answer in ${LANGS[langCode()].ai}. Use short, plain sentences (8th-grade level) and at most 6 short lines. Never ask for passwords, codes, card numbers, or Social Security numbers, and tell the person never to share them. If they may have lost money or shared private details, tell them to call their bank right away and to use "I was scammed" in the Help tab. If they're in danger, tell them to call 911. If you're not sure, say so and suggest calling a trusted person or the official number on their card or bill.`;
+function renderHelper(){
+  const has=!!cfg().apiKey&&cfg().aiMode!=="off";
+  const sample=[{role:"user",content:tr("Someone called saying my Social Security number was suspended. Is that real?","Me llamaron diciendo que mi número de Seguro Social fue suspendido. ¿Es real?")},
+    {role:"assistant",content:tr("That's a scam. Social Security numbers can't be suspended. Hang up and don't give any information. If you're worried, call Social Security yourself at 1-800-772-1213.","Es una estafa. Los números de Seguro Social no se suspenden. Cuelgue y no dé información. Si le preocupa, llame usted al Seguro Social al 1-800-772-1213.")}];
+  const log=chatLog.length?chatLog:(has?[]:sample);
+  view.innerHTML=`${pageHead(tr("Ask ScamSense","Pregúntele a ScamSense"),tr("Ask anything about a message, a call, or a payment. Answers are short and simple.","Pregunte sobre un mensaje, una llamada o un pago. Respuestas cortas y simples."),"help")}
+  <section class="chat card"><div class="chatlog" id="chatlog" aria-live="polite">${log.length?log.map(m=>`<div class="bubble ${m.role==="user"?"me":"ai"}" dir="auto">${esc(m.content)}</div>`).join(""):`<p class="muted small" style="margin:0">${tr("Try one of these:","Pruebe una de estas:")}</p>`}</div>
+    ${!has?`<p class="note">${ic("info")}<span>${tr("This is a sample conversation. Add your AI key in Settings to chat. Once the ScamSense server is ready, no key will be needed.","Esta es una conversación de ejemplo. Agregue su clave de IA en Ajustes para chatear. Cuando el servidor esté listo, no hará falta.")}</span></p>`:""}
+    <div class="samples">${[tr("Is a text about an unpaid toll real?","¿Es real un texto sobre un peaje sin pagar?"),tr("Someone wants me to pay with gift cards","Alguien quiere que pague con tarjetas de regalo"),tr("How do I know if a website is real?","¿Cómo sé si un sitio web es real?")].map(q=>`<button class="chip" data-q="${esc(q)}" ${has?"":"disabled"}>${esc(q)}</button>`).join("")}</div>
+    <div class="composer"><textarea id="chatin" dir="auto" rows="2" placeholder="${esc(tr("Type your question…","Escriba su pregunta…"))}" ${has?"":"disabled"}></textarea><button class="btn primary" id="chatgo" ${has?"":"disabled"}>${tr("Send","Enviar")}</button></div>
+    <div class="row"><button class="btn ghost sm" id="chatsave" ${chatLog.length?"":"disabled"}>${ic("download")}<span>${tr("Save this chat","Guardar este chat")}</span></button><button class="btn ghost sm" id="chatread" ${log.length?"":"disabled"}>${t("read_aloud")}</button><button class="btn ghost sm" id="chatclear" ${chatLog.length?"":"disabled"}>${tr("Start over","Empezar de nuevo")}</button></div>
+    <p class="footnote">${ic("lock")}${tr("Your chat stays on this device until you close the app. Save it to keep a record.","Su chat se queda en este dispositivo hasta que cierre la app. Guárdelo para tener un registro.")}</p></section>`;
+  bindBack();
+  const send=async(q)=>{q=(q||document.getElementById("chatin").value).trim();if(!q)return;chatLog.push({role:"user",content:q});renderHelper();
+    const el=document.getElementById("chatlog");el.insertAdjacentHTML("beforeend",`<div class="bubble ai typing">${ic("spark")} …</div>`);el.scrollTop=el.scrollHeight;
+    try{const a=await callClaude(HELPER_SYSTEM(),chatLog.slice(-12),500);chatLog.push({role:"assistant",content:a.trim()})}catch(e){chatLog.push({role:"assistant",content:e.message==="no-key"?t("paste_key"):e.message})}
+    renderHelper();const l2=document.getElementById("chatlog");l2.scrollTop=l2.scrollHeight;document.getElementById("chatin").focus()};
+  document.getElementById("chatgo").onclick=()=>send();
+  document.getElementById("chatin").onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send()}};
+  view.querySelectorAll("[data-q]").forEach(b=>b.onclick=()=>send(b.dataset.q));
+  document.getElementById("chatread").onclick=()=>{const last=[...log].reverse().find(m=>m.role==="assistant");if(last)speak(last.content)};
+  document.getElementById("chatclear").onclick=()=>{chatLog=[];renderHelper()};
+  document.getElementById("chatsave").onclick=()=>{const txt=`ScamSense chat · ${new Date().toLocaleString()}\n\n`+chatLog.map(m=>`${m.role==="user"?tr("Me","Yo"):"ScamSense"}: ${m.content}`).join("\n\n");
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([txt],{type:"text/plain;charset=utf-8"}));a.download=`ScamSense-chat-${new Date().toISOString().slice(0,10)}.txt`;document.body.appendChild(a);a.click();a.remove()};
+}
+
+/* ================= Crypto: websites, wallets, investment offers ================= */
+const CRYPTO_BRANDS={coinbase:["coinbase.com"],binance:["binance.com","binance.us"],kraken:["kraken.com"],"crypto.com":["crypto.com"],gemini:["gemini.com"],metamask:["metamask.io"],trustwallet:["trustwallet.com"],robinhood:["robinhood.com"],ledger:["ledger.com"],trezor:["trezor.io"],kucoin:["kucoin.com"],okx:["okx.com"],bybit:["bybit.com"],blockchain:["blockchain.com"],uniswap:["uniswap.org","app.uniswap.org"],opensea:["opensea.io"]};
+/* Sample reported wallets for this prototype (made-up addresses). Real lookups need the ScamSense server and a reporting-database API. */
+const REPORTED_WALLETS={"TQ5kW8xZ3vN7pR2mY9bL4cF6hJ1aD8eS3u":{n:27,type:tr("Fake investment platform","Plataforma de inversión falsa")},"0x9f2c4e1a7b3d5f6e8a0c2b4d6f8e0a1c3e5b7d9f":{n:14,type:tr("Pig-butchering (romance and investment)","Engaño de romance e inversión")}};
+function walletInfo(raw){
+  const a=String(raw||"").trim();if(!a)return null;const lines=[];let chain="",level="info",title="";
+  if(/^0x[a-fA-F0-9]{40}$/.test(a)){chain="eth"}else if(/^T[1-9A-HJ-NP-Za-km-z]{33}$/.test(a)){chain="tron"}else if(/^(bc1[0-9a-z]{25,87}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})$/.test(a)){chain="btc"}
+  else if(/^[LM][a-km-zA-HJ-NP-Z1-9]{26,33}$/.test(a)||/^ltc1[0-9a-z]{25,}$/.test(a)){chain="ltc"}else if(/^r[1-9A-HJ-NP-Za-km-z]{24,34}$/.test(a)){chain="xrp"}else if(/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(a)){chain="sol"}
+  const name={eth:tr("Ethereum-style address (also used for USDT on Ethereum, BNB Chain, and Polygon)","Dirección tipo Ethereum (también USDT en Ethereum, BNB Chain y Polygon)"),tron:tr("TRON address (often used for USDT, very common in crypto scams)","Dirección TRON (usada para USDT, muy común en estafas cripto)"),btc:tr("Bitcoin address","Dirección de Bitcoin"),ltc:tr("Litecoin address","Dirección de Litecoin"),xrp:tr("XRP address","Dirección de XRP"),sol:tr("Possibly a Solana address","Posiblemente una dirección de Solana")}[chain];
+  if(!chain) return {level:"warn",title:tr("This doesn't look like a crypto wallet address.","No parece una dirección de billetera cripto."),lines:[tr("Check that you copied all of it, with no spaces.","Revise que la copió completa y sin espacios.")],links:[]};
+  const rep=REPORTED_WALLETS[a];
+  if(rep){level="scam";title=tr(`Reported ${rep.n} times: ${rep.type}`,`Reportada ${rep.n} veces: ${rep.type}`);lines.push(tr("Don't send anything to this wallet.","No envíe nada a esta billetera."))}
+  else{title=name;lines.push(tr("No reports found in ScamSense's list yet. That doesn't mean it's safe.","Aún no hay reportes en la lista de ScamSense. Eso no significa que sea segura."))}
+  if(rep)lines.unshift(name);
+  lines.push(tr("Crypto can't be reversed. Never send it to someone who contacted you first or who you only know online.","Las cripto no se pueden revertir. Nunca envíe a quien le contactó primero o a quien solo conoce por internet."));
+  const enc=encodeURIComponent(a);
+  const links=[["Chainabuse",`https://www.chainabuse.com/address/${enc}`],...(chain==="eth"?[["Etherscan",`https://etherscan.io/address/${enc}`]]:chain==="tron"?[["Tronscan",`https://tronscan.org/#/address/${enc}`]]:chain==="btc"?[["Blockchair",`https://blockchair.com/bitcoin/address/${enc}`]]:[])];
+  return {level,title,lines,links,sample:!!rep};
+}
+function cryptoSiteInfo(raw){
+  const host=hostOf(String(raw||"").trim());if(!host)return {level:"warn",title:tr("Type a website address, like example.com","Escriba una dirección web, como example.com"),lines:[],links:[]};
+  const lines=[];let level="info",title=tr("No warning signs in the address","Sin señales de alerta en la dirección");
+  const legit=Object.entries(CRYPTO_BRANDS).find(([b,ds])=>ds.some(d=>host===d||host.endsWith("."+d)));
+  const flat=unleet(host).replace(/[^a-z.]/g,"");
+  const fake=!legit&&Object.entries(CRYPTO_BRANDS).find(([b])=>flat.includes(b.replace(/[^a-z]/g,"")));
+  if(legit){level="safe";title=tr(`This is ${cap(legit[0])}'s real website`,`Este es el sitio real de ${cap(legit[0])}`);lines.push(tr("Make sure you typed it yourself and didn't follow a link from a stranger.","Asegúrese de haberlo escrito usted y no haber seguido un enlace de un desconocido."))}
+  else if(fake){level="scam";title=tr(`Fake ${cap(fake[0])} website`,`Sitio falso de ${cap(fake[0])}`);lines.push(tr(`"${host}" uses the ${cap(fake[0])} name, but it isn't ${cap(fake[0])}'s real website.`,`"${host}" usa el nombre de ${cap(fake[0])}, pero no es su sitio real.`))}
+  else{
+    if(/(mining|miner|invest|profit|yield|earn|trade|trading|fx|capital|finance|wallet|defi|vault|bot|arbitrage|usdt)/.test(flat)){level="warn";title=tr("Looks like a crypto investment site","Parece un sitio de inversión cripto");lines.push(tr("Fake crypto sites often use words like mining, profit, trading, or USDT in their address.","Los sitios cripto falsos suelen usar palabras como mining, profit, trading o USDT en la dirección."))}
+    if(BAD_TLD.test(host)||/\.(vip|cc|pro|app|io|club|finance|exchange|investments?)$/.test(host)){level=level==="warn"?"scam":"warn";title=level==="scam"?tr("Very likely a fake crypto site","Muy probablemente un sitio cripto falso"):tr("Unusual web address","Dirección web inusual");lines.push(tr(`The ending "${host.split(".").pop()}" is popular with fake investment sites.`,`La terminación "${host.split(".").pop()}" es popular en sitios de inversión falsos.`))}
+  }
+  lines.push(tr("Checking how new a site is needs the ScamSense server (coming). Until then, search it on the trackers below.","Saber qué tan nuevo es un sitio necesita el servidor (próximamente). Mientras, búsquelo en los registros de abajo."));
+  return {level,title,lines,links:[[tr("California Crypto Scam Tracker","Registro de estafas cripto de California"),"https://dfpi.ca.gov/crypto-scams/"],["Chainabuse","https://www.chainabuse.com"]]};
+}
+function cryptoIntelHTML(info,label){
+  if(!info)return "";const icon={scam:"alert",warn:"alert",safe:"check",info:"info"}[info.level];
+  return `<div class="intel lv-${info.level}"><div class="intel-h">${ic(icon)}<span>${label}</span></div><p class="intel-t">${esc(info.title)}</p>
+    ${info.lines.length?`<ul>${info.lines.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    ${info.links&&info.links.length?`<div class="contact-acts">${info.links.map(([n,u])=>`<a class="btn ghost sm" href="${u}" target="_blank" rel="noopener">${esc(n)} ↗</a>`).join("")}</div>`:""}
+    ${info.sample?`<p class="intel-foot">${tr("Report counts are sample data in this prototype.","Los conteos de reportes son datos de ejemplo en este prototipo.")}</p>`:""}</div>`;
+}
+const CRYPTO_CHAT="Hi, is this Linda? Oh sorry, wrong number! You seem nice though. Let's talk on WhatsApp. My uncle is a crypto analyst and our AI trading bot gives guaranteed 5% daily returns. You can start with $500 on our platform."
+function renderCheckCrypto(){
+  view.innerHTML=`${pageHead(tr("Crypto","Cripto"),tr("Check a crypto website, a wallet address, or an investment offer before you send anything.","Revise un sitio cripto, una billetera o una oferta de inversión antes de enviar algo."),"check")}
+  <section class="sect"><h2 class="sect-h">${tr("Check a website","Revisar un sitio web")}</h2><div class="card">
+    <div class="lookup"><input id="cw" inputmode="url" autocomplete="off" spellcheck="false" placeholder="example-trade.com" aria-label="${tr("Website","Sitio web")}"><button class="btn primary" id="cwgo">${tr("Check","Revisar")}</button></div>
+    <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" data-cw="coinbase-pro-wallet.vip">coinbase-pro-wallet.vip</button><button class="chip" data-cw="usdt-mining-pool.top">usdt-mining-pool.top</button><button class="chip" data-cw="coinbase.com">coinbase.com</button></div>
+    <div id="cwres"></div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Check a wallet address","Revisar una billetera")}</h2><div class="card">
+    <div class="lookup"><input id="ca" autocomplete="off" spellcheck="false" placeholder="0x… / T… / bc1…" aria-label="${tr("Wallet address","Dirección de billetera")}"><button class="btn primary" id="cago">${tr("Check","Revisar")}</button></div>
+    <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" data-ca="TQ5kW8xZ3vN7pR2mY9bL4cF6hJ1aD8eS3u">${tr("Reported TRON wallet","Billetera TRON reportada")}</button><button class="chip" data-ca="bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh">${tr("Bitcoin address","Dirección de Bitcoin")}</button></div>
+    <div id="cares"></div></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Check an investment offer or chat","Revisar una oferta o conversación")}</h2><div class="card">
+    <div class="field"><label for="cc">${tr("Paste the message or chat","Pegue el mensaje o la conversación")}</label><textarea id="cc" dir="auto"></textarea></div>
+    <div class="samples"><span class="small muted">${t("try_example")}</span><button class="chip" id="ccex">${tr("\"Wrong number\" chat","Chat de \"número equivocado\"")}</button></div>
+    <button class="btn primary" id="ccgo">${tr("Check this offer","Revisar esta oferta")}</button></div><div id="result" aria-live="polite"></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Already sent crypto?","¿Ya envió cripto?")}</h2>
+    <button class="tile" data-go="scammed"><span class="tile-ic t-call">${ic("sos")}</span><span class="tile-tx"><b>${t("scammed_card")}</b><span>${tr("Make a report with the wallet addresses and transaction IDs, like the ScamBusters do.","Haga un reporte con las billeteras e IDs de transacción, como hacen los ScamBusters.")}</span></span>${ic("chev","chev")}</button></section>`;
+  bindBack();
+  const site=()=>{const v=document.getElementById("cw").value;if(!v.trim())return;document.getElementById("cwres").innerHTML=cryptoIntelHTML(cryptoSiteInfo(v),tr("About this website","Sobre este sitio"))};
+  const wal=()=>{const v=document.getElementById("ca").value;if(!v.trim())return;document.getElementById("cares").innerHTML=cryptoIntelHTML(walletInfo(v),tr("About this wallet","Sobre esta billetera"))};
+  document.getElementById("cwgo").onclick=site;document.getElementById("cago").onclick=wal;
+  view.querySelectorAll("[data-cw]").forEach(b=>b.onclick=()=>{document.getElementById("cw").value=b.dataset.cw;site()});
+  view.querySelectorAll("[data-ca]").forEach(b=>b.onclick=()=>{document.getElementById("ca").value=b.dataset.ca;wal()});
+  document.getElementById("ccex").onclick=()=>{document.getElementById("cc").value=CRYPTO_CHAT};
+  document.getElementById("ccgo").onclick=async()=>{const v=document.getElementById("cc").value.trim();if(!v){toast(t("paste_first"));return}
+    await showVerdict({id:"paste",channel:"message",source:"paste",text:v,links:[],attachments:[],subject:""},null,"phone")};
+  view.querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>{if(b.dataset.go==="scammed")scamState.method="crypto";go(b.dataset.go)});
+}
+
+/* ================= Plans & pricing (no payments in the prototype) ================= */
+let planYearly=false;
+function renderPlans(){
+  const p=planYearly?{a:"$99",b:"$159",per:tr("/year","/año")}:{a:"$9.99",b:"$15.99",per:tr("/month","/mes")};
+  const feat=f=>`<ul class="ticks ok">${f.map(x=>`<li>${ic("check")}<span>${esc(x)}</span></li>`).join("")}</ul>`;
+  view.innerHTML=`${pageHead(tr("Plans","Planes"),tr("First month free. Cancel anytime. Full refund within 30 days.","Primer mes gratis. Cancele cuando quiera. Reembolso completo en 30 días."),"settings")}
+  <div class="seg2" role="group"><button aria-pressed="${!planYearly}" data-y="0">${tr("Monthly","Mensual")}</button><button aria-pressed="${planYearly}" data-y="1">${tr("Yearly (save 17%)","Anual (ahorre 17%)")}</button></div>
+  <div class="plans">
+    <section class="card plan-card"><p class="label">${tr("Personal","Personal")}</p><p class="price"><b>${p.a}</b><span>${p.per}</span></p>
+      ${feat([tr("Daily Safety Report for your email","Reporte diario de seguridad del correo"),tr("Check texts, calls, and crypto","Revise textos, llamadas y cripto"),tr("Pause before you pay","Pause antes de pagar"),tr("I was scammed: recovery plan and documents","Me estafaron: plan y documentos"),tr("Ask ScamSense (AI Helper)","Pregúntele a ScamSense (IA)")])}</section>
+    <section class="card plan-card best"><p class="label">${tr("Family","Familia")} · ${tr("up to 5 people","hasta 5 personas")}</p><p class="price"><b>${p.b}</b><span>${p.per}</span></p>
+      ${feat([tr("Everything in Personal, for each person","Todo lo de Personal, para cada persona"),tr("Trusted people get alerts","Las personas de confianza reciben alertas"),tr("Help setting up a parent's phone","Ayuda para configurar el teléfono de un padre")])}</section>
+  </div>
+  <p class="footnote">${ic("info")}${tr("This is a prototype. Payments aren't turned on yet.","Este es un prototipo. Los pagos aún no están activos.")}</p>`;
+  bindBack();view.querySelectorAll("[data-y]").forEach(b=>b.onclick=()=>{planYearly=b.dataset.y==="1";renderPlans()});
+}
+
+/* ================= App lock (PIN on this device) ================= */
+async function pinHash(pin,salt){const d=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(salt+":"+pin));return [...new Uint8Array(d)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+function pinPad(title,sub,onDone,extra){
+  const m=document.createElement("div");m.className="lockscreen";let v="";
+  m.innerHTML=`<div class="lockbox" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="lockowl">${ic("lock")}</div><h2>${esc(title)}</h2><p class="muted" id="lsub">${esc(sub)}</p>
+    <div class="dots" aria-hidden="true">${"<i></i>".repeat(6)}</div>
+    <div class="pad">${[1,2,3,4,5,6,7,8,9,"",0,"⌫"].map(k=>k===""?"<span></span>":`<button class="key" data-k="${k}" aria-label="${k==="⌫"?tr("Delete","Borrar"):k}">${k}</button>`).join("")}</div>
+    <button class="btn primary" id="pinok" disabled>${tr("Continue","Continuar")}</button>${extra||""}</div>`;
+  document.body.appendChild(m);
+  const dots=()=>{m.querySelectorAll(".dots i").forEach((d,i)=>d.classList.toggle("on",i<v.length));m.querySelector("#pinok").disabled=v.length<4};
+  const done=async()=>{if(v.length>=4){const r=await onDone(v,m);if(r===false){v="";dots()}}};
+  m.querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{const k=b.dataset.k;if(k==="⌫")v=v.slice(0,-1);else if(v.length<6)v+=k;dots()});
+  m.querySelector("#pinok").onclick=done;
+  m.addEventListener("keydown",e=>{if(/^\d$/.test(e.key)&&v.length<6){v+=e.key;dots()}else if(e.key==="Backspace"){v=v.slice(0,-1);dots()}else if(e.key==="Enter")done()});
+  m.tabIndex=-1;m.focus();return m;
+}
+function showLock(){
+  const L=S.get("lock",null);if(!L||document.querySelector(".lockscreen"))return;
+  const m=pinPad(tr("ScamSense is locked","ScamSense está bloqueado"),tr("Enter your PIN","Escriba su PIN"),async(pin,mm)=>{if(await pinHash(pin,L.salt)===L.hash){mm.remove();return true}mm.querySelector("#lsub").textContent=tr("Wrong PIN. Try again.","PIN incorrecto. Intente de nuevo.");return false},
+    `<button class="linkbtn" id="forgot">${tr("Forgot PIN?","¿Olvidó su PIN?")}</button>`);
+  m.querySelector("#forgot").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k));Object.keys(sessionStorage).filter(k=>k.startsWith("ss_")).forEach(k=>sessionStorage.removeItem(k))}catch(e){}location.reload()}
+    else{this.dataset.sure="1";this.textContent=tr("Tap again to delete all ScamSense data on this device and start over","Toque otra vez para borrar todos los datos de ScamSense y empezar de nuevo")}};
+}
+function setupPin(onDone){
+  pinPad(tr("Choose a PIN","Elija un PIN"),tr("4 to 6 numbers","De 4 a 6 números"),async(p1,m1)=>{m1.remove();
+    pinPad(tr("Enter it again","Escríbalo otra vez"),tr("To make sure it's right","Para confirmar"),async(p2,m2)=>{
+      if(p1!==p2){m2.querySelector("#lsub").textContent=tr("The PINs didn't match. Try again.","Los PIN no coinciden. Intente de nuevo.");return false}
+      const salt=[...crypto.getRandomValues(new Uint8Array(12))].map(x=>x.toString(16).padStart(2,"0")).join("");
+      S.set("lock",{salt,hash:await pinHash(p2,salt)});m2.remove();toast(tr("App lock is on.","El bloqueo está activo."));onDone&&onDone(true);return true})},
+    `<button class="linkbtn" id="pincancel">${tr("Cancel","Cancelar")}</button>`).querySelector("#pincancel").onclick=e=>{e.target.closest(".lockscreen").remove();onDone&&onDone(false)};
+}
+let hiddenAt=0;
+document.addEventListener("visibilitychange",()=>{if(document.hidden)hiddenAt=Date.now();else if(hiddenAt&&Date.now()-hiddenAt>2*60e3)showLock()});
+
+/* ================= First-run welcome ================= */
+function showOnboarding(){
+  if(S.get("onboarded",false)||document.querySelector(".onb"))return;
+  let step=0;const m=document.createElement("div");m.className="onb";document.body.appendChild(m);
+  const draw=()=>{
+    const steps=[
+      `<div class="onb-ic">${ic("globe")}</div><h2>Choose your language</h2><p class="muted">Elija su idioma · 选择语言 · اختر لغتك · زبان خود را انتخاب کنید</p>
+       <div class="langgrid">${Object.entries(LANGS).map(([k,v])=>`<button class="langbtn ${langCode()===k?"on":""}" data-l="${k}">${v.name}</button>`).join("")}</div>`,
+      `<div class="onb-ic owl"><svg viewBox="0 0 120 130"><polygon points="22,34 28,4 48,22" fill="#0E7C7B"/><polygon points="98,34 92,4 72,22" fill="#0E7C7B"/><rect x="20" y="14" width="80" height="108" rx="40" fill="#0E7C7B"/><circle cx="45" cy="52" r="16" fill="#fff"/><circle cx="75" cy="52" r="16" fill="#fff"/><circle cx="45" cy="52" r="8.5" fill="#F2A541"/><circle cx="75" cy="52" r="8.5" fill="#F2A541"/><circle cx="45" cy="52" r="3.8" fill="#0E3B43"/><circle cx="75" cy="52" r="3.8" fill="#0E3B43"/><polygon points="54,70 66,70 60,82" fill="#F2A541"/></svg></div>
+       <h2>${tr("Welcome to ScamSense","Bienvenido a ScamSense")}</h2><p>${tr("ScamSense checks your email, texts, and calls for scams, and tells you in plain words what's safe and what to do.","ScamSense revisa su correo, textos y llamadas, y le dice con palabras simples qué es seguro y qué hacer.")}</p>
+       <ul class="ticks ok">${[tr("Daily Safety Report for your inbox","Reporte diario de su correo"),tr("Pause before you pay","Pause antes de pagar"),tr("Step-by-step help if you were scammed","Ayuda paso a paso si le estafaron")].map(x=>`<li>${ic("check")}<span>${x}</span></li>`).join("")}</ul>`,
+      `<div class="onb-ic">${ic("lock")}</div><h2>${tr("Your privacy","Su privacidad")}</h2><p>${tr("Your messages are checked on this device. They're never sold, and ScamSense never sends, deletes, or changes your email.","Sus mensajes se revisan en este dispositivo. Nunca se venden, y ScamSense nunca envía, borra ni cambia su correo.")}</p>
+       <label class="checkrow big"><input type="checkbox" id="age13"> ${tr("I'm 13 or older","Tengo 13 años o más")}</label>`,
+      `<div class="onb-ic">${ic("spark")}</div><h2>${tr("You're all set","Todo listo")}</h2><p>${tr("Start with the demo to see how it works, or connect your Gmail.","Empiece con la demostración para ver cómo funciona, o conecte su Gmail.")}</p>`];
+    m.innerHTML=`<div class="onb-box" role="dialog" aria-modal="true">${steps[step]}
+      <div class="onb-dots">${steps.map((_,i)=>`<i class="${i===step?"on":""}"></i>`).join("")}</div>
+      <div class="row">${step===3?`<button class="btn primary" id="ob-demo">${t("try_demo")}</button><button class="btn ghost" id="ob-gmail">${tr("Connect Gmail","Conectar Gmail")}</button>`
+        :`<button class="btn primary" id="ob-next" ${step===2?"disabled":""}>${tr("Continue","Continuar")}</button>`}</div></div>`;
+    m.querySelectorAll("[data-l]").forEach(b=>b.onclick=async()=>{saveCfg(Object.assign(cfg(),{lang:b.dataset.l}));await loadDict();applyLang();draw()});
+    const a=m.querySelector("#age13");if(a)a.onchange=()=>{m.querySelector("#ob-next").disabled=!a.checked};
+    const nx=m.querySelector("#ob-next");if(nx)nx.onclick=()=>{step++;draw()};
+    const fin=()=>{S.set("onboarded",true);m.remove();go("today")};
+    const d=m.querySelector("#ob-demo");if(d)d.onclick=()=>{fin();loadDemo()};
+    const g=m.querySelector("#ob-gmail");if(g)g.onclick=()=>{fin();scanGmail()};
+  };draw();
+}
+
+/* ================= Today: quick actions + this month ================= */
+function todayExtrasHTML(){
+  const m=monthData();
+  return `<div class="quick">
+    <button class="qa" data-go="check"><span class="tile-ic sm t-mail">${ic("scan")}</span><b>${tr("Check something","Revisar algo")}</b></button>
+    <button class="qa" data-go="pause"><span class="tile-ic sm t-call">${ic("hand")}</span><b>${t("pause_card")}</b></button>
+    <button class="qa" data-go="helper"><span class="tile-ic sm t-msg">${ic("msg")}</span><b>${tr("Ask ScamSense","Pregúntele a ScamSense")}</b></button>
+    <button class="qa" data-go="scammed"><span class="tile-ic sm t-sos">${ic("sos")}</span><b>${t("scammed_card")}</b></button></div>
+  <button class="tile" data-go="monthly"><span class="tile-ic t-dev">${ic("bell")}</span><span class="tile-tx"><b>${tr("This month","Este mes")}</b><span>${tr(`${m.caught} scams caught · ${m.checked} emails scanned`,`${m.caught} estafas detectadas · ${m.checked} correos revisados`)}</span></span>${ic("chev","chev")}</button>`;
+}
+function bindGo(root){(root||view).querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go))}
+
 /* ----- navigation ----- */
-const TAB_OF={today:"today",check:"check",checkEmail:"check",checkText:"check",checkCall:"check",preview:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
+const TAB_OF={today:"today",check:"check",checkCrypto:"check",learn:"help",lesson:"help",monthly:"help",helper:"help",plans:"settings",checkEmail:"check",checkText:"check",checkCall:"check",preview:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
 function fillLangTop(){const el=document.getElementById("langtop");if(!el)return;
   el.innerHTML=Object.keys(LANGS).map(k=>`<option value="${k}" ${langCode()===k?"selected":""}>${LANGS[k].name}</option>`).join("");
-  el.onchange=()=>{saveCfg(Object.assign(cfg(),{lang:el.value}));applyLang();const h=location.hash.slice(1);go(TAB_OF[h]?h:"today")}}
+  el.onchange=async()=>{saveCfg(Object.assign(cfg(),{lang:el.value}));await loadDict();applyLang();const h=location.hash.slice(1);go(TAB_OF[h]?h:"today")}}
 function applyLang(){
   fillLangTop();
-  document.documentElement.lang=uiLang()==="es"?"es":"en";
+  document.documentElement.lang=langCode();document.documentElement.dir=LANGS[langCode()].rtl?"rtl":"ltr";
   document.querySelectorAll("nav.tabs [data-tab]").forEach(b=>b.querySelector("span").textContent=t("tab_"+b.dataset.tab));
   setStatus();if(Reader.active)updatePlayer();
 }
@@ -1958,13 +2347,12 @@ function go(tab){
   clearInterval(stillTimer);if(typeof simClear==="function")simClear();
   const top=TAB_OF[tab]||"today";
   document.querySelectorAll("nav.tabs button").forEach(b=>{if(b.dataset.tab===top)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
-  ({today:renderToday,check:renderCheck,checkEmail:renderCheckEmail,checkText:renderCheckText,checkCall:renderCheckCall,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
+  ({today:renderToday,check:renderCheck,checkCrypto:renderCheckCrypto,learn:renderLearn,lesson:renderLesson,monthly:renderMonthly,helper:renderHelper,plans:renderPlans,checkEmail:renderCheckEmail,checkText:renderCheckText,checkCall:renderCheckCall,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
   window.scrollTo(0,0);
   try{history.replaceState(null,"","#"+tab)}catch(e){}
 }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
-applyLang();
-go(TAB_OF[location.hash.slice(1)]?location.hash.slice(1):"today");
+loadDict().then(()=>{applyLang();go(TAB_OF[location.hash.slice(1)]?location.hash.slice(1):"today");showOnboarding();showLock()});
 
 </script>
 </body>
