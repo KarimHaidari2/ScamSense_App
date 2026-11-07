@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ScamSense</title>
 <meta name="description" content="ScamSense checks your email and messages for scams and explains them in plain language.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://accounts.google.com/gsi/client; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://accounts.google.com/gsi/style; font-src https://fonts.gstatic.com; connect-src https://gmail.googleapis.com https://api.anthropic.com https://accounts.google.com/gsi/; frame-src https://accounts.google.com/gsi/; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#0E7C7B">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -156,7 +158,15 @@ const S={
   set(k,v){try{localStorage.setItem("ss_"+k,JSON.stringify(v))}catch(e){}},
   del(k){try{localStorage.removeItem("ss_"+k)}catch(e){}}
 };
-const cfg=()=>Object.assign({clientId:"",apiKey:"",model:"claude-haiku-5-5",aiMode:"risky",days:1,max:50},S.get("cfg",{}));
+const SS={get(k){try{return sessionStorage.getItem("ss_"+k)||""}catch(e){return ""}},set(k,v){try{v?sessionStorage.setItem("ss_"+k,v):sessionStorage.removeItem("ss_"+k)}catch(e){}}};
+const cfg=()=>{const c=Object.assign({clientId:"",apiKey:"",model:"claude-haiku-5-5",aiMode:"risky",days:1,max:50,rememberKey:true},S.get("cfg",{}));
+  if(!c.rememberKey) c.apiKey=SS.get("key"); return c;};
+function saveCfg(c){const keep=Object.assign({},c); if(!c.rememberKey){SS.set("key",c.apiKey);keep.apiKey=""} else SS.set("key",""); S.set("cfg",keep);}
+/* Reports keep only the verdicts and reasons, never the email text, and are deleted after 7 days. */
+const REPORT_DAYS=7;
+function slimItem(it){return {id:it.id,source:it.source,channel:it.channel,folder:it.folder,inSpam:it.inSpam,fromName:it.fromName,fromEmail:it.fromEmail,
+  subject:it.subject,date:it.date,level:it.level,attachments:it.attachments,local:it.local,ai:it.ai,aiError:it.aiError}}
+(function expireOld(){const r=S.get("report",null);if(r&&Date.now()-r.at>REPORT_DAYS*864e5)S.del("report");try{localStorage.removeItem("ss_draft")}catch(e){}})();
 
 /* ================= scam signal rules (run on this device) ================= */
 const RULES=[
@@ -413,7 +423,7 @@ async function finishScan(items,source){
   const order={scam:0,warn:1,safe:2};
   items.sort((a,b)=>order[a.level]-order[b.level]||b.date-a.date);
   const report={at:Date.now(),source,days:c.days,ai:!!wantsAI,aiChecked:aiList.length,items};
-  S.set("report",report);
+  S.set("report",Object.assign({},report,{items:report.items.map(slimItem)}));
   const hist=S.get("history",[]);hist.push({at:report.at,checked:items.length,scam:items.filter(i=>i.level==="scam").length,warn:items.filter(i=>i.level==="warn").length});S.set("history",hist.slice(-90));
   if(aiErr) toast(aiErr);
   renderToday();
@@ -598,11 +608,11 @@ function renderCheck(res){
     ${cfg().apiKey?`<p class="small muted" style="margin:0">On-device checks run first. Then the text is sent to the AI (Anthropic) for a second opinion.</p>`:`<p class="small muted" style="margin:0">On-device checks only. Add an AI key in Settings for smarter answers.</p>`}
   </section><section id="result" aria-live="polite"></section>`;
   view.innerHTML=h;
-  const d=S.get("draft",null);if(d&&d.mode===mode){document.getElementById("msg").value=d.text||"";const nn=document.getElementById("num");if(nn)nn.value=d.num||""}
+  let d=null;try{d=JSON.parse(sessionStorage.getItem("ss_draft")||"null")}catch(e){}if(d&&d.mode===mode){document.getElementById("msg").value=d.text||"";const nn=document.getElementById("num");if(nn)nn.value=d.num||""}
   view.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{mode=b.dataset.m;renderCheck()});
-  const save=()=>{const nn=document.getElementById("num");S.set("draft",{mode,text:document.getElementById("msg").value,num:nn?nn.value:""})};
+  const save=()=>{const nn=document.getElementById("num");try{sessionStorage.setItem("ss_draft",JSON.stringify({mode,text:document.getElementById("msg").value,num:nn?nn.value:""}))}catch(e){}};
   view.querySelectorAll("textarea,input").forEach(x=>x.oninput=save);
-  document.getElementById("clr").onclick=()=>{S.del("draft");renderCheck()};
+  document.getElementById("clr").onclick=()=>{try{sessionStorage.removeItem("ss_draft")}catch(e){}renderCheck()};
   document.getElementById("go").onclick=runCheck;
 }
 async function runCheck(){
@@ -640,7 +650,10 @@ function renderSettings(){
       <option value="off" ${c.aiMode==="off"?"selected":""}>Off: on-device checks only</option></select></div>
     <div class="field"><label for="mdl">AI model</label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
     <button class="btn ghost" id="test">Test AI key</button>
-    <p class="small muted" style="margin:0">Your key is saved only in this browser on this device. When AI is on, the text of the emails being checked is sent to Anthropic's AI to judge them.</p>
+    <div class="field"><label for="remk">Remember my AI key on this device?</label><select id="remk">
+      <option value="yes" ${c.rememberKey!==false?"selected":""}>Yes, keep it (easier)</option>
+      <option value="no" ${c.rememberKey===false?"selected":""}>No, forget it when I close this tab (safer)</option></select></div>
+    <p class="small muted" style="margin:0">Your key never leaves this device except to talk to Anthropic. When AI is on, the text of the emails being checked is sent to Anthropic's AI to judge them.</p>
   </section>
   <section class="card"><h2>3. Scan settings</h2>
     <div class="field"><label for="days">Check emails from the last</label><select id="days">
@@ -655,20 +668,20 @@ function renderSettings(){
   <section class="card"><h2>Privacy</h2>
     <ul class="steps">
       <li>Gmail is read inside this app on your device. There is no ScamSense server, so your emails are never stored by us or sold.</li>
-      <li>Your Google sign-in, AI key, and reports stay in this browser only.</li>
+      <li>Your Google sign-in, AI key, and reports stay in this browser only. Reports keep the verdicts, never the email text, and are deleted after 7 days.</li>
       <li>If AI is on, only the emails being checked are sent to Anthropic for a verdict.</li>
     </ul>
     <button class="btn ghost" id="wipe">Delete all ScamSense data on this device</button>
   </section>
   <p class="small muted" style="text-align:center">ScamSense prototype · Built by Karim Haidari, University of Tulsa</p>`;
-  const save=()=>{S.set("cfg",Object.assign(cfg(),{clientId:document.getElementById("cid").value.trim(),apiKey:document.getElementById("key").value.trim(),aiMode:document.getElementById("aim").value,model:document.getElementById("mdl").value.trim()||"claude-haiku-5-5",days:+document.getElementById("days").value,max:+document.getElementById("max").value}));setStatus()};
+  const save=()=>{saveCfg(Object.assign(cfg(),{rememberKey:document.getElementById("remk").value==="yes",clientId:document.getElementById("cid").value.trim(),apiKey:document.getElementById("key").value.trim(),aiMode:document.getElementById("aim").value,model:document.getElementById("mdl").value.trim()||"claude-haiku-5-5",days:+document.getElementById("days").value,max:+document.getElementById("max").value}));setStatus()};
   view.querySelectorAll("input,select").forEach(x=>x.onchange=save);
   document.getElementById("conn").onclick=async()=>{save();try{await getToken(true);toast("Gmail connected.");go("today");scanGmail()}catch(e){toast(e.message)}};
   const dc=document.getElementById("disc");if(dc)dc.onclick=()=>{try{if(token)google.accounts.oauth2.revoke(token,()=>{})}catch(e){}token=null;S.set("connected",false);S.del("report");setStatus();renderSettings();toast("Gmail disconnected.")};
   document.getElementById("test").onclick=async()=>{save();const b=document.getElementById("test");b.disabled=true;b.textContent="Testing…";
     try{const r=await aiCheck({channel:"text message",text:"Hi, this is a reminder that your dentist appointment is tomorrow at 10 AM.",links:[],local:{reasons:[]}});toast(`AI works. It called the test message "${r.verdict==="safe"?"safe":r.verdict}".`)}catch(e){toast(e.message==="no-key"?"Paste your API key first.":e.message)}
     b.disabled=false;b.textContent="Test AI key"};
-  document.getElementById("wipe").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k))}catch(e){}token=null;setStatus();toast("All ScamSense data deleted from this device.");go("today")}else{this.dataset.sure="1";this.textContent="Tap again to delete everything"}};
+  document.getElementById("wipe").onclick=function(){if(this.dataset.sure){try{Object.keys(localStorage).filter(k=>k.startsWith("ss_")).forEach(k=>localStorage.removeItem(k));Object.keys(sessionStorage).filter(k=>k.startsWith("ss_")).forEach(k=>sessionStorage.removeItem(k))}catch(e){}token=null;setStatus();toast("All ScamSense data deleted from this device.");go("today")}else{this.dataset.sure="1";this.textContent="Tap again to delete everything"}};
 }
 
 /* ----- navigation ----- */
