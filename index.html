@@ -1292,8 +1292,8 @@ function helpCardsHTML(){
 function bindHelpCards(){view.querySelectorAll("[data-h]").forEach(b=>b.onclick=()=>go(b.dataset.h==="pause"?"pause":"scammed"))}
 function renderHelp(){
   const tile=(go,icn,cls,title,sub)=>`<button class="tile" data-go="${go}"><span class="tile-ic ${cls}">${ic(icn)}</span><span class="tile-tx"><b>${title}</b><span>${sub}</span></span>${ic("chev","chev")}</button>`;
-  view.innerHTML=`${pageHead(t("help_title"),tr("Get an answer, stop a payment, or recover after a scam.","Obtenga una respuesta, detenga un pago o recupérese de una estafa."))}
-  <div class="tiles">${tile("helper","msg","t-msg",tr("Ask Agent","Pregúntele al Agente"),tr("Chat with the AI Helper about anything that worries you.","Converse con la IA sobre lo que le preocupe."))}
+  view.innerHTML=`${pageHead(t("help_title"),tr("Stop a payment, or recover after a scam.","Detenga un pago o recupérese de una estafa."))}
+  <div class="tiles">
     ${tile("pause","hand","t-call",t("pause_card"),t("pause_card_sub"))}
     ${tile("scammed","sos","t-sos",t("scammed_card"),t("scammed_card_sub"))}</div>
   <section class="sect"><h2 class="sect-h">${tr("Stay sharp","Manténgase alerta")}</h2><div class="tiles">
@@ -2373,7 +2373,6 @@ function todayExtrasHTML(){
   return `<section class="sect"><h2 class="sect-h">${tr("Quick help","Ayuda rápida")}</h2><div class="group">
     ${row("check","t-mail","scan",tr("Check something","Revisar algo"),tr("An email, text, call, or crypto site","Un correo, texto, llamada o sitio cripto"))}
     ${row("pause","t-call","hand",t("pause_card"),tr("Someone is asking you for money","Alguien le pide dinero"))}
-    ${row("helper","t-msg","msg",tr("Ask Agent","Pregúntele al Agente"),tr("Chat with the AI helper","Hable con el asistente de IA"))}
     ${row("scammed","t-sos","sos",t("scammed_card"),tr("Get a step-by-step recovery plan","Obtenga un plan de recuperación paso a paso"))}
     ${row("monthly","t-dev","bell",tr("This month","Este mes"),tr(`${m.caught} scams caught · ${m.checked} emails scanned`,`${m.caught} estafas detectadas · ${m.checked} correos revisados`))}
   </div></section>`;
