@@ -23,6 +23,13 @@ async function callMahiServer(messages) {
 /* Built-in answers so Mahi always replies, even with no AI key or no internet */
 const AGENT_FAQ = () => [
   {
+    re: /what is scam ?sense|about (this|the) app|what (does|can) (this app|scam ?sense|mahi|you) do|who are you|qué es scam ?sense|scamsense چیست|اسکم‌سنس|ما هو scamsense|什么是 ?scamsense|scamsense(가| 는|는) 뭐|scamsense là gì|ano ang scamsense/i,
+    a: tr(
+      "ScamSense protects you from scams. It checks your email (Gmail, every folder), text messages, phone numbers, and crypto websites, and tells you in plain words what's safe and what to do. It also has Pause before you pay, a step-by-step plan if you were scammed, short lessons, and a Family tab for people you trust. I'm Mahi, its helper. Your messages are checked on your device and never sold.",
+      "ScamSense lo protege de estafas. Revisa su correo (Gmail, todas las carpetas), textos, números de teléfono y sitios de cripto, y le dice en palabras simples qué es seguro y qué hacer. También tiene Pause antes de pagar, un plan paso a paso si lo estafaron, lecciones cortas y una pestaña Familia. Soy Mahi, su asistente. Sus mensajes se revisan en su dispositivo y nunca se venden."
+    )
+  },
+  {
     re: /live (agent|person|chat)|real person|human|talk to (someone|a person|somebody)|speak (to|with) (someone|a person)|customer service|phone support|persona real|hablar con alguien|شخص واقعی|انسان|شخص حقيقي|真人|人工|상담원|사람과|người thật|tổng đài|totoong tao/i,
     a: tr(
       "I'm Mahi, an AI helper, so I'm not a live person. To talk to a real person about a scam: call a family member or friend you trust (see the Family tab), the AARP Fraud Watch Network Helpline at 877-908-3360 (free, Mon–Fri), or, if you're 60 or older, the National Elder Fraud Hotline at 1-833-372-8311. If you already lost money, call your bank now using the number on your card.",
