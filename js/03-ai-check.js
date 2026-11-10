@@ -1,0 +1,100 @@
+/*
+ * ScamSense · AI check
+ * Asks Anthropic's AI (Claude) for a second opinion on risky messages, when an AI key is set.
+ */
+"use strict";
+
+const AI_SYSTEM = `You are ScamSense, a scam detector that protects people, especially older adults, from scams in email, text messages, and phone calls.
+Judge the message you are given. Consider who really sent it, what it asks the reader to do (click, call, pay, share a code, install software, keep a secret), pressure or threats, payment methods (gift cards, crypto, wire, Zelle), lookalike websites, and whether the story makes sense.
+Normal newsletters, receipts and reminders from real companies are SAFE. Do not call something a scam just because it is marketing.
+Reply with ONLY a JSON object, no other text:
+{"verdict":"safe"|"suspicious"|"scam","scam_type":"short name or empty","confidence":0-100,"explanation":"2 short sentences in plain, friendly language a 75-year-old can follow","red_flags":["up to 4 short items"],"what_to_do":["2-4 short steps"]}
+Keep the JSON keys and the verdict word in English, but write scam_type, explanation, red_flags and what_to_do in {LANG}.`;
+
+async function aiCheck(item) {
+  const c = cfg();
+  if (!c.apiKey) throw new Error("no-key");
+  const parts = [];
+  parts.push(`Channel: ${item.channel}`);
+  if (item.fromName || item.fromEmail) parts.push(`From: ${item.fromName || ""} <${item.fromEmail || ""}>`);
+  if (item.replyTo) parts.push(`Reply-To: ${item.replyTo}`);
+  if (item.auth)
+    parts.push(`Sender checks: ${(item.auth.match(/(spf|dkim|dmarc)=\w+/gi) || []).join(", ") || "unknown"}`);
+  if (item.phone) parts.push(`Caller number: ${item.phone}`);
+  if (item.subject) parts.push(`Subject: ${item.subject}`);
+  const hosts = [...new Set((item.links || []).map(l => l.host).filter(Boolean))].slice(0, 12);
+  if (hosts.length) parts.push(`Link destinations: ${hosts.join(", ")}`);
+  if (item.attachments && item.attachments.length) parts.push(`Attachments: ${item.attachments.join(", ")}`);
+  parts.push(
+    `Warning signs found by on-device checks: ${item.local.reasons.length ? item.local.reasons.join(" | ") : "none"}`
+  );
+  parts.push(`Message text:\n"""\n${(item.text || "").slice(0, 3500)}\n"""`);
+  const txt = await callClaude(AI_SYSTEM.replace("{LANG}", LANGS[langCode()].ai), parts.join("\n"), 700);
+  const m = txt.match(/\{[\s\S]*\}/);
+  if (!m)
+    throw new Error(
+      tr(
+        "The AI gave an answer ScamSense couldn't read.",
+        "La IA dio una respuesta que ScamSense no pudo leer."
+      )
+    );
+  const j = JSON.parse(m[0]);
+  j.verdict = { safe: "safe", suspicious: "warn", scam: "scam" }[j.verdict] || "warn";
+  return j;
+}
+async function callClaude(system, user, maxTokens) {
+  const c = cfg();
+  if (!c.apiKey) throw new Error("no-key");
+  const body = {
+    model: c.model,
+    max_tokens: maxTokens || 700,
+    system,
+    messages: Array.isArray(user) ? user : [{ role: "user", content: user }]
+  };
+  let res,
+    tries = 0;
+  while (true) {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": c.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify(body)
+    });
+    if ((res.status === 429 || res.status === 529 || res.status >= 500) && tries < 2) {
+      tries++;
+      await new Promise(r => setTimeout(r, 2000 * tries));
+      continue;
+    }
+    break;
+  }
+  if (!res.ok) {
+    let msg = "";
+    try {
+      msg = (await res.json()).error.message;
+    } catch (e) {}
+    if (res.status === 401) throw new Error("The AI key wasn't accepted. Check it in Settings.");
+    if (res.status === 404)
+      throw new Error(`The AI model "${c.model}" wasn't found. Pick another model in Settings.`);
+    if (res.status === 400 && /credit/i.test(msg))
+      throw new Error("Your AI account is out of credit. Add credit at console.anthropic.com.");
+    throw new Error(`AI check failed (${res.status}). ${msg}`);
+  }
+  const data = await res.json();
+  return (data.content || [])
+    .filter(b => b.type === "text")
+    .map(b => b.text)
+    .join("");
+}
+function finalLevel(item) {
+  if (item.ai) {
+    let v = item.ai.verdict;
+    if (item.local.score >= 8 && v === "safe") v = "warn";
+    if (item.local.score >= 14 && v === "warn") v = "scam";
+    return v;
+  }
+  return item.local.level;
+}
