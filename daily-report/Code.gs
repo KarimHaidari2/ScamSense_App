@@ -12,19 +12,99 @@ const CONFIG = {
   DAYS: 1,              // how many days of email to check
   MAX_EMAILS: 150,      // safety limit per report
   APP_URL: "https://karimhaidari2.github.io/ScamSense_App/",
-  AI_MODEL: "claude-haiku-5-5"
+  AI_MODEL: "claude-haiku-5-5",
+  BLOCK_SCAMS: true,    // move scam emails to Spam automatically
+  BLOCK_EVERY_MIN: 15,  // how often to check for new scams (5, 10, 15 or 30)
+  BLOCK_LABEL: "ScamSense/Blocked"
 };
 
 /* Run this ONCE: creates the daily schedule and sends a first report. */
 function setup() {
-  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "sendDailyReport") ScriptApp.deleteTrigger(t); });
+  ScriptApp.getProjectTriggers().forEach(t => { if (["sendDailyReport", "blockScams"].includes(t.getHandlerFunction())) ScriptApp.deleteTrigger(t); });
   ScriptApp.newTrigger("sendDailyReport").timeBased().everyDays(1).atHour(CONFIG.HOUR).create();
+  if (CONFIG.BLOCK_SCAMS) ScriptApp.newTrigger("blockScams").timeBased().everyMinutes(CONFIG.BLOCK_EVERY_MIN).create();
+  if (CONFIG.BLOCK_SCAMS) blockScams();
   sendDailyReport();
 }
 
 /* Turn the daily email off. */
 function stopDailyReport() {
   ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "sendDailyReport") ScriptApp.deleteTrigger(t); });
+}
+
+/* Turn automatic blocking off (the daily report keeps working). */
+function stopBlocking() {
+  ScriptApp.getProjectTriggers().forEach(t => { if (t.getHandlerFunction() === "blockScams") ScriptApp.deleteTrigger(t); });
+}
+
+/* ---------- Automatic blocking ----------
+   Every few minutes: checks new emails in your Inbox (and other tabs).
+   A clear scam is moved to Spam, labeled "ScamSense/Blocked", and you get
+   one short email saying what was blocked and why.
+   Safety: never blocks a verified company sender, or anyone you have emailed before. */
+function blockScams() {
+  const me = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  const props = PropertiesService.getScriptProperties();
+  let seen = []; try { seen = JSON.parse(props.getProperty("SEEN_IDS") || "[]"); } catch (e) { seen = []; }
+  const seenSet = new Set(seen);
+  const label = GmailApp.getUserLabelByName(CONFIG.BLOCK_LABEL) || GmailApp.createLabel(CONFIG.BLOCK_LABEL);
+  const threads = GmailApp.search("newer_than:1d -in:spam -in:trash -in:sent -in:drafts -in:chats", 0, 60);
+  const blocked = [];
+  threads.forEach(th => {
+    th.getMessages().forEach(m => {
+      const id = m.getId(); if (seenSet.has(id) || m.isDraft()) return; seenSet.add(id); seen.push(id);
+      const from = parseFrom(m.getFrom());
+      if (!from.email || (me && from.email.toLowerCase() === me.toLowerCase())) return;
+      const msg = toMsg(m, from);
+      const r = analyze(msg);
+      if (r.level !== "scam" || r.trusted) return;
+      if (knownContact(from.email)) return;
+      th.moveToSpam(); th.addLabel(label);
+      blocked.push({ fromName: from.name, fromEmail: from.email, subject: msg.subject, kind: r.kind, why: bestWhy({ reasons: r.reasons }) });
+    });
+  });
+  props.setProperty("SEEN_IDS", JSON.stringify(seen.slice(-800)));
+  if (blocked.length) sendBlockedNotice(me, blocked);
+}
+
+function knownContact(email) {
+  try { return GmailApp.search(`in:sent to:${email}`, 0, 1).length > 0; } catch (e) { return false; }
+}
+
+function toMsg(m, from) {
+  const html = m.getBody() || "";
+  return {
+    subject: m.getSubject() || "", text: (m.getPlainBody() || "").slice(0, 6000),
+    fromName: from.name, fromEmail: from.email,
+    replyTo: (m.getReplyTo() || "").replace(/^.*</, "").replace(/>.*$/, ""),
+    auth: (safeHeader(m, "Authentication-Results") + " " + safeHeader(m, "ARC-Authentication-Results")),
+    listUnsub: !!safeHeader(m, "List-Unsubscribe"),
+    links: linksFromHtml(html),
+    attachments: m.getAttachments({ includeInlineImages: false }).map(a => a.getName())
+  };
+}
+
+function sendBlockedNotice(me, blocked) {
+  const n = blocked.length;
+  const subject = `ScamSense blocked ${n} scam email${n > 1 ? "s" : ""}`;
+  const plain = [`ScamSense blocked ${n} scam email${n > 1 ? "s" : ""} and moved ${n > 1 ? "them" : "it"} to Spam.`, ""]
+    .concat(blocked.map(b => `• ${b.fromName || b.fromEmail} — "${b.subject}"\n  Why: ${b.why}`))
+    .concat(["", `You don't need to do anything. Don't open ${n > 1 ? "them" : "it"}.`, "If one was a real email, open Spam in Gmail and tap \"Not spam\"."]).join("\n");
+  const rows = blocked.map(b => `<div style="border-left:4px solid #B42318;background:#fff;border-radius:10px;padding:12px 14px;margin:0 0 10px">
+      <div style="font-weight:700;font-size:16px">${esc(b.fromName || b.fromEmail)}</div>
+      <div style="color:#5B6B6E;font-size:13px">${esc(b.fromEmail)}</div>
+      <div style="font-size:15px;margin-top:4px">"${esc(b.subject)}"</div>
+      <div style="font-size:15px;margin-top:8px"><b style="color:#B42318">Why:</b> ${esc(b.why)}</div></div>`).join("");
+  const html = `<!doctype html><html><body style="margin:0;background:#F3F6F5;font-family:Arial,Helvetica,sans-serif;color:#0E3B43">
+    <div style="max-width:560px;margin:0 auto;padding:20px 14px">
+      <div style="font-size:20px;font-weight:800;margin:0 0 12px">🦉 ScamSense</div>
+      <div style="background:#fff;border-radius:16px;border-top:6px solid #B42318;padding:16px 18px;margin-bottom:14px">
+        <div style="font-size:22px;font-weight:800;line-height:1.25">🛡️ Blocked ${n} scam email${n > 1 ? "s" : ""}</div>
+        <p style="font-size:15px;margin:8px 0 0">${n > 1 ? "They were" : "It was"} moved to Spam. You don't need to do anything. Don't open ${n > 1 ? "them" : "it"}.</p></div>
+      ${rows}
+      <p style="color:#5B6B6E;font-size:13px;margin:12px 4px 0">If one was a real email, open <b>Spam</b> in Gmail and tap <b>Not spam</b>.</p>
+    </div></body></html>`;
+  GmailApp.sendEmail(me, subject, plain, { htmlBody: html, name: "ScamSense" });
 }
 
 /* Send a report right now (for testing). */
@@ -42,19 +122,10 @@ function sendDailyReport() {
       if (m.isDraft()) return;
       const from = parseFrom(m.getFrom());
       if (me && from.email.toLowerCase() === me.toLowerCase()) return;
-      const html = m.getBody() || "";
-      const msg = {
-        subject: m.getSubject() || "",
-        text: (m.getPlainBody() || "").slice(0, 6000),
-        fromName: from.name, fromEmail: from.email,
-        replyTo: (m.getReplyTo() || "").replace(/^.*</, "").replace(/>.*$/, ""),
-        auth: (safeHeader(m, "Authentication-Results") + " " + safeHeader(m, "ARC-Authentication-Results")),
-        listUnsub: !!safeHeader(m, "List-Unsubscribe"),
-        links: linksFromHtml(html),
-        attachments: m.getAttachments({ includeInlineImages: false }).map(a => a.getName())
-      };
+      const msg = toMsg(m, from);
       const r = analyze(msg);
-      items.push({ id: m.getId(), threadId: th.getId(), date: m.getDate(), folder, subject: msg.subject, fromName: from.name, fromEmail: from.email, level: r.level, kind: r.kind, reasons: r.reasons, trusted: r.trusted, msg });
+      const wasBlocked = th.getLabels().some(l => l.getName() === CONFIG.BLOCK_LABEL);
+      items.push({ id: m.getId(), threadId: th.getId(), date: m.getDate(), folder, blocked: wasBlocked, subject: msg.subject, fromName: from.name, fromEmail: from.email, level: r.level, kind: r.kind, reasons: r.reasons, trusted: r.trusted, msg });
     });
   });
 
@@ -145,7 +216,7 @@ function htmlReport(items, n, aiUsed) {
     const signs = i.reasons.filter(r => r !== why).slice(0, 3).map(r => `<li style="margin:2px 0">${esc(r)}</li>`).join("");
     const todo = ((i.ai && i.ai.what_to_do) || ADVICE[i.level]).slice(0, 3).map(t => `<li style="margin:2px 0">${esc(t)}</li>`).join("");
     return `<div style="border:1px solid #DDE5E3;border-left:5px solid ${C[i.level]};border-radius:12px;padding:14px 16px;margin:0 0 12px;background:#fff">
-      <div>${pill(i.level, i.level === "scam" ? "SCAM" : "SUSPICIOUS")}<span style="color:#5B6B6E;font-size:13px">${esc(i.folder)} · ${esc(fmt(i.date))}</span></div>
+      <div>${pill(i.level, i.level === "scam" ? "SCAM" : "SUSPICIOUS")}<span style="color:#5B6B6E;font-size:13px">${i.blocked ? "<b style=\"color:#B42318\">Blocked → Spam</b>" : esc(i.folder)} · ${esc(fmt(i.date))}</span></div>
       <div style="font-weight:700;font-size:16px;margin-top:8px">${esc(i.fromName || i.fromEmail)}</div>
       <div style="color:#5B6B6E;font-size:13px">${esc(i.fromEmail)}</div>
       <div style="font-size:15px;margin-top:4px">${esc(i.subject)}</div>
@@ -164,6 +235,7 @@ function htmlReport(items, n, aiUsed) {
       <div style="font-size:12px;font-weight:700;letter-spacing:.07em;color:#5B6B6E;text-transform:uppercase">Daily Safety Report · ${esc(fmt(new Date()))}</div>
       <div style="font-size:24px;font-weight:800;line-height:1.2;margin:8px 0 12px">${head}</div>
       <div>${pill("scam", `${n.scam} Scam`)}${pill("warn", `${n.warn} Suspicious`)}${pill("safe", `${n.safe} Safe`)}</div>
+      ${items.filter(i => i.blocked).length ? `<p style="font-size:15px;margin:12px 0 0">🛡️ <b>ScamSense blocked ${items.filter(i => i.blocked).length}</b> of them and moved them to Spam.</p>` : ""}
       <p style="color:#5B6B6E;font-size:14px;margin:12px 0 0">Checked ${items.length} emails from the last ${CONFIG.DAYS === 1 ? "24 hours" : CONFIG.DAYS + " days"} across all folders${fsum ? ` (${esc(fsum)})` : ""}. ${aiUsed ? "AI double-checked the risky ones." : "Checked with ScamSense's built-in rules."}</p>
     </div>
     ${risky.length ? `<h2 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#5B6B6E;margin:22px 4px 10px">Needs your attention</h2>${risky.map(card).join("")}` : ""}
