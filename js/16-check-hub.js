@@ -45,7 +45,7 @@ function renderCheckEmail() {
         k,
         n,
         c
-      ]) => `<div class="grow"><span class="pv" style="--pv:${c}">${esc(n[0])}</span><span class="gl"><b>${esc(n)}</b><span>${k === "gmail" ? (conn ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") : tr("Read-only. Never sends or deletes.", "Solo lectura. Nunca envía ni borra.")) : tr("Coming soon", "Próximamente")}</span></span>
+      ]) => `<div class="grow"><span class="pv" style="--pv:${c}">${esc(n[0])}</span><span class="gl"><b>${esc(n)}</b><span>${k === "gmail" ? (conn ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") + ` · <button class="textlink" id="gdisc">${t("disconnect")}</button>` : tr("Read-only. Never sends or deletes.", "Solo lectura. Nunca envía ni borra.")) : tr("Coming soon", "Próximamente")}</span></span>
       ${k === "gmail" ? (conn ? `<button class="btn sm primary" id="gscan">${tr("Scan now", "Revisar")}</button>` : `<button class="btn sm primary" id="gconn">${tr("Connect", "Conectar")}</button>`) : `<span class="badge">${tr("Soon", "Pronto")}</span>`}</div>`
     ).join("")}</div>
     <p class="footnote">${tr("Outlook, Yahoo, iCloud, and AOL need their own sign-in setup and are next. Until then, paste those emails below.", "Outlook, Yahoo, iCloud y AOL necesitan su propia conexión y vienen después. Mientras, pegue esos correos abajo.")}</p></section>
@@ -69,6 +69,18 @@ function renderCheckEmail() {
       } catch (e) {
         toast(e.message);
       }
+    };
+  const gd = document.getElementById("gdisc");
+  if (gd)
+    gd.onclick = () => {
+      try {
+        if (token) google.accounts.oauth2.revoke(token, () => {});
+      } catch (e) {}
+      token = null;
+      S.set("connected", false);
+      setStatus();
+      toast(t("gmail_off"));
+      renderCheckEmail();
     };
   const gs = document.getElementById("gscan");
   if (gs)

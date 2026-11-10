@@ -2734,3 +2734,22 @@ select.inline {
 .hero .big {
   font-size: 1.6rem;
 }
+
+/* Small text button inside a line of text (Email page: Disconnect) */
+.textlink {
+  all: unset;
+  cursor: pointer;
+  color: var(--brand);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.textlink:focus-visible {
+  outline: 3px solid var(--amber);
+}
+
+/* On phones, hide the "Gmail connected" pill in the header so it doesn't crowd the language button */
+@media (max-width: 480px) {
+  header .status {
+    display: none;
+  }
+}

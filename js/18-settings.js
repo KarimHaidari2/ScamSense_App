@@ -6,12 +6,7 @@
 
 function renderSettings() {
   const c = cfg();
-  const conn = S.get("connected", false);
   view.innerHTML = `${pageHead(t("tab_settings"), "")}
-  <section class="sect"><h2 class="sect-h">${tr("Email accounts", "Cuentas de correo")}</h2><div class="group">
-    <div class="grow"><span class="pv" style="--pv:#D93025">G</span><span class="gl"><b>Gmail</b><span>${conn ? tr("Connected", "Conectado") : tr("Not connected", "Sin conectar")}</span></span>
-      ${conn ? `<button class="btn sm ghost" id="disc">${t("disconnect")}</button>` : `<button class="btn sm primary" id="conn">${tr("Connect", "Conectar")}</button>`}</div>
-    <button class="grow linkrow" data-go="checkEmail"><span class="pv" style="--pv:#4F6B70">+</span><span class="gl"><b>${tr("Other email providers", "Otros proveedores")}</b><span>Outlook, Yahoo, iCloud, AOL</span></span>${ic("chev", "chev")}</button></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Smart AI checks", "Revisión con IA")}</h2><div class="group">
     <div class="grow col"><label for="key" class="gl"><b>${t("set_key")}</b><span>${tr("Used only to ask Anthropic's AI about risky messages.", "Solo para preguntar a la IA de Anthropic sobre mensajes riesgosos.")}</span></label>
       <div class="lookup"><input id="key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" value="${esc(c.apiKey)}"><button class="btn sm ghost" id="test">${t("test_key")}</button></div></div>
@@ -77,32 +72,6 @@ function renderSettings() {
     renderSettings();
   };
   view.querySelectorAll("[data-go]").forEach(b => (b.onclick = () => go(b.dataset.go)));
-  const cn = document.getElementById("conn");
-  if (cn)
-    cn.onclick = async () => {
-      save();
-      try {
-        await getToken(true);
-        toast(t("gmail_ok"));
-        go("today");
-        scanGmail();
-      } catch (e) {
-        toast(e.message);
-      }
-    };
-  const dc = document.getElementById("disc");
-  if (dc)
-    dc.onclick = () => {
-      try {
-        if (token) google.accounts.oauth2.revoke(token, () => {});
-      } catch (e) {}
-      token = null;
-      S.set("connected", false);
-      S.del("report");
-      setStatus();
-      renderSettings();
-      toast(t("gmail_off"));
-    };
   document.getElementById("test").onclick = async () => {
     save();
     const b = document.getElementById("test");
