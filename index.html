@@ -362,7 +362,9 @@ details.sect>summary::before{content:"▸ ";} details.sect[open]>summary::before
 .sc-badge .ic{width:30px;height:30px}
 .sc .big{font-family:var(--display);font-weight:800;font-size:1.35rem;line-height:1.2;margin:0;text-wrap:balance}
 .tally{display:flex;gap:8px;flex-wrap:wrap}
-.tally span{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:.9rem;font-weight:700}
+.tally button{all:unset;box-sizing:border-box;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:.9rem;font-weight:700}
+.tally button:hover{filter:brightness(.96)}.tally button:focus-visible{outline:3px solid var(--amber)}
+.seg.wide{display:flex;width:100%;box-sizing:border-box;overflow-x:auto;scrollbar-width:none}.seg.wide button{flex:1 0 auto;text-align:center;padding:6px 8px;font-size:.82rem}.segn{opacity:.7;font-variant-numeric:tabular-nums}
 .tally b{font-variant-numeric:tabular-nums;font-size:1rem}
 .tally .ts{background:var(--scam-bg);color:var(--scam)}.tally .tw{background:var(--warn-bg);color:var(--warn)}.tally .tk{background:var(--safe-bg);color:var(--safe)}
 .sc .meta{margin:0;color:var(--muted);font-size:.92rem}
@@ -1112,19 +1114,30 @@ function renderToday(opt){
   h+=`<div class="today"><section class="sc sv-${lv}">
     <div class="sc-top"><p class="label">${rep.source==="demo"?t("demo_label"):t("daily")} · ${esc(fmtTime(rep.at))}</p><button class="iconbtn" id="readsum" aria-label="${esc(t("read_aloud"))}" title="${esc(t("read_aloud"))}">${ic("speaker")}</button></div>
     <div class="sc-main"><span class="sc-badge">${ic(lv==="safe"?"shield":"alert")}</span><p class="big">${esc(headline)}</p></div>
-    <div class="tally"><span class="ts"><b>${n.scam}</b>${t("scam")}</span><span class="tw"><b>${n.warn}</b>${t("warn")}</span><span class="tk"><b>${n.safe}</b>${t("safe")}</span></div>
-    <p class="meta">${t("checked",{n:rep.items.length,d:dtxt})}${folderSummary(rep.items)}.</p>
-    <button class="btn primary" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button></section>`;
-  const shown=rep.items.filter(i=>filter==="all"||i.level!=="safe");
-  h+=`<section class="sect"><div class="sect-row"><h2 class="sect-h">${tr("Your emails","Sus correos")}</h2>
-      <div class="seg" role="group"><button data-f="risky" aria-pressed="${filter==="risky"}">${t("f_risky",{n:n.scam+n.warn})}</button><button data-f="all" aria-pressed="${filter==="all"}">${t("f_all",{n:rep.items.length})}</button></div></div>
-    <div class="list">${shown.length?shown.map((it,idx)=>itemHTML(it,idx)).join(""):`<div class="empty card">${t("nothing_risky")}</div>`}</div>
-    <p class="footnote">${ic("info")}<span>${aiNote}</span></p></section>
+    <div class="tally"><button class="ts" data-ef="scam"><b>${n.scam}</b>${t("scam")}</button><button class="tw" data-ef="warn"><b>${n.warn}</b>${t("warn")}</button><button class="tk" data-ef="safe"><b>${n.safe}</b>${t("safe")}</button></div>
+    <p class="meta">${t("checked",{n:rep.items.length,d:dtxt})}${folderSummary(rep.items)}.</p>`;
+  const risky=n.scam+n.warn;
+  h+=`<div class="btnrow"><button class="btn ${risky?"primary":"ghost"}" data-ef="${risky?"risky":"all"}">${risky?tr(`See the ${risky} risky emails`,`Ver los ${risky} correos peligrosos`):tr(`See all ${rep.items.length} emails`,`Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button></div></section>
     ${todayExtrasHTML()}</div>`;
   view.innerHTML=h;
   document.getElementById("scan").onclick=scanGmail;
   document.getElementById("readsum").onclick=()=>speak(`${headline} `+rep.items.filter(i=>i.level!=="safe").map(i=>` ${LV[i.level].word}: ${i.fromName||i.fromEmail}, ${i.subject}.`).join(""));
-  view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderToday()});bindGo();
+  view.querySelectorAll("[data-ef]").forEach(b=>b.onclick=()=>{filter=b.dataset.ef;go("emails")});bindGo();
+}
+function renderEmails(){
+  const rep=S.get("report",null);
+  if(!rep){go("today");return}
+  const n={scam:0,warn:0,safe:0};rep.items.forEach(i=>n[i.level]++);
+  const F=[["risky",tr("Risky","Peligrosos"),n.scam+n.warn],["scam",t("scam"),n.scam],["warn",t("warn"),n.warn],["safe",t("safe"),n.safe],["all",tr("All","Todos"),rep.items.length]];
+  const shown=rep.items.filter(i=>filter==="all"||(filter==="risky"?i.level!=="safe":i.level===filter));
+  const dtxt=rep.days===1?t("d24"):t("ddays",{n:rep.days});
+  const aiNote=rep.source==="demo"&&!rep.ai?t("ai_demo"):rep.ai?t("ai_checked",{n:rep.aiChecked}):t("ai_off");
+  view.innerHTML=`${pageHead(tr("Your emails","Sus correos"),t("checked",{n:rep.items.length,d:dtxt})+".","today")}
+    <div class="seg wide" role="group">${F.map(([k,l,c])=>`<button data-f="${k}" aria-pressed="${filter===k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>
+    <div class="list" style="margin-top:12px">${shown.length?shown.map((it,idx)=>itemHTML(it,idx)).join(""):`<div class="empty card">${tr("Nothing here.","Nada aquí.")}</div>`}</div>
+    <p class="footnote" style="margin-top:12px">${ic("info")}<span>${aiNote}</span></p>`;
+  bindBack();
+  view.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{filter=b.dataset.f;renderEmails()});
   bindItems(shown);
 }
 const FOLDER_ES={Inbox:"Recibidos",Promotions:"Promociones",Social:"Social",Updates:"Notificaciones",Forums:"Foros",Archived:"Archivados",Spam:"Spam",Trash:"Papelera"};
@@ -2361,7 +2374,7 @@ function todayExtrasHTML(){
 function bindGo(root){(root||view).querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go))}
 
 /* ----- navigation ----- */
-const TAB_OF={today:"today",check:"check",checkCrypto:"check",learn:"help",lesson:"help",monthly:"help",helper:"help",plans:"settings",checkEmail:"check",checkText:"check",checkCall:"check",preview:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
+const TAB_OF={today:"today",emails:"today",check:"check",checkCrypto:"check",learn:"help",lesson:"help",monthly:"help",helper:"help",plans:"settings",checkEmail:"check",checkText:"check",checkCall:"check",preview:"check",help:"help",pause:"help",scammed:"help",family:"family",settings:"settings"};
 function fillLangTop(){const el=document.getElementById("langtop");if(!el)return;
   el.innerHTML=Object.keys(LANGS).map(k=>`<option value="${k}" ${langCode()===k?"selected":""}>${LANGS[k].name}</option>`).join("");
   el.onchange=async()=>{saveCfg(Object.assign(cfg(),{lang:el.value}));await loadDict();applyLang();const h=location.hash.slice(1);go(TAB_OF[h]?h:"today")}}
@@ -2376,7 +2389,7 @@ function go(tab){
   clearInterval(stillTimer);if(typeof simClear==="function")simClear();
   const top=TAB_OF[tab]||"today";
   document.querySelectorAll("nav.tabs button").forEach(b=>{if(b.dataset.tab===top)b.setAttribute("aria-current","page");else b.removeAttribute("aria-current")});
-  ({today:renderToday,check:renderCheck,checkCrypto:renderCheckCrypto,learn:renderLearn,lesson:renderLesson,monthly:renderMonthly,helper:renderHelper,plans:renderPlans,checkEmail:renderCheckEmail,checkText:renderCheckText,checkCall:renderCheckCall,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
+  ({today:renderToday,emails:renderEmails,check:renderCheck,checkCrypto:renderCheckCrypto,learn:renderLearn,lesson:renderLesson,monthly:renderMonthly,helper:renderHelper,plans:renderPlans,checkEmail:renderCheckEmail,checkText:renderCheckText,checkCall:renderCheckCall,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
   window.scrollTo(0,0);
   try{history.replaceState(null,"","#"+tab)}catch(e){}
 }
