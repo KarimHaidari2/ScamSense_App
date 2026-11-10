@@ -14,7 +14,7 @@ function renderSettings() {
       <option value="risky" ${c.aiMode === "risky" ? "selected" : ""}>${tr("Only risky messages", "Solo los riesgosos")}</option><option value="all" ${c.aiMode === "all" ? "selected" : ""}>${tr("Every message", "Todos")}</option><option value="off" ${c.aiMode === "off" ? "selected" : ""}>${tr("Off", "Apagado")}</option></select></div>
     <div class="grow"><span class="gl"><b>${tr("Remember my key on this device", "Recordar mi clave en este dispositivo")}</b><span>${tr("Off is safer: you paste it again after closing the tab.", "Apagado es más seguro: la pega de nuevo al cerrar.")}</span></span>${switchHTML("remk", c.rememberKey !== false, "")}</div></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Security", "Seguridad")}</h2><div class="group">
-    <div class="grow"><span class="gl"><b>${tr("Lock ScamSense with a PIN", "Bloquear ScamSense con un PIN")}</b><span>${tr("Asks for your PIN when you open the app or come back after 2 minutes.", "Pide su PIN al abrir la app o al volver después de 2 minutos.")}</span></span>${switchHTML("applock", !!S.get("lock", null), "")}</div></div></section>
+    <div class="grow"><span class="gl"><b>${tr("Lock ScamSense with a PIN", "Bloquear ScamSense con un PIN")}</b><span>${tr("Asks for your PIN when you open the app or come back after 2 minutes.", "Pide su PIN al abrir la app o al volver después de 2 minutos.")}</span></span>${switchHTML("applock", !!S.get("lock", null), "")}</div>${S.get("lock", null) ? `<button class="grow linkrow" id="chpin"><span class="gl"><b>${tr("Change PIN", "Cambiar PIN")}</b><span>${tr("6 numbers. 5 wrong tries makes the app wait.", "6 números. Tras 5 intentos fallidos, la app hace esperar.")}</span></span>${ic("chev", "chev")}</button>` : ""}</div></section>
   <section class="sect"><h2 class="sect-h">${tr("Plan", "Plan")}</h2><div class="group">
     <button class="grow linkrow" data-go="plans"><span class="gl"><b>${tr("Plans and pricing", "Planes y precios")}</b><span>${tr("Personal $9.99/month · Family $15.99/month", "Personal $9.99/mes · Familia $15.99/mes")}</span></span>${ic("chev", "chev")}</button></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Language", "Idioma")}</h2><div class="group">
@@ -55,14 +55,19 @@ function renderSettings() {
   view.querySelectorAll("input,select").forEach(x => {
     if (x.id !== "applock") x.onchange = save;
   });
+  const chp = document.getElementById("chpin");
+  if (chp) chp.onclick = () => setupPin(ok => ok && renderSettings());
   document.getElementById("applock").onchange = e => {
     if (e.target.checked) {
       setupPin(ok => {
         if (!ok) e.target.checked = false;
+        else renderSettings();
       });
     } else {
       S.del("lock");
+      S.del("lockfail");
       toast(tr("App lock is off.", "El bloqueo está apagado."));
+      renderSettings();
     }
   };
   document.getElementById("lang").onchange = async () => {
