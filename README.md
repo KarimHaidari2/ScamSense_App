@@ -13,6 +13,7 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | `i18n/` | Translations. `en.json` is made from the code; other files match its ids |
 | `vendor/` | Outside tools kept in the repo: jsPDF (PDFs), throwaway-email list |
 | `daily-report/` | Google Apps Script: daily email report + automatic scam blocking |
+| `mahi-server/` | Google Apps Script web app: lets Mahi answer any question with the AI key hidden |
 
 ## The `js/` files
 

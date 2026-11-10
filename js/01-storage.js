@@ -38,6 +38,9 @@ const SS = {
     } catch (e) {}
   }
 };
+/* Mahi server: a Google Apps Script web app that holds the AI key (see mahi-server/README.md).
+   Paste its URL here so Mahi answers any question for everyone, with no key in the app. */
+const DEFAULT_MAHI_URL = "";
 const DEFAULT_CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleusercontent.com";
 const cfg = () => {
   const c = Object.assign(
@@ -54,6 +57,7 @@ const cfg = () => {
     S.get("cfg", {})
   );
   if (!c.clientId) c.clientId = DEFAULT_CLIENT_ID;
+  if (!c.mahiUrl) c.mahiUrl = DEFAULT_MAHI_URL;
   if (!c.rememberKey) c.apiKey = SS.get("key");
   return c;
 };

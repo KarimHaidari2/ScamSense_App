@@ -35,7 +35,8 @@ function renderSettings() {
   <section class="sect"><h2 class="sect-h">${t("set_home")}</h2><div class="group"><div class="grow col"><ol class="steps"><li>${t("home1")}</li><li>${t("home2")}</li><li>${t("home3")}</li></ol></div></div></section>
   <details class="sect adv"><summary class="sect-h">${tr("Advanced", "Avanzado")}</summary><div class="group">
     <div class="grow col"><label for="cid" class="gl"><b>${t("set_cid")}</b></label><input id="cid" autocomplete="off" spellcheck="false" value="${esc(c.clientId)}"></div>
-    <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div></div></details>
+    <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
+    <div class="grow col"><label for="murl" class="gl"><b>${tr("Mahi server", "Servidor de Mahi")}</b><span>${tr("Web app URL from the Mahi Server script. Lets Mahi answer anything with no key in the app.", "URL de la app web del script Mahi Server. Permite que Mahi responda todo sin clave en la app.")}</span></label><input id="murl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.mahiUrl)}"></div></div></details>
   <p class="footnote center">${t("footer")}</p>`;
   const save = () => {
     saveCfg(
@@ -46,6 +47,7 @@ function renderSettings() {
         apiKey: document.getElementById("key").value.trim(),
         aiMode: document.getElementById("aim").value,
         model: document.getElementById("mdl").value.trim() || "claude-haiku-5-5",
+        mahiUrl: document.getElementById("murl").value.trim(),
         days: +document.getElementById("days").value,
         max: +document.getElementById("max").value
       })

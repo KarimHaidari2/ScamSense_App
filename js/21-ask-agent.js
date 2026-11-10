@@ -6,9 +6,30 @@
 
 let chatLog = [];
 const HELPER_SYSTEM = () =>
-  `You are Mahi, ScamSense's calm, kind assistant that helps people, especially older adults, stay safe from scams. Answer in ${LANGS[langCode()].ai}. Use short, plain sentences (8th-grade level) and at most 6 short lines. Never ask for passwords, codes, card numbers, or Social Security numbers, and tell the person never to share them. If they may have lost money or shared private details, tell them to call their bank right away and to use "I was scammed" in the Help tab. If they're in danger, tell them to call 911. If you're not sure, say so and suggest calling a trusted person or the official number on their card or bill.`;
+  `You are Mahi, the friendly assistant inside ScamSense, an app that protects people (especially older adults) from scams. Answer ANY question the person asks, helpfully and honestly, not only scam questions; your specialty is staying safe from scams, fraud, and identity theft. Answer in ${LANGS[langCode()].ai}. Use short, plain sentences a 75-year-old can follow, under 8 short lines unless they ask for more. Never ask for passwords, codes, card numbers, or Social Security numbers, and remind people never to share them. If they may have lost money or shared private details, tell them to call their bank right away and to use "I was scammed" in the Help tab. If they want a real person, suggest a trusted family member, the AARP Fraud Watch Network Helpline 877-908-3360, or (age 60+) the National Elder Fraud Hotline 1-833-372-8311. If someone is in danger, tell them to call 911. If you're not sure, say so.`;
+
+/* Mahi server: sends the chat to the Mahi Server web app, which holds the AI key. */
+async function callMahiServer(messages) {
+  const url = cfg().mahiUrl;
+  if (!url) throw new Error("no-server");
+  const res = await fetch(url, {
+    method: "POST",
+    body: JSON.stringify({ messages, lang: LANGS[langCode()].ai })
+  });
+  const j = await res.json();
+  if (j.error) throw new Error(j.error);
+  return String(j.text || "");
+}
 /* Built-in answers so Mahi always replies, even with no AI key or no internet */
 const AGENT_FAQ = () => [
+  {
+    re: /live (agent|person|chat)|real person|human|talk to (someone|a person|somebody)|speak (to|with) (someone|a person)|customer service|phone support|persona real|hablar con alguien|شخص واقعی|انسان|شخص حقيقي|真人|人工|상담원|사람과|người thật|tổng đài|totoong tao/i,
+    a: tr(
+      "I'm Mahi, an AI helper, so I'm not a live person. To talk to a real person about a scam: call a family member or friend you trust (see the Family tab), the AARP Fraud Watch Network Helpline at 877-908-3360 (free, Mon–Fri), or, if you're 60 or older, the National Elder Fraud Hotline at 1-833-372-8311. If you already lost money, call your bank now using the number on your card.",
+      "Soy Mahi, un asistente de IA, así que no soy una persona. Para hablar con una persona sobre una estafa: llame a un familiar o amigo de confianza (vea Familia), a la línea de AARP al 877-908-3360 (gratis, lun–vie) o, si tiene 60 años o más, a la Línea Nacional de Fraude contra Mayores al 1-833-372-8311. Si ya perdió dinero, llame a su banco ahora con el número de su tarjeta."
+    ),
+    go: "family"
+  },
   {
     re: /scammed|\bi (already |just )?(paid|sent|gave|wired|transferred)\b|already (paid|sent|gave)|sent (them |the )?(\$|money|cash)|lost (my )?money|me estafaron|ya pagu|ya envi|envi[eé] dinero|کلاهبرداری شدم|پول فرستادم|پرداخت کردم|تعرضت للاحتيال|أرسلت المال|دفعت|被骗|已经付|사기를 당|이미 보냈|bị lừa|đã chuyển|na-scam|nagbayad na/i,
     go: "scammed",
@@ -149,13 +170,15 @@ async function localAgent(q) {
       );
       an.reasons.slice(0, 3).forEach(r => parts.push("• " + r));
       parts.push(advice(an.level).slice(0, 2).join(" "));
-    } else if (!parts.length)
+    } else if (!parts.length) {
+      go = "settings";
       parts.push(
         tr(
-          "I don't see clear warning signs in what you wrote. Remember the safe rules: don't pay with gift cards, crypto, or wire transfers, never share a code, and call companies back using the number on your card or their official website. You can also paste the message, phone number, email, or website here and I'll check it.",
-          "No veo señales claras de alerta en lo que escribió. Recuerde las reglas: no pague con tarjetas de regalo, cripto ni transferencias, nunca comparta un código y llame a las empresas con el número de su tarjeta o sitio oficial. También puede pegar aquí el mensaje, teléfono, correo o sitio web y lo reviso."
+          "Right now I can only answer common scam questions. To answer any question, I need my AI turned on: add an AI key in Settings, or the Mahi server address (Settings → Advanced). Meanwhile, you can paste a message, phone number, email, or website and I'll check it.",
+          "Por ahora solo puedo responder preguntas comunes sobre estafas. Para responder cualquier pregunta necesito mi IA: agregue una clave de IA en Ajustes o la dirección del servidor de Mahi (Ajustes → Avanzado). Mientras tanto, pegue un mensaje, teléfono, correo o sitio web y lo reviso."
         )
       );
+    }
   }
   return { text: parts.join("\n\n"), go };
 }
@@ -163,10 +186,14 @@ const AGENT_GO = {
   scammed: () => tr('Open "I was scammed"', 'Abrir "Me estafaron"'),
   pause: () => t("pause_card"),
   checkText: () => tr("Check a text message", "Revisar un texto"),
-  checkCrypto: () => tr("Open the crypto check", "Abrir la revisión cripto")
+  checkCrypto: () => tr("Open the crypto check", "Abrir la revisión cripto"),
+  family: () => tr("Open Family", "Abrir Familia"),
+  settings: () => tr("Turn on Mahi's AI in Settings", "Activar la IA de Mahi en Ajustes")
 };
 function renderHelper() {
-  const has = !!cfg().apiKey && cfg().aiMode !== "off";
+  const c0 = cfg();
+  const viaServer = !!c0.mahiUrl;
+  const has = viaServer || (!!c0.apiKey && c0.aiMode !== "off");
   const bubble = m =>
     `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${esc(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}</div>`;
   const hello = {
@@ -224,27 +251,33 @@ function renderHelper() {
     const local = await localAgent(q);
     if (has) {
       try {
-        const a = await callClaude(
-          HELPER_SYSTEM(),
-          chatLog
-            .filter(m => m.role)
-            .map(m => ({ role: m.role, content: m.content }))
-            .slice(-12),
-          500
-        );
-        reply = { role: "assistant", content: a.trim(), go: local.go };
+        const msgs = chatLog
+          .filter(m => m.role)
+          .map(m => ({ role: m.role, content: m.content }))
+          .slice(-12);
+        const a = viaServer ? await callMahiServer(msgs) : await callClaude(HELPER_SYSTEM(), msgs, 600);
+        reply = { role: "assistant", content: a.trim(), go: local.go === "settings" ? null : local.go };
       } catch (e) {
-        reply = {
-          role: "assistant",
-          content:
-            local.text +
-            "\n\n" +
-            tr(
-              "(The AI couldn't be reached, so this is a quick answer.)",
-              "(No se pudo conectar con la IA, así que esta es una respuesta rápida.)"
-            ),
-          go: local.go
-        };
+        reply =
+          local.go === "settings"
+            ? {
+                role: "assistant",
+                content: tr(
+                  "I couldn't reach my AI just now. Please check your internet and try again in a moment.",
+                  "No pude conectar con mi IA. Revise su internet e intente de nuevo en un momento."
+                )
+              }
+            : {
+                role: "assistant",
+                content:
+                  local.text +
+                  "\n\n" +
+                  tr(
+                    "(The AI couldn't be reached, so this is a quick answer.)",
+                    "(No se pudo conectar con la IA, así que esta es una respuesta rápida.)"
+                  ),
+                go: local.go
+              };
       }
     } else {
       await new Promise(r => setTimeout(r, Math.max(0, 650 - (Date.now() - t0))));
@@ -278,9 +311,7 @@ function renderHelper() {
   document.getElementById("chatsave").onclick = () => {
     const txt =
       `ScamSense chat · ${new Date().toLocaleString()}\n\n` +
-      chatLog
-        .map(m => `${m.role === "user" ? tr("Me", "Yo") : "Mahi"}: ${m.content}`)
-        .join("\n\n");
+      chatLog.map(m => `${m.role === "user" ? tr("Me", "Yo") : "Mahi"}: ${m.content}`).join("\n\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
     a.download = `ScamSense-chat-${new Date().toISOString().slice(0, 10)}.txt`;
