@@ -1,6 +1,6 @@
 /*
  * ScamSense · Navigation and start
- * Moves between screens, the floating Ask Agent button, and starts the app.
+ * Moves between screens, the floating Ask Mahi button, and starts the app.
  */
 "use strict";
 
@@ -50,7 +50,7 @@ function applyLang() {
   if (Reader.active) updatePlayer();
 }
 
-/* ----- floating "Ask Agent" button: tap to open, drag to move ----- */
+/* ----- floating "Ask Mahi" button: tap to open, drag to move ----- */
 const Fab = (() => {
   const el = () => document.getElementById("agentfab");
   const M = 12;
@@ -155,7 +155,7 @@ const Fab = (() => {
     const b = el();
     if (!b) return;
     init();
-    const label = tr("Ask Agent", "Pregúntele al Agente");
+    const label = tr("Ask Mahi", "Pregúntele a Mahi");
     document.getElementById("agentfab-l").textContent = label;
     b.setAttribute("aria-label", label + " — " + tr("drag to move", "arrastre para mover"));
     b.hidden = tab === "helper";

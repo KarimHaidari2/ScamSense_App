@@ -38,12 +38,12 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | 18-settings.js | Settings tab |
 | 19-lessons.js | Short lessons with a quiz |
 | 20-monthly-report.js | Monthly report |
-| 21-ask-agent.js | Ask Agent chat |
+| 21-ask-agent.js | Ask Mahi, the AI helper chat |
 | 22-crypto.js | Crypto website, wallet, and offer checks |
 | 23-plans.js | Plans and prices |
 | 24-app-lock.js | PIN lock |
 | 25-welcome.js | First-run welcome |
 | 26-today-shortcuts.js | Quick help list on Today |
-| 27-navigation-and-start.js | Moving between screens, Ask Agent button, start-up |
+| 27-navigation-and-start.js | Moving between screens, Ask Mahi button, start-up |
 
 Run it on your Mac: `python3 -m http.server 8000`, then open http://localhost:8000

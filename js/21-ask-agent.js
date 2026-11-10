@@ -1,13 +1,13 @@
 /*
- * ScamSense · Ask Agent
+ * ScamSense · Ask Mahi (AI helper)
  * The chat helper: built-in quick answers, plus the AI when a key is set.
  */
 "use strict";
 
 let chatLog = [];
 const HELPER_SYSTEM = () =>
-  `You are the ScamSense Agent, a calm, kind assistant that helps people, especially older adults, stay safe from scams. Answer in ${LANGS[langCode()].ai}. Use short, plain sentences (8th-grade level) and at most 6 short lines. Never ask for passwords, codes, card numbers, or Social Security numbers, and tell the person never to share them. If they may have lost money or shared private details, tell them to call their bank right away and to use "I was scammed" in the Help tab. If they're in danger, tell them to call 911. If you're not sure, say so and suggest calling a trusted person or the official number on their card or bill.`;
-/* Built-in answers so Ask Agent always replies, even with no AI key or no internet */
+  `You are Mahi, ScamSense's calm, kind assistant that helps people, especially older adults, stay safe from scams. Answer in ${LANGS[langCode()].ai}. Use short, plain sentences (8th-grade level) and at most 6 short lines. Never ask for passwords, codes, card numbers, or Social Security numbers, and tell the person never to share them. If they may have lost money or shared private details, tell them to call their bank right away and to use "I was scammed" in the Help tab. If they're in danger, tell them to call 911. If you're not sure, say so and suggest calling a trusted person or the official number on their card or bill.`;
+/* Built-in answers so Mahi always replies, even with no AI key or no internet */
 const AGENT_FAQ = () => [
   {
     re: /scammed|\bi (already |just )?(paid|sent|gave|wired|transferred)\b|already (paid|sent|gave)|sent (them |the )?(\$|money|cash)|lost (my )?money|me estafaron|ya pagu|ya envi|envi[eé] dinero|کلاهبرداری شدم|پول فرستادم|پرداخت کردم|تعرضت للاحتيال|أرسلت المال|دفعت|被骗|已经付|사기를 당|이미 보냈|bị lừa|đã chuyển|na-scam|nagbayad na/i,
@@ -93,8 +93,8 @@ const AGENT_FAQ = () => [
   {
     re: /^\s*(hi|hello|hey|hola|salam|salaam|سلام|مرحبا|你好|안녕|xin ch[aà]o|kumusta)(?=[\s!.,?؟،]|$)/i,
     a: tr(
-      "Hi! I'm here to help. Tell me about a message, call, or payment that worries you, or paste a phone number, email address, or website and I'll check it.",
-      "¡Hola! Estoy aquí para ayudar. Cuénteme sobre un mensaje, llamada o pago que le preocupe, o pegue un teléfono, correo o sitio web y lo reviso."
+      "Hi! I'm Mahi, and I'm here to help. Tell me about a message, call, or payment that worries you, or paste a phone number, email address, or website and I'll check it.",
+      "¡Hola! Soy Mahi y estoy aquí para ayudar. Cuénteme sobre un mensaje, llamada o pago que le preocupe, o pegue un teléfono, correo o sitio web y lo reviso."
     )
   }
 ];
@@ -172,11 +172,11 @@ function renderHelper() {
   const hello = {
     role: "assistant",
     content: tr(
-      "Hi! I'm your ScamSense Agent. Ask me about any message, call, or payment, or paste a phone number, email, or website and I'll check it.",
-      "¡Hola! Soy su Agente de ScamSense. Pregúnteme sobre cualquier mensaje, llamada o pago, o pegue un teléfono, correo o sitio web y lo reviso."
+      "Hi! I'm Mahi, your ScamSense helper. Ask me about any message, call, or payment, or paste a phone number, email, or website and I'll check it.",
+      "¡Hola! Soy Mahi, su asistente de ScamSense. Pregúnteme sobre cualquier mensaje, llamada o pago, o pegue un teléfono, correo o sitio web y lo reviso."
     )
   };
-  view.innerHTML = `${pageHead(tr("Ask Agent", "Pregúntele al Agente"), "", "help")}
+  view.innerHTML = `${pageHead(tr("Ask Mahi", "Pregúntele a Mahi"), "", "help")}
   <section class="chat card"><div class="chatlog" id="chatlog" aria-live="polite">${[hello, ...chatLog].map(bubble).join("")}</div>
     <div class="samples" id="chatsamples" ${chatLog.length ? "hidden" : ""}>${[tr("Is a text about an unpaid toll real?", "¿Es real un texto sobre un peaje sin pagar?"), tr("Someone wants me to pay with gift cards", "Alguien quiere que pague con tarjetas de regalo"), tr("How do I know if a website is real?", "¿Cómo sé si un sitio web es real?")].map(q => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
     <div class="composer"><textarea id="chatin" dir="auto" rows="1" placeholder="${esc(tr("Type your question…", "Escriba su pregunta…"))}"></textarea><button class="btn primary sendbtn" id="chatgo" aria-label="${esc(tr("Send", "Enviar"))}">${ic("send")}</button></div>
@@ -216,7 +216,7 @@ function renderHelper() {
     tools();
     log.insertAdjacentHTML(
       "beforeend",
-      `<div class="bubble ai typing" id="typing" aria-label="${esc(tr("Agent is typing", "El agente está escribiendo"))}"><i></i><i></i><i></i></div>`
+      `<div class="bubble ai typing" id="typing" aria-label="${esc(tr("Mahi is typing", "Mahi está escribiendo"))}"><i></i><i></i><i></i></div>`
     );
     scroll();
     const t0 = Date.now();
@@ -279,7 +279,7 @@ function renderHelper() {
     const txt =
       `ScamSense chat · ${new Date().toLocaleString()}\n\n` +
       chatLog
-        .map(m => `${m.role === "user" ? tr("Me", "Yo") : tr("Agent", "Agente")}: ${m.content}`)
+        .map(m => `${m.role === "user" ? tr("Me", "Yo") : "Mahi"}: ${m.content}`)
         .join("\n\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
