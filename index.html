@@ -333,7 +333,7 @@ header h1{font-size:1.35rem;font-weight:800;letter-spacing:-.01em}
 .sect{display:flex;flex-direction:column;gap:10px;margin-top:10px}
 .pagehead+.sect{margin-top:4px}
 .sect-h{font-family:var(--body);font-size:.8rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin:0 2px}
-.sect-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sect-row{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 details.sect>summary{list-style:none;cursor:pointer}
 details.sect>summary::before{content:"▸ ";} details.sect[open]>summary::before{content:"▾ "}
 .tiles{display:flex;flex-direction:column;gap:12px}
@@ -351,6 +351,28 @@ details.sect>summary::before{content:"▸ ";} details.sect[open]>summary::before
 .badge{font-size:.72rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:4px 8px;background:var(--bg);color:var(--muted);box-shadow:0 0 0 1px var(--line);white-space:nowrap}
 .tile-tx .badge.tb{align-self:flex-start;margin-bottom:4px;font-size:.68rem}
 .badge.ok{background:var(--safe-bg);color:var(--safe);box-shadow:none}
+.today{display:flex;flex-direction:column;gap:16px}
+.today .sect{margin-top:4px}
+.sc{display:flex;flex-direction:column;gap:14px;padding:20px;border-radius:20px;background:var(--surface);box-shadow:0 0 0 1px var(--line),0 1px 3px rgba(14,59,67,.05);position:relative;overflow:hidden}
+.sc::before{content:"";position:absolute;inset:0 0 auto 0;height:6px;background:var(--sc,var(--brand))}
+.sc.sv-scam{--sc:var(--scam);--scb:var(--scam-bg)}.sc.sv-warn{--sc:var(--warn);--scb:var(--warn-bg)}.sc.sv-safe{--sc:var(--safe);--scb:var(--safe-bg)}.sc.sv-new{--sc:var(--brand);--scb:var(--brand-soft)}
+.sc-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sc-main{display:flex;align-items:center;gap:14px}
+.sc-badge{flex:none;width:54px;height:54px;border-radius:16px;display:grid;place-items:center;background:var(--scb);color:var(--sc)}
+.sc-badge .ic{width:30px;height:30px}
+.sc .big{font-family:var(--display);font-weight:800;font-size:1.35rem;line-height:1.2;margin:0;text-wrap:balance}
+.tally{display:flex;gap:8px;flex-wrap:wrap}
+.tally span{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;font-size:.9rem;font-weight:700}
+.tally b{font-variant-numeric:tabular-nums;font-size:1rem}
+.tally .ts{background:var(--scam-bg);color:var(--scam)}.tally .tw{background:var(--warn-bg);color:var(--warn)}.tally .tk{background:var(--safe-bg);color:var(--safe)}
+.sc .meta{margin:0;color:var(--muted);font-size:.92rem}
+.sc .btn{width:100%}
+.sc .btnrow{display:flex;flex-direction:column;gap:10px}
+.seg{display:inline-flex;background:var(--line);border-radius:999px;padding:3px;gap:2px}
+.seg button{all:unset;cursor:pointer;padding:6px 12px;border-radius:999px;font-size:.85rem;font-weight:700;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.seg button:focus-visible{outline:3px solid var(--amber)}
+.list{display:flex;flex-direction:column;gap:8px}
 .footnote{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:.88rem;margin:0 2px}
 .footnote .ic{width:18px;height:18px;margin-top:2px}
 .footnote.center{justify-content:center;text-align:center}
@@ -1073,29 +1095,32 @@ function renderToday(opt){
     return;
   }
   if(!rep){
-    h+=`<section class="card hero"><p class="label">${t("welcome")}</p><p class="big">${t("welcome_big")}</p>
-      <p class="muted" style="margin:0">${t("welcome_sub")}</p>
-      <div class="row"><button class="btn primary" id="demo">${t("try_demo")}</button><button class="btn ghost" id="scan">${t("scan_my")}</button></div></section>
+    h+=`<div class="today"><section class="sc sv-new"><div class="sc-main"><span class="sc-badge">${ic("shield")}</span><p class="big">${t("welcome_big")}</p></div>
+      <p class="meta">${t("welcome_sub")}</p>
+      <div class="btnrow"><button class="btn primary" id="demo">${t("try_demo")}</button><button class="btn ghost" id="scan">${t("scan_my")}</button></div></section>
       ${todayExtrasHTML()}
-      <p class="footnote">${ic("lock")}<span><b>${t("private_title")}</b> ${t("private_body")}</span></p>`;
+      <p class="footnote">${ic("lock")}<span><b>${t("private_title")}</b> ${t("private_body")}</span></p></div>`;
     view.innerHTML=h;
     document.getElementById("scan").onclick=scanGmail;
     document.getElementById("demo").onclick=loadDemo;bindGo();return;
   }
   const n={scam:0,warn:0,safe:0};rep.items.forEach(i=>n[i.level]++);
   const headline=headlineOf(n);
+  const lv=n.scam?"scam":n.warn?"warn":"safe";
   const dtxt=rep.days===1?t("d24"):t("ddays",{n:rep.days});
-  h+=`<section class="card hero"><p class="label">${rep.source==="demo"?t("demo_label"):t("daily")} · ${esc(fmtTime(rep.at))}</p>
-    <p class="big">${esc(headline)}</p>
-    <div class="counts"><div class="count c-scam"><b>${n.scam}</b><span>${t("scam")}</span></div><div class="count c-warn"><b>${n.warn}</b><span>${t("warn")}</span></div><div class="count c-safe"><b>${n.safe}</b><span>${t("safe")}</span></div></div>
-    <p class="muted small" style="margin:0">${t("checked",{n:rep.items.length,d:dtxt})}${folderSummary(rep.items)}. ${rep.source==="demo"&&!rep.ai?t("ai_demo"):rep.ai?t("ai_checked",{n:rep.aiChecked}):t("ai_off")}</p>
-    <div class="row"><button class="btn primary" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button><button class="btn ghost" id="readsum">${t("read_aloud")}</button></div></section>${todayExtrasHTML()}`;
-  h+=`<div class="filters" role="group">
-      <button class="chip" data-f="risky" aria-pressed="${filter==="risky"}">${t("f_risky",{n:n.scam+n.warn})}</button>
-      <button class="chip" data-f="all" aria-pressed="${filter==="all"}">${t("f_all",{n:rep.items.length})}</button></div>`;
+  const aiNote=rep.source==="demo"&&!rep.ai?t("ai_demo"):rep.ai?t("ai_checked",{n:rep.aiChecked}):t("ai_off");
+  h+=`<div class="today"><section class="sc sv-${lv}">
+    <div class="sc-top"><p class="label">${rep.source==="demo"?t("demo_label"):t("daily")} · ${esc(fmtTime(rep.at))}</p><button class="iconbtn" id="readsum" aria-label="${esc(t("read_aloud"))}" title="${esc(t("read_aloud"))}">${ic("speaker")}</button></div>
+    <div class="sc-main"><span class="sc-badge">${ic(lv==="safe"?"shield":"alert")}</span><p class="big">${esc(headline)}</p></div>
+    <div class="tally"><span class="ts"><b>${n.scam}</b>${t("scam")}</span><span class="tw"><b>${n.warn}</b>${t("warn")}</span><span class="tk"><b>${n.safe}</b>${t("safe")}</span></div>
+    <p class="meta">${t("checked",{n:rep.items.length,d:dtxt})}${folderSummary(rep.items)}.</p>
+    <button class="btn primary" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button></section>`;
   const shown=rep.items.filter(i=>filter==="all"||i.level!=="safe");
-  if(!shown.length) h+=`<div class="empty card">${t("nothing_risky")}</div>`;
-  h+=shown.map((it,idx)=>itemHTML(it,idx)).join("");
+  h+=`<section class="sect"><div class="sect-row"><h2 class="sect-h">${tr("Your emails","Sus correos")}</h2>
+      <div class="seg" role="group"><button data-f="risky" aria-pressed="${filter==="risky"}">${t("f_risky",{n:n.scam+n.warn})}</button><button data-f="all" aria-pressed="${filter==="all"}">${t("f_all",{n:rep.items.length})}</button></div></div>
+    <div class="list">${shown.length?shown.map((it,idx)=>itemHTML(it,idx)).join(""):`<div class="empty card">${t("nothing_risky")}</div>`}</div>
+    <p class="footnote">${ic("info")}<span>${aiNote}</span></p></section>
+    ${todayExtrasHTML()}</div>`;
   view.innerHTML=h;
   document.getElementById("scan").onclick=scanGmail;
   document.getElementById("readsum").onclick=()=>speak(`${headline} `+rep.items.filter(i=>i.level!=="safe").map(i=>` ${LV[i.level].word}: ${i.fromName||i.fromEmail}, ${i.subject}.`).join(""));
@@ -1776,6 +1801,7 @@ const ICONS={
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/>',
   scan:'<path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16"/>',
   download:'<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/>',bell:'<path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  speaker:'<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/>',shield:'<path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6z"/><path d="M8.8 12.2l2.2 2.2 4.4-4.6"/>',
   user:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5"/>',key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2.5 2.5"/>'
 };
 const ic=(n,cls)=>`<svg class="ic ${cls||""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n]||""}</svg>`;
@@ -2323,12 +2349,14 @@ function showOnboarding(){
 /* ================= Today: quick actions + this month ================= */
 function todayExtrasHTML(){
   const m=monthData();
-  return `<div class="quick">
-    <button class="qa" data-go="check"><span class="tile-ic sm t-mail">${ic("scan")}</span><b>${tr("Check something","Revisar algo")}</b></button>
-    <button class="qa" data-go="pause"><span class="tile-ic sm t-call">${ic("hand")}</span><b>${t("pause_card")}</b></button>
-    <button class="qa" data-go="helper"><span class="tile-ic sm t-msg">${ic("msg")}</span><b>${tr("Ask ScamSense","Pregúntele a ScamSense")}</b></button>
-    <button class="qa" data-go="scammed"><span class="tile-ic sm t-sos">${ic("sos")}</span><b>${t("scammed_card")}</b></button></div>
-  <button class="tile" data-go="monthly"><span class="tile-ic t-dev">${ic("bell")}</span><span class="tile-tx"><b>${tr("This month","Este mes")}</b><span>${tr(`${m.caught} scams caught · ${m.checked} emails scanned`,`${m.caught} estafas detectadas · ${m.checked} correos revisados`)}</span></span>${ic("chev","chev")}</button>`;
+  const row=(go,cls,icn,title,sub)=>`<button class="grow" data-go="${go}"><span class="tile-ic sm ${cls}">${ic(icn)}</span><span class="gl"><b>${title}</b>${sub?`<span>${sub}</span>`:""}</span>${ic("chev","chev")}</button>`;
+  return `<section class="sect"><h2 class="sect-h">${tr("Quick help","Ayuda rápida")}</h2><div class="group">
+    ${row("check","t-mail","scan",tr("Check something","Revisar algo"),tr("An email, text, call, or crypto site","Un correo, texto, llamada o sitio cripto"))}
+    ${row("pause","t-call","hand",t("pause_card"),tr("Someone is asking you for money","Alguien le pide dinero"))}
+    ${row("helper","t-msg","msg",tr("Ask ScamSense","Pregúntele a ScamSense"),tr("Chat with the AI helper","Hable con el asistente de IA"))}
+    ${row("scammed","t-sos","sos",t("scammed_card"),tr("Get a step-by-step recovery plan","Obtenga un plan de recuperación paso a paso"))}
+    ${row("monthly","t-dev","bell",tr("This month","Este mes"),tr(`${m.caught} scams caught · ${m.checked} emails scanned`,`${m.caught} estafas detectadas · ${m.checked} correos revisados`))}
+  </div></section>`;
 }
 function bindGo(root){(root||view).querySelectorAll("[data-go]").forEach(b=>b.onclick=()=>go(b.dataset.go))}
 
