@@ -1084,7 +1084,7 @@ function togglePause(){
 function stopSpeaking(){Reader.active=false;Reader.paused=false;Reader.queue=[];try{speechSynthesis.cancel()}catch(e){}updatePlayer()}
 
 /* ----- Today ----- */
-let filter="risky";
+let filter="all";
 function plural(s,n){return s.replace(/\((s|es|n|a\(s\))\)/g,(m,x)=>n===1?"":x)}
 function headlineOf(n){return n.scam?plural(t("h_scams",{n:n.scam}),n.scam):n.warn?plural(t("h_warn",{n:n.warn}),n.warn):t("h_clear")}
 function renderToday(opt){
@@ -1116,8 +1116,7 @@ function renderToday(opt){
     <div class="sc-main"><span class="sc-badge">${ic(lv==="safe"?"shield":"alert")}</span><p class="big">${esc(headline)}</p></div>
     <div class="tally"><button class="ts" data-ef="scam"><b>${n.scam}</b>${t("scam")}</button><button class="tw" data-ef="warn"><b>${n.warn}</b>${t("warn")}</button><button class="tk" data-ef="safe"><b>${n.safe}</b>${t("safe")}</button></div>
     <p class="meta">${t("checked",{n:rep.items.length,d:dtxt})}${folderSummary(rep.items)}.</p>`;
-  const risky=n.scam+n.warn;
-  h+=`<div class="btnrow"><button class="btn ${risky?"primary":"ghost"}" data-ef="${risky?"risky":"all"}">${risky?tr(`See the ${risky} risky emails`,`Ver los ${risky} correos peligrosos`):tr(`See all ${rep.items.length} emails`,`Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button></div></section>
+  h+=`<div class="btnrow"><button class="btn primary" data-ef="all">${tr(`See all ${rep.items.length} emails`,`Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source==="demo"?t("scan_my"):t("scan_again")}</button></div></section>
     ${todayExtrasHTML()}</div>`;
   view.innerHTML=h;
   document.getElementById("scan").onclick=scanGmail;
@@ -1128,8 +1127,10 @@ function renderEmails(){
   const rep=S.get("report",null);
   if(!rep){go("today");return}
   const n={scam:0,warn:0,safe:0};rep.items.forEach(i=>n[i.level]++);
-  const F=[["risky",tr("Risky","Peligrosos"),n.scam+n.warn],["scam",t("scam"),n.scam],["warn",t("warn"),n.warn],["safe",t("safe"),n.safe],["all",tr("All","Todos"),rep.items.length]];
-  const shown=rep.items.filter(i=>filter==="all"||(filter==="risky"?i.level!=="safe":i.level===filter));
+  if(!["all","scam","warn","safe"].includes(filter))filter="all";
+  const F=[["all",tr("All","Todos"),rep.items.length],["scam",t("scam"),n.scam],["warn",t("warn"),n.warn],["safe",t("safe"),n.safe]].filter(f=>f[0]==="all"||f[2]>0||filter===f[0]);
+  const rank={scam:0,warn:1,safe:2};
+  const shown=rep.items.filter(i=>filter==="all"||i.level===filter).sort((a,b)=>rank[a.level]-rank[b.level]);
   const dtxt=rep.days===1?t("d24"):t("ddays",{n:rep.days});
   const aiNote=rep.source==="demo"&&!rep.ai?t("ai_demo"):rep.ai?t("ai_checked",{n:rep.aiChecked}):t("ai_off");
   view.innerHTML=`${pageHead(tr("Your emails","Sus correos"),t("checked",{n:rep.items.length,d:dtxt})+".","today")}
