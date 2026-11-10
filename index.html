@@ -375,6 +375,11 @@ details.sect>summary::before{content:"▸ ";} details.sect[open]>summary::before
 .seg button[aria-pressed=true]{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
 .seg button:focus-visible{outline:3px solid var(--amber)}
 .list{display:flex;flex-direction:column;gap:8px}
+.fab{all:unset;box-sizing:border-box;position:fixed;z-index:40;display:inline-flex;align-items:center;gap:8px;height:48px;padding:0 16px 0 12px;border-radius:999px;background:var(--brand);color:#fff;font-weight:700;font-size:.92rem;cursor:grab;box-shadow:0 6px 18px rgba(14,59,67,.28),0 0 0 3px var(--surface);touch-action:none;user-select:none;-webkit-user-select:none;transition:left .22s ease,top .22s ease,transform .15s ease}
+.fab .ic{width:22px;height:22px}
+.fab.dragging{transition:none;cursor:grabbing;transform:scale(1.06)}
+.fab:focus-visible{outline:3px solid var(--amber);outline-offset:2px}
+.fab[hidden]{display:none}
 .footnote{display:flex;gap:8px;align-items:flex-start;color:var(--muted);font-size:.88rem;margin:0 2px}
 .footnote .ic{width:18px;height:18px;margin-top:2px}
 .footnote.center{justify-content:center;text-align:center}
@@ -468,6 +473,7 @@ select.inline{width:auto;max-width:55%;padding:8px 10px;font-size:.95rem;backgro
     <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
   </div>
 </nav>
+<button class="fab" id="agentfab" type="button" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg><span id="agentfab-l">Ask Agent</span></button>
 
 <script>
 "use strict";
@@ -1287,7 +1293,7 @@ function bindHelpCards(){view.querySelectorAll("[data-h]").forEach(b=>b.onclick=
 function renderHelp(){
   const tile=(go,icn,cls,title,sub)=>`<button class="tile" data-go="${go}"><span class="tile-ic ${cls}">${ic(icn)}</span><span class="tile-tx"><b>${title}</b><span>${sub}</span></span>${ic("chev","chev")}</button>`;
   view.innerHTML=`${pageHead(t("help_title"),tr("Get an answer, stop a payment, or recover after a scam.","Obtenga una respuesta, detenga un pago o recupérese de una estafa."))}
-  <div class="tiles">${tile("helper","msg","t-msg",tr("Ask ScamSense","Pregúntele a ScamSense"),tr("Chat with the AI Helper about anything that worries you.","Converse con la IA sobre lo que le preocupe."))}
+  <div class="tiles">${tile("helper","msg","t-msg",tr("Ask Agent","Pregúntele al Agente"),tr("Chat with the AI Helper about anything that worries you.","Converse con la IA sobre lo que le preocupe."))}
     ${tile("pause","hand","t-call",t("pause_card"),t("pause_card_sub"))}
     ${tile("scammed","sos","t-sos",t("scammed_card"),t("scammed_card_sub"))}</div>
   <section class="sect"><h2 class="sect-h">${tr("Stay sharp","Manténgase alerta")}</h2><div class="tiles">
@@ -2191,7 +2197,7 @@ function renderHelper(){
   const sample=[{role:"user",content:tr("Someone called saying my Social Security number was suspended. Is that real?","Me llamaron diciendo que mi número de Seguro Social fue suspendido. ¿Es real?")},
     {role:"assistant",content:tr("That's a scam. Social Security numbers can't be suspended. Hang up and don't give any information. If you're worried, call Social Security yourself at 1-800-772-1213.","Es una estafa. Los números de Seguro Social no se suspenden. Cuelgue y no dé información. Si le preocupa, llame usted al Seguro Social al 1-800-772-1213.")}];
   const log=chatLog.length?chatLog:(has?[]:sample);
-  view.innerHTML=`${pageHead(tr("Ask ScamSense","Pregúntele a ScamSense"),tr("Ask anything about a message, a call, or a payment. Answers are short and simple.","Pregunte sobre un mensaje, una llamada o un pago. Respuestas cortas y simples."),"help")}
+  view.innerHTML=`${pageHead(tr("Ask Agent","Pregúntele al Agente"),tr("Ask anything about a message, a call, or a payment. Answers are short and simple.","Pregunte sobre un mensaje, una llamada o un pago. Respuestas cortas y simples."),"help")}
   <section class="chat card"><div class="chatlog" id="chatlog" aria-live="polite">${log.length?log.map(m=>`<div class="bubble ${m.role==="user"?"me":"ai"}" dir="auto">${esc(m.content)}</div>`).join(""):`<p class="muted small" style="margin:0">${tr("Try one of these:","Pruebe una de estas:")}</p>`}</div>
     ${!has?`<p class="note">${ic("info")}<span>${tr("This is a sample conversation. Add your AI key in Settings to chat. Once the ScamSense server is ready, no key will be needed.","Esta es una conversación de ejemplo. Agregue su clave de IA en Ajustes para chatear. Cuando el servidor esté listo, no hará falta.")}</span></p>`:""}
     <div class="samples">${[tr("Is a text about an unpaid toll real?","¿Es real un texto sobre un peaje sin pagar?"),tr("Someone wants me to pay with gift cards","Alguien quiere que pague con tarjetas de regalo"),tr("How do I know if a website is real?","¿Cómo sé si un sitio web es real?")].map(q=>`<button class="chip" data-q="${esc(q)}" ${has?"":"disabled"}>${esc(q)}</button>`).join("")}</div>
@@ -2291,7 +2297,7 @@ function renderPlans(){
   <div class="seg2" role="group"><button aria-pressed="${!planYearly}" data-y="0">${tr("Monthly","Mensual")}</button><button aria-pressed="${planYearly}" data-y="1">${tr("Yearly (save 17%)","Anual (ahorre 17%)")}</button></div>
   <div class="plans">
     <section class="card plan-card"><p class="label">${tr("Personal","Personal")}</p><p class="price"><b>${p.a}</b><span>${p.per}</span></p>
-      ${feat([tr("Daily Safety Report for your email","Reporte diario de seguridad del correo"),tr("Check texts, calls, and crypto","Revise textos, llamadas y cripto"),tr("Pause before you pay","Pause antes de pagar"),tr("I was scammed: recovery plan and documents","Me estafaron: plan y documentos"),tr("Ask ScamSense (AI Helper)","Pregúntele a ScamSense (IA)")])}</section>
+      ${feat([tr("Daily Safety Report for your email","Reporte diario de seguridad del correo"),tr("Check texts, calls, and crypto","Revise textos, llamadas y cripto"),tr("Pause before you pay","Pause antes de pagar"),tr("I was scammed: recovery plan and documents","Me estafaron: plan y documentos"),tr("Ask Agent (AI helper)","Pregúntele al Agente (asistente de IA)")])}</section>
     <section class="card plan-card best"><p class="label">${tr("Family","Familia")} · ${tr("up to 5 people","hasta 5 personas")}</p><p class="price"><b>${p.b}</b><span>${p.per}</span></p>
       ${feat([tr("Everything in Personal, for each person","Todo lo de Personal, para cada persona"),tr("Trusted people get alerts","Las personas de confianza reciben alertas"),tr("Help setting up a parent's phone","Ayuda para configurar el teléfono de un padre")])}</section>
   </div>
@@ -2367,7 +2373,7 @@ function todayExtrasHTML(){
   return `<section class="sect"><h2 class="sect-h">${tr("Quick help","Ayuda rápida")}</h2><div class="group">
     ${row("check","t-mail","scan",tr("Check something","Revisar algo"),tr("An email, text, call, or crypto site","Un correo, texto, llamada o sitio cripto"))}
     ${row("pause","t-call","hand",t("pause_card"),tr("Someone is asking you for money","Alguien le pide dinero"))}
-    ${row("helper","t-msg","msg",tr("Ask ScamSense","Pregúntele a ScamSense"),tr("Chat with the AI helper","Hable con el asistente de IA"))}
+    ${row("helper","t-msg","msg",tr("Ask Agent","Pregúntele al Agente"),tr("Chat with the AI helper","Hable con el asistente de IA"))}
     ${row("scammed","t-sos","sos",t("scammed_card"),tr("Get a step-by-step recovery plan","Obtenga un plan de recuperación paso a paso"))}
     ${row("monthly","t-dev","bell",tr("This month","Este mes"),tr(`${m.caught} scams caught · ${m.checked} emails scanned`,`${m.caught} estafas detectadas · ${m.checked} correos revisados`))}
   </div></section>`;
@@ -2385,6 +2391,39 @@ function applyLang(){
   document.querySelectorAll("nav.tabs [data-tab]").forEach(b=>b.querySelector("span").textContent=t("tab_"+b.dataset.tab));
   setStatus();if(Reader.active)updatePlayer();
 }
+
+/* ----- floating "Ask Agent" button: tap to open, drag to move ----- */
+const Fab=(()=>{
+  const el=()=>document.getElementById("agentfab");
+  const M=12;
+  function bounds(){const b=el();const nav=document.querySelector("nav.tabs");const navH=nav?nav.getBoundingClientRect().height:70;
+    return {minX:M,maxX:innerWidth-b.offsetWidth-M,minY:70,maxY:innerHeight-navH-b.offsetHeight-M}}
+  function place(x,y){const b=el(),B=bounds();x=Math.min(Math.max(x,B.minX),B.maxX);y=Math.min(Math.max(y,B.minY),B.maxY);b.style.left=x+"px";b.style.top=y+"px";return {x,y}}
+  function snap(save){const b=el();const r=b.getBoundingClientRect();const B=bounds();
+    const toLeft=r.left+r.width/2<innerWidth/2;const p=place(toLeft?B.minX:B.maxX,r.top);
+    if(save)S.set("fab",{side:toLeft?"left":"right",y:p.y/innerHeight})}
+  function restore(){const b=el();const st=S.get("fab",null);const B=bounds();
+    const y=st&&typeof st.y==="number"?st.y*innerHeight:B.maxY;
+    const right=!st||st.side!=="left"?(document.documentElement.dir==="rtl"&&!st?false:true):false;
+    place(right?B.maxX:B.minX,y)}
+  function init(){const b=el();if(!b||b.dataset.ready)return;b.dataset.ready="1";
+    let start=null,moved=false,off=null;
+    b.addEventListener("pointerdown",e=>{start={x:e.clientX,y:e.clientY};moved=false;const r=b.getBoundingClientRect();off={x:e.clientX-r.left,y:e.clientY-r.top};try{b.setPointerCapture(e.pointerId)}catch(_){}});
+    b.addEventListener("pointermove",e=>{if(!start)return;if(!moved&&Math.hypot(e.clientX-start.x,e.clientY-start.y)<8)return;moved=true;b.classList.add("dragging");place(e.clientX-off.x,e.clientY-off.y)});
+    const end=e=>{if(!start)return;start=null;b.classList.remove("dragging");if(moved)snap(true)};
+    b.addEventListener("pointerup",end);b.addEventListener("pointercancel",end);
+    b.addEventListener("click",e=>{if(moved){e.preventDefault();moved=false;return}go("helper")});
+    b.addEventListener("keydown",e=>{const B=bounds();const r=b.getBoundingClientRect();
+      if(e.key==="ArrowLeft"){place(B.minX,r.top);S.set("fab",{side:"left",y:r.top/innerHeight});e.preventDefault()}
+      else if(e.key==="ArrowRight"){place(B.maxX,r.top);S.set("fab",{side:"right",y:r.top/innerHeight});e.preventDefault()}
+      else if(e.key==="ArrowUp"||e.key==="ArrowDown"){const p=place(r.left,r.top+(e.key==="ArrowUp"?-40:40));snap(true);e.preventDefault()}});
+    addEventListener("resize",()=>{if(!b.hidden)restore()})}
+  function update(tab){const b=el();if(!b)return;init();
+    const label=tr("Ask Agent","Pregúntele al Agente");document.getElementById("agentfab-l").textContent=label;
+    b.setAttribute("aria-label",label+" — "+tr("drag to move","arrastre para mover"));
+    b.hidden=tab==="helper";if(!b.hidden)requestAnimationFrame(restore)}
+  return {update};
+})();
 function go(tab){
   if(Reader.active)stopSpeaking();
   clearInterval(stillTimer);if(typeof simClear==="function")simClear();
@@ -2393,6 +2432,7 @@ function go(tab){
   ({today:renderToday,emails:renderEmails,check:renderCheck,checkCrypto:renderCheckCrypto,learn:renderLearn,lesson:renderLesson,monthly:renderMonthly,helper:renderHelper,plans:renderPlans,checkEmail:renderCheckEmail,checkText:renderCheckText,checkCall:renderCheckCall,preview:renderPreview,help:renderHelp,pause:renderPause,scammed:renderScammed,family:renderFamily,settings:renderSettings}[tab]||renderToday)();
   window.scrollTo(0,0);
   try{history.replaceState(null,"","#"+tab)}catch(e){}
+  Fab.update(tab);
 }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>go(b.dataset.tab));
 loadDict().then(()=>{applyLang();go(TAB_OF[location.hash.slice(1)]?location.hash.slice(1):"today");showOnboarding();showLock()});
