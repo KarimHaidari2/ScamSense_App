@@ -319,7 +319,7 @@ function waitForOutlook(seconds) {
 // Plain-words version of a Microsoft error, with the fix when we know it.
 function msError(r) {
   const m = String(r.error_description || r.error || JSON.stringify(r)).split("\r\n")[0];
-  if (/7000218|client_assertion|client_secret/i.test(m))
+  if (/7000218|70002|client_assertion|client_secret|marked as .mobile/i.test(m))
     return (
       m +
       '\nFIX: In Azure open App registrations > scamsense > Authentication, set "Allow public client flows" to Yes, click Save, then run connectOutlook again.'
