@@ -46,6 +46,9 @@ const CONFIG = {
   BLOCK_EVERY_MIN: 15, // how often to check for new scams (5, 10, 15 or 30)
   BLOCK_LABEL: "ScamSense/Blocked",
   MS_CLIENT_ID: "1187ff8b-fa16-43d4-acb6-788bb696c627", // the "scamsense" app in Microsoft Entra
+  // Smart AI double-check of risky emails. Uses your Mahi server, so no key is needed here.
+  MAHI_URL:
+    "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec",
   ALSO_SEND_TO: "" // also send the report here, e.g. "me@outlook.com" (comma between several)
 };
 
@@ -123,9 +126,10 @@ function sendDailyReport() {
   // Optional AI: explain the risky ones in plain words
   const key = props().getProperty("ANTHROPIC_API_KEY");
   let aiUsed = false;
-  if (key) {
+  if (key || CONFIG.MAHI_URL) {
     items
       .filter(i => i.level !== "safe")
+      .sort((a, b) => b.score - a.score)
       .slice(0, 10)
       .forEach(it => {
         try {
@@ -133,12 +137,13 @@ function sendDailyReport() {
           if (a) {
             it.ai = a;
             aiUsed = true;
-            if (a.verdict === "scam") it.level = "scam";
+            it.level = aiLevel(it, a.verdict);
           }
         } catch (e) {
           /* keep the built-in result */
         }
       });
+    items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
   }
 
   const d = summarize(items, gmail, outlook, app, out, aiUsed);
@@ -192,6 +197,7 @@ function checkEmail(msg, extra) {
       fromName: msg.fromName,
       fromEmail: msg.fromEmail,
       level: r.level,
+      score: r.score,
       kind: r.kind,
       reasons: r.reasons,
       trusted: r.trusted,
@@ -432,7 +438,7 @@ function outlookItem(m, folders, g) {
   const rt = ((m.replyTo || [])[0] || {}).emailAddress || {};
   const folder = folders[m.parentFolderId] || "Inbox";
   const msg = {
-    subject: m.subject || "(no subject)",
+    subject: (m.subject || "(no subject)").replace(/\uFFFD+/g, "").trim(),
     text: (isHtml ? htmlText(html) : html).slice(0, 6000) || m.bodyPreview || "",
     fromName: from.name || "",
     fromEmail: (from.address || "").toLowerCase(),
@@ -685,7 +691,7 @@ function sendBlockedNotice(me, blocked) {
 function toMsg(m, from) {
   const html = m.getBody() || "";
   return {
-    subject: m.getSubject() || "",
+    subject: (m.getSubject() || "").replace(/\uFFFD+/g, "").trim(),
     text: (m.getPlainBody() || "").slice(0, 6000),
     fromName: from.name,
     fromEmail: from.email,
@@ -762,6 +768,15 @@ function hostOf(u) {
    Only used if you add ANTHROPIC_API_KEY in Project Settings > Script Properties.
    ======================================================================== */
 
+// Combines the AI's answer with the built-in score (same rules as the app).
+function aiLevel(it, verdict) {
+  let v = { safe: "safe", suspicious: "warn", scam: "scam" }[verdict] || "warn";
+  if (v === "safe" && it.score >= 12) v = "warn"; // very strong warning signs: still be careful
+  if (it.trusted && it.score < 8 && v === "scam") v = "warn";
+  if (it.score >= 14 && v === "warn") v = "scam";
+  return v;
+}
+
 // Asks Anthropic's AI to explain one risky email in plain words.
 function aiExplain(key, it) {
   const sys =
@@ -770,9 +785,30 @@ function aiExplain(key, it) {
     `From: ${it.fromName} <${it.fromEmail}>`,
     `Subject: ${it.subject}`,
     `Link destinations: ${[...new Set(it.msg.links.map(l => l.host))].slice(0, 10).join(", ") || "none"}`,
+    `Sender checks: ${(it.msg.auth.match(/(spf|dkim|dmarc)=\w+/gi) || []).join(", ") || "unknown"}`,
+    it.msg.replyTo ? `Reply-To: ${it.msg.replyTo}` : "",
+    it.msg.listUnsub ? "Has an unsubscribe link (bulk mailing)." : "",
     `Warning signs found: ${it.reasons.join(" | ") || "none"}`,
     `Email text:\n${it.msg.text.slice(0, 3000)}`
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
+  if (!key) {
+    // No key in this script: ask the Mahi server (it keeps the key hidden).
+    const r = UrlFetchApp.fetch(CONFIG.MAHI_URL, {
+      method: "post",
+      contentType: "text/plain",
+      muteHttpExceptions: true,
+      payload: JSON.stringify({
+        mode: "check",
+        lang: "English",
+        check: `Channel: email\n${user.replace("Email text:", 'Message text:\n"""')}\n"""`
+      })
+    });
+    const out = JSON.parse(r.getContentText() || "{}");
+    const m = String(out.text || "").match(/\{[\s\S]*\}/);
+    return m ? JSON.parse(m[0]) : null;
+  }
   const res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", {
     method: "post",
     contentType: "application/json",
@@ -843,8 +879,11 @@ const INK = "#0E2A30",
   BRAND = "#0E7C7B";
 
 // Picks the clearest reason to show first.
+// The AI's words are used only when the AI agrees with the final result.
+const aiAgrees = i =>
+  !!(i.ai && ({ safe: "safe", suspicious: "warn", scam: "scam" }[i.ai.verdict] || "warn") === i.level);
 function bestWhy(i) {
-  if (i.ai && i.ai.explanation) return i.ai.explanation;
+  if (aiAgrees(i) && i.ai.explanation) return i.ai.explanation;
   const pri = [
     /says it's from|sender's address|temporary \(throwaway\)/i,
     /a link (goes|says|is)/i,
@@ -1021,7 +1060,7 @@ function emailCard(i) {
     .slice(0, 3)
     .map(r => `<li style="margin:3px 0">${esc(r)}</li>`)
     .join("");
-  const todo = ((i.ai && i.ai.what_to_do) || ADVICE[i.level].concat(i.level === "scam" ? [REPORT_HOW[i.source]] : []))
+  const todo = ((aiAgrees(i) && i.ai.what_to_do) || ADVICE[i.level].concat(i.level === "scam" ? [REPORT_HOW[i.source]] : []))
     .slice(0, 4)
     .map(t => `<li style="margin:3px 0">${esc(t)}</li>`)
     .join("");
