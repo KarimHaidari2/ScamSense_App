@@ -31,14 +31,14 @@ async function callMahiServer(messages) {
 /* Built-in answers so Mahi always replies, even with no AI key or no internet */
 const AGENT_FAQ = () => [
   {
-    re: /what is scam ?sense|about (this|the) app|what (does|can) (this app|scam ?sense|mahi|you) do|who are you|qué es scam ?sense|scamsense چیست|اسکم‌سنس|ما هو scamsense|什么是 ?scamsense|scamsense(가| 는|는) 뭐|scamsense là gì|ano ang scamsense/i,
+    re: /what is scam ?sense|about (this|the) app|what (does|can) (this app|scam ?sense|mahi|you) do|who are you|qué es scam ?sense|scamsense چیست|اسکم‌سنس|ما هو scamsense|什么是 ?scamsense|scamsense(가| 는|는) 뭐|scamsense là gì|ano ang scamsense|что такое scam ?sense|qu.est-ce que scam ?sense|o que é (o )?scam ?sense|kisa scam ?sense ye/i,
     a: tr(
       "ScamSense protects you from scams. It checks your email (Gmail, every folder), text messages, phone numbers, and crypto websites, and tells you in plain words what's safe and what to do. It also has Pause before you pay, a step-by-step plan if you were scammed, short lessons, and a Family tab for people you trust. I'm Mahi, its helper. Your messages are checked on your device and never sold.",
       "ScamSense lo protege de estafas. Revisa su correo (Gmail, todas las carpetas), textos, números de teléfono y sitios de cripto, y le dice en palabras simples qué es seguro y qué hacer. También tiene Pause antes de pagar, un plan paso a paso si lo estafaron, lecciones cortas y una pestaña Familia. Soy Mahi, su asistente. Sus mensajes se revisan en su dispositivo y nunca se venden."
     )
   },
   {
-    re: /live (agent|person|chat)|real person|human|talk to (someone|a person|somebody)|speak (to|with) (someone|a person)|customer service|phone support|persona real|hablar con alguien|شخص واقعی|انسان|شخص حقيقي|真人|人工|상담원|사람과|người thật|tổng đài|totoong tao/i,
+    re: /live (agent|person|chat)|real person|human|talk to (someone|a person|somebody)|speak (to|with) (someone|a person)|customer service|phone support|persona real|hablar con alguien|شخص واقعی|انسان|شخص حقيقي|真人|人工|상담원|사람과|người thật|tổng đài|totoong tao|живой человек|оператор|vraie personne|parler à quelqu|pessoa de verdade|falar com alguém|atendente|vrè moun|pale ak yon moun/i,
     a: tr(
       "I'm Mahi, an AI helper, so I'm not a live person. To talk to a real person about a scam: call a family member or friend you trust (see the Family tab), the AARP Fraud Watch Network Helpline at 877-908-3360 (free, Mon–Fri), or, if you're 60 or older, the National Elder Fraud Hotline at 1-833-372-8311. If you already lost money, call your bank now using the number on your card.",
       "Soy Mahi, un asistente de IA, así que no soy una persona. Para hablar con una persona sobre una estafa: llame a un familiar o amigo de confianza (vea Familia), a la línea de AARP al 877-908-3360 (gratis, lun–vie) o, si tiene 60 años o más, a la Línea Nacional de Fraude contra Mayores al 1-833-372-8311. Si ya perdió dinero, llame a su banco ahora con el número de su tarjeta."
@@ -46,7 +46,7 @@ const AGENT_FAQ = () => [
     go: "family"
   },
   {
-    re: /scammed|\bi (already |just )?(paid|sent|gave|wired|transferred)\b|already (paid|sent|gave)|sent (them |the )?(\$|money|cash)|lost (my )?money|me estafaron|ya pagu|ya envi|envi[eé] dinero|کلاهبرداری شدم|پول فرستادم|پرداخت کردم|تعرضت للاحتيال|أرسلت المال|دفعت|被骗|已经付|사기를 당|이미 보냈|bị lừa|đã chuyển|na-scam|nagbayad na/i,
+    re: /scammed|\bi (already |just )?(paid|sent|gave|wired|transferred)\b|already (paid|sent|gave)|sent (them |the )?(\$|money|cash)|lost (my )?money|me estafaron|ya pagu|ya envi|envi[eé] dinero|کلاهبرداری شدم|پول فرستادم|پرداخت کردم|تعرضت للاحتيال|أرسلت المال|دفعت|被骗|已经付|사기를 당|이미 보냈|bị lừa|đã chuyển|na-scam|nagbayad na|меня обманули|я (уже )?заплатил|отправил(а)? деньги|on m.a arnaqué|j.ai (déjà )?payé|j.ai envoyé de l.argent|caí (num|em um) golpe|já paguei|enviei dinheiro|yo fè m arnak|mwen (deja )?peye|mwen voye lajan/i,
     go: "scammed",
     a: tr(
       "I'm sorry this happened. It's not your fault. Act fast: call your bank or card company now using the number on the back of your card, stop all contact with the scammer, and report it at ReportFraud.ftc.gov. Tap below and ScamSense will build your full recovery plan and documents.",
@@ -54,7 +54,7 @@ const AGENT_FAQ = () => [
     )
   },
   {
-    re: /gift ?cards?|itunes|google play card|steam card|tarjetas? de regalo|کارت هدیه|بطاق(ة|ات) هدايا|礼品卡|기프트 ?카드|thẻ quà|gift card/i,
+    re: /gift ?cards?|itunes|google play card|steam card|tarjetas? de regalo|کارت هدیه|بطاق(ة|ات) هدايا|礼品卡|기프트 ?카드|thẻ quà|gift card|подарочн\S* карт|carte(s)? cadeau|cart(ão|ões)[- ]presente|kat kado/i,
     go: "pause",
     a: tr(
       "Paying with gift cards is always a scam. No real company, bank, or government office takes gift cards as payment. Don't buy them and don't read the numbers to anyone. If you already gave the numbers, call the number on the back of the card right away.",
@@ -62,7 +62,7 @@ const AGENT_FAQ = () => [
     )
   },
   {
-    re: /toll|peaje|usps|package|paquete|deliver|fedex|\bups\b|shipping|عوارض|بسته|مرسوله|رسوم الطريق|طرد|过路费|包裹|통행료|택배|phí cầu đường|gói hàng/i,
+    re: /toll|peaje|usps|package|paquete|deliver|fedex|\bups\b|shipping|عوارض|بسته|مرسوله|رسوم الطريق|طرد|过路费|包裹|통행료|택배|phí cầu đường|gói hàng|платн\S* дорог|посылк|доставк|péage|colis|livraison|pedágio|pacote|entrega|peyaj|pake|livrezon/i,
     go: "checkText",
     a: tr(
       "Texts about unpaid tolls or missed packages are almost always fake. Don't tap the link. Check your account by typing the official website yourself, or open the official app. You can forward the text to 7726 to report it, then delete it.",
@@ -70,49 +70,49 @@ const AGENT_FAQ = () => [
     )
   },
   {
-    re: /social security|\bssn\b|seguro social|\birs\b|medicare|\btax(es)?\b|impuesto|arrest|warrant|police|polic[ií]a|arresto|تأمین اجتماعی|مالیات|پلیس|بازداشت|الضمان الاجتماعي|ضرائب|شرطة|اعتقال|税务|警察|逮捕|사회보장|세금|경찰|체포|an sinh xã hội|thuế|công an|buwis|pulis/i,
+    re: /social security|\bssn\b|seguro social|\birs\b|medicare|\btax(es)?\b|impuesto|arrest|warrant|police|polic[ií]a|arresto|تأمین اجتماعی|مالیات|پلیس|بازداشت|الضمان الاجتماعي|ضرائب|شرطة|اعتقال|税务|警察|逮捕|사회보장|세금|경찰|체포|an sinh xã hội|thuế|công an|buwis|pulis|налог|полици|арест|impôt|police|arrestation|imposto|polícia|prisão|taks|lapolis|arestasyon/i,
     a: tr(
       "Government offices like the IRS, Social Security, and Medicare never call to demand money, threaten arrest, or ask for gift cards or crypto. Hang up. If you're worried, call the office yourself using the number on its official website.",
       "Las oficinas de gobierno como el IRS, el Seguro Social y Medicare nunca llaman para exigir dinero, amenazar con arresto ni pedir tarjetas de regalo o cripto. Cuelgue. Si le preocupa, llame usted a la oficina con el número de su sitio oficial."
     )
   },
   {
-    re: /bank|banco|zelle|safe account|cuenta segura|fraud dep|wire transfer|transferencia|بانک|بنك|银行|은행|ngân hàng|bangko/i,
+    re: /bank|banco|zelle|safe account|cuenta segura|fraud dep|wire transfer|transferencia|بانک|بنك|银行|은행|ngân hàng|bangko|банк|banque|bank/i,
     a: tr(
       'Your bank will never ask you to move money to a "safe account" or to send a Zelle payment to protect yourself. Hang up and call the number on the back of your card. Caller ID can be faked, so a call that shows your bank\'s name can still be a scam.',
       'Su banco nunca le pedirá mover dinero a una "cuenta segura" ni enviar un Zelle para protegerse. Cuelgue y llame al número del reverso de su tarjeta. El identificador de llamadas se puede falsificar.'
     )
   },
   {
-    re: /\bcode\b|c[oó]digo|\botp\b|verification|password|contrase[ñn]a|passcode|کد|رمز|رمز التحقق|كلمة المرور|验证码|密码|인증 ?번호|비밀번호|mã xác|mật khẩu/i,
+    re: /\bcode\b|c[oó]digo|\botp\b|verification|password|contrase[ñn]a|passcode|کد|رمز|رمز التحقق|كلمة المرور|验证码|密码|인증 ?번호|비밀번호|mã xác|mật khẩu|код|пароль|mot de passe|código|senha|kòd|modpas/i,
     a: tr(
       "Never share a code that was texted to you, not even with someone who says they're your bank. That code lets them into your account. If you already shared it, change your password now and call the company.",
       "Nunca comparta un código que le llegó por texto, ni siquiera con alguien que dice ser su banco. Ese código les da acceso a su cuenta. Si ya lo compartió, cambie su contraseña ahora y llame a la empresa."
     )
   },
   {
-    re: /grand(son|daughter|ma|pa|child|kid)|nieto|nieta|abuel|\bbail\b|fianza|jail|c[aá]rcel|hospital|نوه|مادربزرگ|پدربزرگ|وثیقه|حفيد|جدة|كفالة|孙子|孙女|奶奶|保释|손주|할머니|보석금|cháu|bảo lãnh|\bapo\b|lola|piyansa/i,
+    re: /grand(son|daughter|ma|pa|child|kid)|nieto|nieta|abuel|\bbail\b|fianza|jail|c[aá]rcel|hospital|نوه|مادربزرگ|پدربزرگ|وثیقه|حفيد|جدة|كفالة|孙子|孙女|奶奶|保释|손주|할머니|보석금|cháu|bảo lãnh|\bapo\b|lola|piyansa|внук|бабушк|залог|petit-fils|mamie|caution|neto|vovó|vó|fiança|pitit pitit|grann|kosyon/i,
     a: tr(
       'This sounds like the "grandparent scam." Before you do anything, call your family member at the number you already have, or call their parents. Real emergencies can wait a few minutes. Don\'t send money, gift cards, or cash with a courier.',
       'Esto parece la "estafa del abuelo". Antes de hacer algo, llame a su familiar al número que ya tiene o a sus padres. Las emergencias reales pueden esperar unos minutos. No envíe dinero, tarjetas de regalo ni efectivo con un mensajero.'
     )
   },
   {
-    re: /virus|microsoft|apple support|computer|computadora|remote|anydesk|teamviewer|refund|reembolso|geek squad|pop.?up|hacked|hackeado|ویروس|کامپیوتر|هک|فيروس|حاسوب|اختراق|病毒|电脑|被黑|바이러스|컴퓨터|해킹|máy tính|bị hack|na-hack/i,
+    re: /virus|microsoft|apple support|computer|computadora|remote|anydesk|teamviewer|refund|reembolso|geek squad|pop.?up|hacked|hackeado|ویروس|کامپیوتر|هک|فيروس|حاسوب|اختراق|病毒|电脑|被黑|바이러스|컴퓨터|해킹|máy tính|bị hack|na-hack|вирус|компьютер|взлом|ordinateur|piraté|computador|hackead|viris|òdinatè|pirate/i,
     a: tr(
       "Real tech companies don't call you or show pop-ups with a phone number. Close the window and don't call. Never let a stranger control your computer, and never pay a \"refund\" back. If you already gave access, disconnect from the internet and get help from someone you trust.",
       'Las empresas de tecnología reales no le llaman ni muestran ventanas con un teléfono. Cierre la ventana y no llame. Nunca deje que un extraño controle su computadora ni devuelva un "reembolso". Si ya dio acceso, desconéctese de internet y pida ayuda a alguien de confianza.'
     )
   },
   {
-    re: /\bwon\b|\bwin\b|prize|lottery|loter[ií]a|premio|sweepstake|gan[oó]|inheritance|herencia|برنده|جایزه|لاتاری|جائزة|يانصيب|ربحت|中奖|奖品|彩票|당첨|복권|trúng thưởng|xổ số|nanalo|premyo/i,
+    re: /\bwon\b|\bwin\b|prize|lottery|loter[ií]a|premio|sweepstake|gan[oó]|inheritance|herencia|برنده|جایزه|لاتاری|جائزة|يانصيب|ربحت|中奖|奖品|彩票|당첨|복권|trúng thưởng|xổ số|nanalo|premyo|выиграл|приз|лотере|gagné|loterie|ganhei|prêmio|loteria|genyen|lotri/i,
     a: tr(
       "You can't win a contest you never entered, and a real prize never makes you pay first. If they ask for a fee, taxes, or your bank details to get your prize, it's a scam.",
       "No puede ganar un concurso en el que no participó, y un premio real nunca le pide pagar primero. Si piden una tarifa, impuestos o datos bancarios para entregar el premio, es una estafa."
     )
   },
   {
-    re: /crypto|bitcoin|\busdt\b|tether|invest|inversi|mining|miner[ií]a|trading|whatsapp|telegram|wallet|billetera|کریپتو|بیت‌?کوین|سرمایه‌?گذاری|عملات رقمية|بيتكوين|استثمار|加密货币|比特币|投资|암호화폐|비트코인|투자|tiền điện tử|đầu tư/i,
+    re: /crypto|bitcoin|\busdt\b|tether|invest|inversi|mining|miner[ií]a|trading|whatsapp|telegram|wallet|billetera|کریپتو|بیت‌?کوین|سرمایه‌?گذاری|عملات رقمية|بيتكوين|استثمار|加密货币|比特币|投资|암호화폐|비트코인|투자|tiền điện tử|đầu tư|крипт|биткоин|инвест|investissement|investimento|envestisman|kripto/i,
     go: "checkCrypto",
     a: tr(
       "Be very careful. Guaranteed or daily profits, a stranger who moves the chat to WhatsApp or Telegram, or a fee to withdraw your own money are signs of a crypto scam. Crypto can't be reversed. Paste the website or wallet address here and I'll check it, or open the crypto check.",
@@ -120,14 +120,14 @@ const AGENT_FAQ = () => [
     )
   },
   {
-    re: /website|web ?site|sitio web|is (this|the) (link|site)|real site|fake site|سایت|وب‌?سایت|موقع|网站|웹사이트|trang web/i,
+    re: /website|web ?site|sitio web|is (this|the) (link|site)|real site|fake site|سایت|وب‌?سایت|موقع|网站|웹사이트|trang web|сайт|site web|site|sit entènèt/i,
     a: tr(
       "To check a website: type the address yourself instead of tapping a link, and check the spelling letter by letter (paypa1 is not paypal). Strange endings like .xyz or .top are a warning sign. Paste the address here and I'll check it for you.",
       "Para revisar un sitio: escriba usted la dirección en vez de tocar un enlace y revise la ortografía letra por letra (paypa1 no es paypal). Terminaciones raras como .xyz o .top son una señal de alerta. Pegue la dirección aquí y la reviso."
     )
   },
   {
-    re: /^\s*(hi|hello|hey|hola|salam|salaam|سلام|مرحبا|你好|안녕|xin ch[aà]o|kumusta)(?=[\s!.,?؟،]|$)/i,
+    re: /^\s*(hi|hello|hey|hola|salam|salaam|سلام|مرحبا|你好|안녕|xin ch[aà]o|kumusta|привет|здравствуйте|bonjour|salut|olá|oi|bonjou|alo)(?=[\s!.,?؟،]|$)/i,
     a: tr(
       "Hi! I'm Mahi, and I'm here to help. Tell me about a message, call, or payment that worries you, or paste a phone number, email address, or website and I'll check it.",
       "¡Hola! Soy Mahi y estoy aquí para ayudar. Cuénteme sobre un mensaje, llamada o pago que le preocupe, o pegue un teléfono, correo o sitio web y lo reviso."

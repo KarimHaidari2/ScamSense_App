@@ -68,7 +68,11 @@ const LANGS = {
   tl: { name: "Tagalog", speech: "fil-PH", ai: "Tagalog" },
   vi: { name: "Tiếng Việt", speech: "vi-VN", ai: "Vietnamese" },
   ar: { name: "العربية", speech: "ar-SA", ai: "Arabic", rtl: true },
+  fr: { name: "Français", speech: "fr-FR", ai: "French" },
   ko: { name: "한국어", speech: "ko-KR", ai: "Korean" },
+  ru: { name: "Русский", speech: "ru-RU", ai: "Russian" },
+  ht: { name: "Kreyòl", speech: "fr-HT", ai: "Haitian Creole" },
+  pt: { name: "Português", speech: "pt-BR", ai: "Brazilian Portuguese" },
   fa: { name: "فارسی", speech: "fa-IR", ai: "Persian (Farsi)", rtl: true }
 };
 const langCode = () => (LANGS[cfg().lang] ? cfg().lang : "en");
