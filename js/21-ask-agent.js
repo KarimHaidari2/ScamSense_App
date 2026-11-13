@@ -8,6 +8,14 @@ let chatLog = [];
 const HELPER_SYSTEM = () =>
   `You are Mahi, the friendly assistant inside ScamSense, an app that protects people (especially older adults) from scams. Answer ANY question the person asks, helpfully and honestly, not only scam questions; your specialty is staying safe from scams, fraud, and identity theft. Answer in ${LANGS[langCode()].ai}. Use short, plain sentences a 75-year-old can follow, under 8 short lines unless they ask for more. Never ask for passwords, codes, card numbers, or Social Security numbers, and remind people never to share them. If they may have lost money or shared private details, tell them to call their bank right away and to use "I was scammed" in the Help tab. If they want a real person, suggest a trusted family member, the AARP Fraud Watch Network Helpline 877-908-3360, or (age 60+) the National Elder Fraud Hotline 1-833-372-8311. If someone is in danger, tell them to call 911. If you're not sure, say so.`;
 
+/* Shows Mahi's **bold** words in bold and "- " lines as bullets (everything else stays plain text). */
+function fmtMahi(text) {
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/^(?:-|\*|•)\s+/gm, "• ")
+    .replace(/^#{1,3}\s+/gm, "");
+}
+
 /* Mahi server: sends the chat to the Mahi Server web app, which holds the AI key. */
 async function callMahiServer(messages) {
   const url = cfg().mahiUrl;
@@ -202,7 +210,7 @@ function renderHelper() {
   const viaServer = !!c0.mahiUrl;
   const has = viaServer || (!!c0.apiKey && c0.aiMode !== "off");
   const bubble = m =>
-    `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${esc(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}${(
+    `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${m.role === "user" ? esc(m.content) : fmtMahi(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}${(
       m.actions || []
     )
       .map(
@@ -415,6 +423,33 @@ const MAHI_TOOLS = [
     input_schema: { type: "object", properties: {} }
   },
   {
+    name: "read_email",
+    description:
+      "Read one email from the person's Gmail report in full (sender, Gmail's sender checks, links, attachments, text) so you can judge if it's real or a scam. Use the id from get_email_report, or give from/subject to find it. Always use this instead of asking the person to paste an email from their report.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        from: { type: "string", description: "Sender name or address, if no id" },
+        subject: { type: "string", description: "Subject words, if no id" }
+      }
+    }
+  },
+  {
+    name: "set_email_verdict",
+    description:
+      "After reading an email with read_email, update its label in the person's report: 'safe' if it's real (official domain, Gmail's checks pass, no scam requests), 'scam' if it's a scam, 'suspicious' if unsure. Give one plain reason.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        verdict: { type: "string", enum: ["safe", "suspicious", "scam"] },
+        reason: { type: "string" }
+      },
+      required: ["id", "verdict", "reason"]
+    }
+  },
+  {
     name: "connect_gmail",
     description:
       "Show a button that connects the person's Gmail (read-only) and scans every folder. Use when they want to connect or scan their email. They must tap the button themselves (Google requires it).",
@@ -592,14 +627,97 @@ async function runMahiTool(name, input, ui) {
           .filter(x => x.level !== "safe")
           .slice(0, 12)
           .map(x => ({
+            id: x.id,
             level: x.level,
             from: x.fromName || x.fromEmail,
             email: x.fromEmail,
             subject: x.subject,
             folder: x.folder,
             why: (x.reasons || []).slice(0, 2)
-          }))
+          })),
+        note: "To check one fully, call read_email with its id. Never ask the person to paste it."
       };
+    }
+    case "read_email": {
+      const rep = S.get("report", null);
+      if (!rep) return { error: "No email report yet. Use connect_gmail first." };
+      const low = v => String(v || "").toLowerCase();
+      const item =
+        rep.items.find(x => x.id === i.id) ||
+        rep.items.find(
+          x =>
+            i.from &&
+            (low(x.fromEmail).includes(low(i.from)) || low(x.fromName).includes(low(i.from))) &&
+            (!i.subject || low(x.subject).includes(low(i.subject).slice(0, 25)))
+        ) ||
+        (i.subject && rep.items.find(x => low(x.subject).includes(low(i.subject).slice(0, 25))));
+      if (!item) return { error: "Couldn't find that email in the report." };
+      let full = null;
+      if (rep.source === "demo") {
+        const d = DEMO[+String(item.id).replace("demo", "")];
+        full = d
+          ? Object.assign(
+              { links: [], attachments: [], replyTo: "", auth: "" },
+              JSON.parse(JSON.stringify(d))
+            )
+          : null;
+      } else {
+        if (!token) {
+          ui.actions.push({
+            label: tr("Reconnect Gmail so Mahi can read it", "Reconectar Gmail para que Mahi lo lea"),
+            primary: true,
+            run: async () => {
+              try {
+                await getToken(true);
+                toast(tr("Connected. Ask Mahi again.", "Conectado. Pregúntele a Mahi otra vez."));
+              } catch (e) {
+                toast(e.message);
+              }
+            }
+          });
+          return {
+            error:
+              "Gmail sign-in has expired (it lasts about an hour). A Reconnect button is shown; ask the person to tap it and ask again."
+          };
+        }
+        full = parseGmail(await gfetch(`messages/${item.id}?format=full`));
+      }
+      if (!full) return { error: "Couldn't open that email." };
+      const r = analyze(full);
+      const auth = String(full.auth || "");
+      const pick = k => (auth.match(new RegExp(k + "=(\\w+)", "i")) || [])[1] || "none";
+      return {
+        id: item.id,
+        from: full.fromName,
+        email: full.fromEmail,
+        reply_to: full.replyTo || null,
+        subject: full.subject,
+        folder: item.folder,
+        gmail_sender_checks: { spf: pick("spf"), dkim: pick("dkim"), dmarc: pick("dmarc") },
+        sender_check: await emailInfo(full.fromEmail),
+        link_destinations: [...new Set((full.links || []).map(l => l.host))].slice(0, 15),
+        attachments: full.attachments || [],
+        scamsense_rules: {
+          verdict: r.level === "warn" ? "suspicious" : r.level,
+          trusted_sender: !!r.trusted,
+          warning_signs: r.reasons
+        },
+        text: String(full.text || "").slice(0, 3500)
+      };
+    }
+    case "set_email_verdict": {
+      const rep = S.get("report", null);
+      const it = rep && rep.items.find(x => x.id === i.id);
+      if (!it) return { error: "Couldn't find that email in the report." };
+      const lv = { safe: "safe", suspicious: "warn", scam: "scam" }[i.verdict];
+      if (!lv) return { error: "Unknown verdict" };
+      it.level = lv;
+      it.reasons = [String(i.reason || "").slice(0, 300)];
+      if (lv === "safe") it.kind = "";
+      it.checkedByMahi = true;
+      S.set("report", rep);
+      ui.actions.push({ label: tr("See your emails", "Ver sus correos"), run: () => go("emails") });
+      return { updated: true, verdict: i.verdict };
     }
     case "connect_gmail":
       ui.actions.push({
@@ -733,7 +851,7 @@ async function mahiAI(messages) {
 }
 
 const MAHI_ACTION_RULES =
-  "You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. After using a tool, explain the result simply and say what you did. Never invent tool results.";
+  "When the person asks about an email in their report, read it yourself with read_email (never ask them to paste it). Judge it from the sender's real domain, Gmail's SPF/DKIM/DMARC results, the links, and the text, then update its label with set_email_verdict and tell them clearly: real or scam, and why. Official senders include toll agencies like getipass.com (Illinois Tollway I-PASS), pikepass.com, txtag.org, E-ZPass sites, and sunpass.com. You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. After using a tool, explain the result simply and say what you did. Never invent tool results.";
 
 /* The full agent loop: ask the AI, run any tools it picks, repeat (up to 6 steps). */
 let mahiHistory = [];

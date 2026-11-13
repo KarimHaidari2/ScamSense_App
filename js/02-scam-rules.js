@@ -212,7 +212,18 @@ const BRANDS = {
   google: ["google.com", "accounts.google.com", "youtube.com"],
   txtag: ["txtag.org"],
   "e-zpass": ["e-zpassny.com", "ezpassnj.com", "e-zpass.com"],
-  pikepass: ["pikepass.com", "oktollpay.com"]
+  pikepass: ["pikepass.com", "oktollpay.com"],
+  "illinois tollway": ["getipass.com", "illinoistollway.com"],
+  "i-pass": ["getipass.com", "illinoistollway.com"],
+  sunpass: ["sunpass.com"],
+  fastrak: ["bayareafastrak.org", "thetollroads.com"],
+  ntta: ["ntta.org"],
+  "peach pass": ["peachpass.com"],
+  "nc quick pass": ["ncquickpass.com"],
+  "good to go": ["mygoodtogo.com"],
+  "e-zpass md": ["ezpassmd.com"],
+  "e-zpass va": ["ezpassva.com"],
+  "e-zpass pa": ["paturnpike.com"]
 };
 const FREE_MAIL =
   /^(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|aol|icloud|me|proton|protonmail|gmx|mail|zoho)\.(com|net|me|org)$/;
