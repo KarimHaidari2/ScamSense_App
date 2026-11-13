@@ -40,7 +40,8 @@ const SS = {
 };
 /* Mahi server: a Google Apps Script web app that holds the AI key (see mahi-server/README.md).
    Paste its URL here so Mahi answers any question for everyone, with no key in the app. */
-const DEFAULT_MAHI_URL = "";
+const DEFAULT_MAHI_URL =
+  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
 const DEFAULT_CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleusercontent.com";
 const cfg = () => {
   const c = Object.assign(
