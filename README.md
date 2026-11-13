@@ -12,7 +12,7 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | `js/` | The app code, one file per part, loaded in number order (below) |
 | `i18n/` | Translations. `en.json` is made from the code; other files match its ids |
 | `vendor/` | Outside tools kept in the repo: jsPDF (PDFs), throwaway-email list |
-| `daily-report/` | Google Apps Script: daily email report + automatic scam blocking |
+| `daily-report/` | Google Apps Script: one daily safety report (Gmail + Outlook + what was checked in the app) + automatic Gmail scam blocking |
 | `mahi-server/` | Google Apps Script web app: lets Mahi answer any question with the AI key hidden |
 
 ## The `js/` files
@@ -48,5 +48,6 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | 27-navigation-and-start.js | Moving between screens, Ask Mahi button, start-up |
 | 28-outlook.js | Outlook / Hotmail / Microsoft 365 email (read-only, Microsoft sign-in). Setup: docs/outlook-setup.md |
 | 29-send-to-scamsense.js | Send a text to ScamSense: ?check= links, Android Share, iPhone Shortcut steps |
+| 30-report-sync.js | Daily report link: sends check/pause results (never the message) to the daily report script |
 
 Run it on your Mac: `python3 -m http.server 8000`, then open http://localhost:8000

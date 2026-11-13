@@ -267,6 +267,7 @@ async function showVerdict(it, info, kind, sample) {
   const hist = S.get("checks", []);
   hist.push({ at: Date.now(), channel: it.channel, level: it.level, kind: it.local.kindKey });
   S.set("checks", hist.slice(-200));
+  reportSync({ t: "check", c: channelKey(it.channel), l: it.level, k: it.local.kindKey || "" });
   out.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 let previewMode = "text";

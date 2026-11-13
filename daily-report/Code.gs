@@ -1,21 +1,28 @@
 /* ========================================================================
-   ScamSense · Daily Email Report and Automatic Blocking
+   ScamSense · Daily Safety Report and Automatic Blocking
    (Google Apps Script. Runs inside your own Google account.)
 
    WHAT IT DOES
-   - Every morning: emails you a report of every email from the last day,
-     explaining each scam and what to do.
-   - Every 15 minutes: moves clear scams to Spam and sends you a short
+   - Every morning: emails you ONE report about everything from the last day:
+       • Gmail      every email, in every folder
+       • Outlook    every email, in every folder (after connectOutlook)
+       • The app    texts, calls, emails and websites you checked in ScamSense,
+                    payments you paused, and "I was scammed" (after linking the app)
+   - Every 15 minutes: moves clear Gmail scams to Spam and sends you a short
      note saying what was blocked and why.
 
    HOW TO USE
    - First time: choose "setup" in the menu above and click Run.
+   - Add Outlook: run "connectOutlook" and follow the steps in the log.
+   - Link the app: Deploy > New deployment > Web app, then run "showAppLink".
    - Test now: run "sendReportNow".  Stop: "stopDailyReport" / "stopBlocking".
 
    PARTS OF THIS FILE
      1. Settings              you can change these
      2. Start and stop        setup, sendReportNow, stopDailyReport, stopBlocking
-     3. Daily report          checks the last day's email and sends the report
+     3. Daily report          collects everything and sends the report
+     3a. Outlook              connectOutlook, finishOutlook, disconnectOutlook
+     3b. App activity         what the ScamSense app sends here (no message text)
      4. Automatic blocking    moves clear scams to Spam and tells you why
      5. Reading an email      turns a Gmail message into something we can check
      6. AI explanations       optional, only if you add an AI key
@@ -31,13 +38,15 @@
 
 const CONFIG = {
   HOUR: 8, // time of day to send (in the project's time zone)
-  DAYS: 1, // how many days of email to check
-  MAX_EMAILS: 150, // safety limit per report
+  DAYS: 1, // how many days to include
+  MAX_EMAILS: 150, // safety limit per inbox
   APP_URL: "https://karimhaidari2.github.io/ScamSense_App/",
   AI_MODEL: "claude-haiku-5-5",
-  BLOCK_SCAMS: true, // move scam emails to Spam automatically
+  BLOCK_SCAMS: true, // move Gmail scam emails to Spam automatically
   BLOCK_EVERY_MIN: 15, // how often to check for new scams (5, 10, 15 or 30)
-  BLOCK_LABEL: "ScamSense/Blocked"
+  BLOCK_LABEL: "ScamSense/Blocked",
+  MS_CLIENT_ID: "1187ff8b-fa16-43d4-acb6-788bb696c627", // the "scamsense" app in Microsoft Entra
+  ALSO_SEND_TO: "" // also send the report here, e.g. "me@outlook.com" (comma between several)
 };
 
 /* ========================================================================
@@ -53,6 +62,7 @@ function setup() {
   ScriptApp.newTrigger("sendDailyReport").timeBased().everyDays(1).atHour(CONFIG.HOUR).create();
   if (CONFIG.BLOCK_SCAMS)
     ScriptApp.newTrigger("blockScams").timeBased().everyMinutes(CONFIG.BLOCK_EVERY_MIN).create();
+  reportKey(); // makes the secret key the app uses
   if (CONFIG.BLOCK_SCAMS) blockScams();
   sendDailyReport();
 }
@@ -78,80 +88,501 @@ function stopBlocking() {
 
 /* ========================================================================
    3. DAILY REPORT
-   Checks every folder for the last day and emails you the report.
+   Gmail + Outlook + what you checked in the app, in one email.
    ======================================================================== */
 
-// Reads the last day's email, checks each one, and emails you the report.
+const props = () => PropertiesService.getScriptProperties();
+const myEmail = () => Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+
+// Collects everything from the last day, checks it, and emails you the report.
 function sendDailyReport() {
-  const me = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+  const me = myEmail();
+  const since = new Date(Date.now() - CONFIG.DAYS * 86400000);
+
+  // 1) Gmail
+  const gmail = readGmail(me, since);
+
+  // 2) Outlook (only if connected)
+  const out = { connected: outlookConnected(), email: props().getProperty("MS_EMAIL") || "", error: "" };
+  let outlook = [];
+  if (out.connected) {
+    try {
+      outlook = readOutlook(since);
+    } catch (e) {
+      out.error = e.message;
+    }
+  }
+
+  // 3) What was checked in the app
+  const app = { linked: !!props().getProperty("APP_LINKED"), events: appEvents(since) };
+
+  const items = gmail.concat(outlook);
+  const order = { scam: 0, warn: 1, safe: 2 };
+  items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
+
+  // Optional AI: explain the risky ones in plain words
+  const key = props().getProperty("ANTHROPIC_API_KEY");
+  let aiUsed = false;
+  if (key) {
+    items
+      .filter(i => i.level !== "safe")
+      .slice(0, 10)
+      .forEach(it => {
+        try {
+          const a = aiExplain(key, it);
+          if (a) {
+            it.ai = a;
+            aiUsed = true;
+            if (a.verdict === "scam") it.level = "scam";
+          }
+        } catch (e) {
+          /* keep the built-in result */
+        }
+      });
+  }
+
+  const d = summarize(items, gmail, outlook, app, out, aiUsed);
+  const to = [me]
+    .concat(
+      String(CONFIG.ALSO_SEND_TO || "")
+        .split(",")
+        .map(s => s.trim())
+    )
+    .filter(Boolean);
+  GmailApp.sendEmail([...new Set(to)].join(","), reportSubject(d), plainReport(d), {
+    htmlBody: htmlReport(d),
+    name: "ScamSense Daily Report"
+  });
+}
+
+// Reads Gmail: every folder except Sent, Drafts, and Chats.
+function readGmail(me, since) {
   const threads = GmailApp.search(
     `in:anywhere newer_than:${CONFIG.DAYS}d -in:sent -in:drafts -in:chats`,
     0,
     CONFIG.MAX_EMAILS
   );
-  const since = new Date(Date.now() - CONFIG.DAYS * 86400000);
   const items = [];
   threads.forEach(th => {
     const folder = th.isInSpam() ? "Spam" : th.isInTrash() ? "Trash" : th.isInInbox() ? "Inbox" : "Archived";
+    const wasBlocked = th.getLabels().some(l => l.getName() === CONFIG.BLOCK_LABEL);
     th.getMessages().forEach(m => {
-      if (m.getDate() < since) return;
-      if (m.isDraft()) return;
+      if (m.getDate() < since || m.isDraft()) return;
       const from = parseFrom(m.getFrom());
       if (me && from.email.toLowerCase() === me.toLowerCase()) return;
-      const msg = toMsg(m, from);
-      const r = analyze(msg);
-      const wasBlocked = th.getLabels().some(l => l.getName() === CONFIG.BLOCK_LABEL);
-      items.push({
+      items.push(checkEmail(toMsg(m, from), {
         id: m.getId(),
-        threadId: th.getId(),
+        source: "gmail",
         date: m.getDate(),
         folder,
         blocked: wasBlocked,
-        subject: msg.subject,
-        fromName: from.name,
-        fromEmail: from.email,
-        level: r.level,
-        kind: r.kind,
-        reasons: r.reasons,
-        trusted: r.trusted,
-        msg
-      });
+        link: `https://mail.google.com/mail/u/0/#all/${th.getId()}`
+      }));
     });
   });
+  return items;
+}
 
-  const order = { scam: 0, warn: 1, safe: 2 };
-  items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
-  const risky = items.filter(i => i.level !== "safe");
+// Runs the scam checker on one email and returns what the report needs.
+function checkEmail(msg, extra) {
+  const r = analyze(msg);
+  return Object.assign(
+    {
+      subject: msg.subject,
+      fromName: msg.fromName,
+      fromEmail: msg.fromEmail,
+      level: r.level,
+      kind: r.kind,
+      reasons: r.reasons,
+      trusted: r.trusted,
+      msg
+    },
+    extra
+  );
+}
 
-  // Optional AI: explain the risky ones in plain words
-  const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
-  let aiUsed = false;
-  if (key && risky.length) {
-    risky.slice(0, 10).forEach(it => {
-      try {
-        const a = aiExplain(key, it);
-        if (a) {
-          it.ai = a;
-          aiUsed = true;
-          if (a.verdict === "scam") it.level = "scam";
-        }
-      } catch (e) {
-        /* keep on-device result */
-      }
-    });
-  }
-
+// Counts everything once, so the email and its subject line always agree.
+function summarize(items, gmail, outlook, app, out, aiUsed) {
   const n = { scam: 0, warn: 0, safe: 0 };
   items.forEach(i => n[i.level]++);
-  const subject = n.scam
-    ? `ScamSense: ${n.scam} scam${n.scam > 1 ? "s" : ""} caught today — don't open ${n.scam > 1 ? "them" : "it"}`
-    : n.warn
-      ? `ScamSense: ${n.warn} email${n.warn > 1 ? "s" : ""} need a careful look`
-      : `ScamSense: all clear today (${items.length} emails checked)`;
-  GmailApp.sendEmail(me, subject, plainReport(items, n), {
-    htmlBody: htmlReport(items, n, aiUsed),
-    name: "ScamSense Daily Report"
+  const ev = app.events;
+  const checks = ev.filter(e => e.t === "check");
+  const risky = checks.filter(e => e.l !== "safe");
+  return {
+    items,
+    n,
+    gmail: { count: gmail.length, scams: gmail.filter(i => i.level !== "safe").length },
+    outlook: Object.assign({ count: outlook.length, scams: outlook.filter(i => i.level !== "safe").length }, out),
+    app,
+    checks,
+    appRisky: risky.length,
+    paused: ev.filter(e => e.t === "pause" && e.o !== "paid").length,
+    paid: ev.filter(e => e.t === "pause" && e.o === "paid").length,
+    scammed: ev.some(e => e.t === "scammed"),
+    blocked: items.filter(i => i.blocked).length,
+    caught: n.scam + n.warn + risky.length,
+    scams: n.scam + checks.filter(e => e.l === "scam").length,
+    aiUsed
+  };
+}
+
+/* ========================================================================
+   3a. OUTLOOK
+   Reads Outlook mail with Microsoft's own sign-in (read only: it can't send,
+   delete, or change anything). The sign-in is saved in this script only.
+
+   One-time setup in Azure (portal.azure.com):
+     App registrations > scamsense > Authentication >
+     "Allow public client flows" = Yes > Save
+   Then run connectOutlook and follow the steps in the log.
+   ======================================================================== */
+
+const MS_LOGIN = "https://login.microsoftonline.com/common/oauth2/v2.0";
+const MS_GRAPH = "https://graph.microsoft.com/v1.0/";
+const MS_SCOPE = "offline_access User.Read Mail.Read";
+
+// Step 1: shows a code to type at microsoft.com/devicelogin, then waits for you.
+function connectOutlook() {
+  const r = msPost("/devicecode", { client_id: CONFIG.MS_CLIENT_ID, scope: MS_SCOPE });
+  if (!r.device_code) {
+    console.log("Microsoft said: " + msError(r));
+    return;
+  }
+  props().setProperty(
+    "MS_DEVICE",
+    JSON.stringify({ code: r.device_code, every: r.interval || 5, until: Date.now() + r.expires_in * 1000 })
+  );
+  console.log(
+    [
+      "Connect Outlook:",
+      `  1. Open ${r.verification_uri}`,
+      `  2. Type this code:  ${r.user_code}`,
+      "  3. Sign in with your Outlook email and click Accept.",
+      'Then come back here. This log will say "Outlook connected" (wait up to 4 minutes).'
+    ].join("\n")
+  );
+  waitForOutlook(240);
+}
+
+// Step 2 (only if connectOutlook stopped waiting before you finished).
+function finishOutlook() {
+  waitForOutlook(300);
+}
+
+// Removes the saved Outlook sign-in from this script.
+function disconnectOutlook() {
+  ["MS_REFRESH", "MS_EMAIL", "MS_DEVICE"].forEach(k => props().deleteProperty(k));
+  console.log("Outlook disconnected. To remove access fully, visit account.live.com/consent/Manage.");
+}
+
+function outlookConnected() {
+  return !!props().getProperty("MS_REFRESH");
+}
+
+function waitForOutlook(seconds) {
+  const d = JSON.parse(props().getProperty("MS_DEVICE") || "null");
+  if (!d || d.until < Date.now()) {
+    console.log("That code expired. Run connectOutlook again.");
+    return;
+  }
+  const stop = Math.min(d.until, Date.now() + seconds * 1000);
+  while (Date.now() < stop) {
+    Utilities.sleep(d.every * 1000);
+    const r = msPost("/token", {
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+      client_id: CONFIG.MS_CLIENT_ID,
+      device_code: d.code
+    });
+    if (r.access_token) {
+      props().setProperty("MS_REFRESH", r.refresh_token);
+      props().deleteProperty("MS_DEVICE");
+      let email = "";
+      try {
+        const meInfo = msGraph("me?$select=mail,userPrincipalName", r.access_token);
+        email = meInfo.mail || meInfo.userPrincipalName || "";
+      } catch (e) {}
+      props().setProperty("MS_EMAIL", email);
+      console.log(`✅ Outlook connected${email ? ": " + email : ""}. Your daily report now includes it.`);
+      return;
+    }
+    if (r.error === "authorization_pending") continue;
+    if (r.error === "slow_down") {
+      d.every += 5;
+      continue;
+    }
+    console.log("Microsoft said: " + msError(r));
+    return;
+  }
+  console.log("Still waiting. If you already typed the code, run finishOutlook. (The code works for 15 minutes.)");
+}
+
+// Plain-words version of a Microsoft error, with the fix when we know it.
+function msError(r) {
+  const m = String(r.error_description || r.error || JSON.stringify(r)).split("\r\n")[0];
+  if (/7000218|client_assertion|client_secret/i.test(m))
+    return (
+      m +
+      '\nFIX: In Azure open App registrations > scamsense > Authentication, set "Allow public client flows" to Yes, click Save, then run connectOutlook again.'
+    );
+  return m;
+}
+
+function msPost(path, form) {
+  const res = UrlFetchApp.fetch(MS_LOGIN + path, { method: "post", payload: form, muteHttpExceptions: true });
+  try {
+    return JSON.parse(res.getContentText());
+  } catch (e) {
+    return { error: "HTTP " + res.getResponseCode() };
+  }
+}
+
+// A fresh access token from the saved sign-in. Microsoft gives a new sign-in each time; keep it.
+function msToken() {
+  const refresh = props().getProperty("MS_REFRESH");
+  if (!refresh) throw new Error("Outlook is not connected.");
+  const r = msPost("/token", {
+    grant_type: "refresh_token",
+    client_id: CONFIG.MS_CLIENT_ID,
+    refresh_token: refresh,
+    scope: MS_SCOPE
   });
+  if (!r.access_token) {
+    if (r.error === "invalid_grant") props().deleteProperty("MS_REFRESH");
+    throw new Error("Outlook sign-in expired. Run connectOutlook again. (" + msError(r).split("\n")[0] + ")");
+  }
+  if (r.refresh_token) props().setProperty("MS_REFRESH", r.refresh_token);
+  return r.access_token;
+}
+
+function msGraph(path, token) {
+  const url = /^https:/.test(path) ? path : MS_GRAPH + path;
+  const res = UrlFetchApp.fetch(url, {
+    headers: { Authorization: "Bearer " + token, Prefer: 'outlook.body-content-type="html"' },
+    muteHttpExceptions: true
+  });
+  const code = res.getResponseCode();
+  const j = JSON.parse(res.getContentText() || "{}");
+  if (code >= 400) {
+    const e = new Error((j.error && j.error.message) || "Outlook error " + code);
+    e.status = code;
+    throw e;
+  }
+  return j;
+}
+
+// Reads Outlook: every folder except Sent, Drafts, and Outbox.
+function readOutlook(since) {
+  const tok = msToken();
+  const g = p => msGraph(p, tok);
+  const me = (props().getProperty("MS_EMAIL") || "").toLowerCase();
+  const folders = {},
+    skip = {};
+  (g("me/mailFolders?$top=100&$select=id,displayName").value || []).forEach(f => (folders[f.id] = f.displayName));
+  ["sentitems", "drafts", "outbox"].forEach(wk => {
+    try {
+      skip[g(`me/mailFolders/${wk}?$select=id`).id] = true;
+    } catch (e) {}
+  });
+  const NAMES = { inbox: "Inbox", junkemail: "Spam", deleteditems: "Trash", archive: "Archived" };
+  Object.keys(NAMES).forEach(wk => {
+    try {
+      folders[g(`me/mailFolders/${wk}?$select=id`).id] = NAMES[wk];
+    } catch (e) {}
+  });
+  const sel = "id,subject,from,replyTo,receivedDateTime,body,bodyPreview,hasAttachments,parentFolderId,webLink";
+  const base =
+    "me/messages?$top=50&$orderby=receivedDateTime%20desc&$filter=" +
+    encodeURIComponent("receivedDateTime ge " + since.toISOString());
+  let page;
+  try {
+    page = g(`${base}&$select=${sel},internetMessageHeaders`);
+  } catch (e) {
+    if (e.status !== 400) throw e;
+    page = g(`${base}&$select=${sel}`); // some accounts don't allow headers in a list
+  }
+  let msgs = (page.value || []).filter(m => !skip[m.parentFolderId]);
+  while (page["@odata.nextLink"] && msgs.length < CONFIG.MAX_EMAILS) {
+    page = g(page["@odata.nextLink"]);
+    msgs = msgs.concat((page.value || []).filter(m => !skip[m.parentFolderId]));
+  }
+  return msgs
+    .slice(0, CONFIG.MAX_EMAILS)
+    .map(m => outlookItem(m, folders, g))
+    .filter(it => it.fromEmail && it.fromEmail !== me);
+}
+
+// Turns one Outlook message into the same shape as a Gmail one.
+function outlookItem(m, folders, g) {
+  const H = {};
+  (m.internetMessageHeaders || []).forEach(h => {
+    const k = h.name.toLowerCase();
+    H[k] = H[k] ? H[k] + " ; " + h.value : h.value;
+  });
+  const html = (m.body && m.body.content) || "";
+  const isHtml = !m.body || m.body.contentType !== "text";
+  let attachments = [];
+  if (m.hasAttachments) {
+    try {
+      attachments = (g(`me/messages/${encodeURIComponent(m.id)}/attachments?$select=name`).value || []).map(
+        a => a.name
+      );
+    } catch (e) {}
+  }
+  const from = (m.from && m.from.emailAddress) || {};
+  const rt = ((m.replyTo || [])[0] || {}).emailAddress || {};
+  const folder = folders[m.parentFolderId] || "Inbox";
+  const msg = {
+    subject: m.subject || "(no subject)",
+    text: (isHtml ? htmlText(html) : html).slice(0, 6000) || m.bodyPreview || "",
+    fromName: from.name || "",
+    fromEmail: (from.address || "").toLowerCase(),
+    replyTo: rt.address || "",
+    auth: H["authentication-results"] || "",
+    listUnsub: !!H["list-unsubscribe"],
+    links: isHtml ? linksFromHtml(html) : [],
+    attachments
+  };
+  return checkEmail(msg, {
+    id: m.id,
+    source: "outlook",
+    date: new Date(m.receivedDateTime),
+    folder,
+    blocked: false,
+    link: m.webLink || "https://outlook.live.com/mail/"
+  });
+}
+
+// Email HTML → plain text.
+function htmlText(html) {
+  return String(html || "")
+    .replace(/<(style|script|head)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?>|<\/(p|div|tr|li|h\d)>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
+    .trim();
+}
+
+/* ========================================================================
+   3b. APP ACTIVITY
+   The ScamSense app sends a short note here each time you check a text,
+   call, email or website, pause a payment, or open "I was scammed".
+   It sends only the kind, the result, and the time. Never the message itself.
+
+   To link the app:
+     1. Deploy > New deployment > type "Web app"
+        Execute as: Me · Who has access: Anyone > Deploy
+     2. Run showAppLink and copy the link from the log.
+     3. In ScamSense: Settings > Advanced > Daily report link > paste.
+   ======================================================================== */
+
+// The secret key the app must send. Made once by setup (or here).
+function reportKey() {
+  let k = props().getProperty("REPORT_KEY");
+  if (!k) {
+    k = Utilities.getUuid().replace(/-/g, "");
+    props().setProperty("REPORT_KEY", k);
+  }
+  return k;
+}
+
+// Prints the link to paste into the app.
+function showAppLink() {
+  let url = "";
+  try {
+    url = ScriptApp.getService().getUrl() || "";
+  } catch (e) {}
+  const key = reportKey();
+  if (!url || /\/dev$/.test(url)) {
+    console.log(
+      [
+        "Copy the Web app URL from Deploy > Manage deployments (it ends in /exec).",
+        "Then add this to the end of it:",
+        `   ?key=${key}`,
+        "Paste the whole thing into ScamSense > Settings > Advanced > Daily report link."
+      ].join("\n")
+    );
+    return;
+  }
+  console.log(
+    "Paste this into ScamSense > Settings > Advanced > Daily report link:\n\n" + url + "?key=" + key
+  );
+}
+
+// Lets the app check that the link works.
+function doGet(e) {
+  const ok = !!(e && e.parameter && e.parameter.key === reportKey());
+  return json(ok ? { ok, app: "ScamSense Daily Report", outlook: outlookConnected() } : { ok: false });
+}
+
+// Receives events from the app.
+function doPost(e) {
+  let body = {};
+  try {
+    body = JSON.parse((e.postData && e.postData.contents) || "{}");
+  } catch (x) {}
+  const key = (e.parameter && e.parameter.key) || body.key;
+  if (!key || key !== reportKey()) return json({ ok: false, error: "wrong key" });
+  const evs = [].concat(body.events || []).slice(0, 50).map(cleanEvent).filter(Boolean);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    props().setProperty("APP_LINKED", "1");
+    if (evs.length) {
+      let list = [];
+      try {
+        list = JSON.parse(props().getProperty("APP_EVENTS") || "[]");
+      } catch (x) {}
+      const have = {};
+      list.forEach(x => (have[x.id] = true));
+      const cutoff = Date.now() - 3 * 86400000;
+      list = list
+        .concat(evs.filter(x => !have[x.id] && (have[x.id] = true)))
+        .filter(x => x.at > cutoff)
+        .slice(-120); // stays well under Google's size limit
+      props().setProperty("APP_EVENTS", JSON.stringify(list));
+    }
+  } finally {
+    lock.releaseLock();
+  }
+  return json({ ok: true, saved: evs.length });
+}
+
+// Keeps only the few safe fields we expect.
+function cleanEvent(x) {
+  if (!x || typeof x !== "object") return null;
+  const t = { check: "check", pause: "pause", scammed: "scammed" }[x.t];
+  if (!t) return null;
+  const at = +x.at;
+  return {
+    id: String(x.id || "").slice(0, 24) || Utilities.getUuid().slice(0, 12),
+    t,
+    c: ["email", "text", "call", "web", "other"].includes(x.c) ? x.c : "other",
+    l: ["scam", "warn", "safe"].includes(x.l) ? x.l : "",
+    k: /^[a-z_]{1,20}$/.test(x.k || "") ? x.k : "",
+    o: x.o === "paid" ? "paid" : "",
+    at: at > Date.now() - 7 * 86400000 && at <= Date.now() + 60000 ? at : Date.now()
+  };
+}
+
+function appEvents(since) {
+  try {
+    return JSON.parse(props().getProperty("APP_EVENTS") || "[]")
+      .filter(x => x.at >= since.getTime())
+      .sort((a, b) => b.at - a.at);
+  } catch (e) {
+    return [];
+  }
+}
+
+function json(o) {
+  return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
 
 /* ========================================================================
@@ -365,13 +796,12 @@ function aiExplain(key, it) {
    What the report and the blocked note look like.
    ======================================================================== */
 
-// What to do, by level.
+// What to do, by level and by inbox.
 const ADVICE = {
   scam: [
     "Don't click links, open attachments, call numbers, or reply.",
     "Don't send money, gift cards, or codes.",
-    "If you're worried, contact the company yourself using a number you already trust.",
-    'Report it: in Gmail tap ⋮ then "Report phishing", or at ReportFraud.ftc.gov.'
+    "If you're worried, contact the company yourself using a number you already trust."
   ],
   warn: [
     "Slow down. Don't click links or call numbers in it yet.",
@@ -379,6 +809,38 @@ const ADVICE = {
     "Ask a family member or helper to take a look."
   ]
 };
+const REPORT_HOW = {
+  gmail: 'Report it: in Gmail tap ⋮ then "Report phishing".',
+  outlook: 'Report it: in Outlook choose Report, then "Report phishing".'
+};
+
+// Short tips. One a day, in turn.
+const TIPS = [
+  "Real companies never ask you to pay with gift cards, crypto, or a wire transfer.",
+  "If someone says “don't tell anyone,” that's a scam sign. Tell someone you trust.",
+  "Your bank will never ask for the code they text you. Never read it to anyone.",
+  "A call from “your grandson” asking for bail? Hang up and call him on his usual number.",
+  "Got a scary pop-up saying your computer has a virus? Don't call the number. Just close it.",
+  "The IRS, Medicare, and Social Security don't call to demand payment or threaten arrest.",
+  "Check a link before you tap: the real name comes right before .com.",
+  "A text about an unpaid toll or package fee is almost always fake. Check the official app.",
+  "Pressure to act “right now” is the scammer's best tool. You can always take a day.",
+  "Never let a stranger remote into your computer, even if they say they're from Microsoft or your bank."
+];
+
+const COL = { scam: "#B42318", warn: "#A15C00", safe: "#1F7A3E" };
+const TINT = { scam: "#FDECEA", warn: "#FFF3DF", safe: "#E6F4EA" };
+const WORD = { scam: "Scam", warn: "Be careful", safe: "Safe" };
+const INBOX = {
+  gmail: { name: "Gmail", fg: "#B3261E", bg: "#FCE8E6" },
+  outlook: { name: "Outlook", fg: "#0F5CB5", bg: "#E3EEFB" },
+  app: { name: "ScamSense app", fg: "#0B6E6D", bg: "#E0F2F1" }
+};
+const CHANNEL = { email: "Email", text: "Text message", call: "Phone call", web: "Website", other: "Message" };
+const INK = "#0E2A30",
+  MUTED = "#5B6B6E",
+  LINE = "#E3EAE8",
+  BRAND = "#0E7C7B";
 
 // Picks the clearest reason to show first.
 function bestWhy(i) {
@@ -406,94 +868,286 @@ function esc(s) {
 
 // Date like "Tue Nov 10, 8:00 AM".
 function fmt(d) {
-  return Utilities.formatDate(d, Session.getScriptTimeZone(), "EEE MMM d, h:mm a");
+  return Utilities.formatDate(new Date(d), Session.getScriptTimeZone(), "EEE MMM d, h:mm a");
+}
+function fmtTime(d) {
+  return Utilities.formatDate(new Date(d), Session.getScriptTimeZone(), "h:mm a");
+}
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
+
+// The headline everyone sees first.
+function headline(d) {
+  if (d.scammed)
+    return {
+      tone: "scam",
+      icon: "!",
+      head: "You started the “I was scammed” steps.",
+      sub: "Keep going, one step at a time: call your bank using the number on your card, then follow your recovery plan in ScamSense."
+    };
+  if (d.scams)
+    return {
+      tone: "scam",
+      icon: "!",
+      head: `${plural(d.scams, "scam")} caught. Don't open ${d.scams === 1 ? "it" : "them"}.`,
+      sub: "Each one is explained below, with what to do."
+    };
+  if (d.caught)
+    return {
+      tone: "warn",
+      icon: "?",
+      head: `${plural(d.caught, "thing")} need${d.caught === 1 ? "s" : ""} a careful look.`,
+      sub: "Nothing is clearly a scam, but slow down with these."
+    };
+  return { tone: "safe", icon: "✓", head: "All clear. No scams found.", sub: "Everything we checked looked safe." };
+}
+
+// "We checked 41 emails in Gmail and Outlook, and 3 things in the app."
+function coverage(d) {
+  const inboxes = ["Gmail"].concat(d.outlook.connected && !d.outlook.error ? ["Outlook"] : []).join(" and ");
+  const emails = d.gmail.count + d.outlook.count;
+  let s = `We checked ${plural(emails, "email")} in ${inboxes}`;
+  if (d.checks.length) s += `, and ${plural(d.checks.length, "thing")} you checked in the app`;
+  return s + ` from the last ${CONFIG.DAYS === 1 ? "24 hours" : CONFIG.DAYS + " days"}.`;
+}
+
+function reportSubject(d) {
+  if (d.scammed) return "ScamSense: your next steps after a scam";
+  if (d.scams) return `ScamSense: ${plural(d.scams, "scam")} caught today — don't open ${d.scams === 1 ? "it" : "them"}`;
+  if (d.caught) return `ScamSense: ${plural(d.caught, "thing")} need${d.caught === 1 ? "s" : ""} a careful look`;
+  const emails = d.gmail.count + d.outlook.count;
+  return `ScamSense: all clear today (${plural(emails, "email")}${d.checks.length ? `, ${plural(d.checks.length, "check")}` : ""})`;
 }
 
 // Plain-text version of the report (for email apps that don't show HTML).
-function plainReport(items, n) {
-  const lines = [
-    `ScamSense Daily Safety Report — ${fmt(new Date())}`,
-    `Checked ${items.length} emails from the last ${CONFIG.DAYS === 1 ? "24 hours" : CONFIG.DAYS + " days"} in every folder.`,
-    `Scams: ${n.scam} · Suspicious: ${n.warn} · Safe: ${n.safe}`,
+function plainReport(d) {
+  const h = headline(d);
+  const L = [`ScamSense Daily Safety Report — ${fmt(new Date())}`, "", h.head, coverage(d), ""];
+  L.push(
+    `Gmail: ${plural(d.gmail.count, "email")}` +
+      ` · Outlook: ${d.outlook.connected ? plural(d.outlook.count, "email") : "not connected"}` +
+      ` · Checked in the app: ${d.checks.length}` +
+      ` · Blocked: ${d.blocked} · Payments paused: ${d.paused}`,
     ""
-  ];
-  items
-    .filter(i => i.level !== "safe")
-    .forEach(i => {
-      lines.push(
-        `${i.level === "scam" ? "SCAM" : "SUSPICIOUS"}: ${i.fromName || i.fromEmail} — ${i.subject} (${i.folder})`
-      );
-      lines.push("  " + bestWhy(i));
-    });
-  lines.push("", `Open ScamSense: ${CONFIG.APP_URL}`);
-  return lines.join("\n");
+  );
+  const risky = d.items.filter(i => i.level !== "safe");
+  if (risky.length) L.push("NEEDS YOUR ATTENTION");
+  risky.forEach(i => {
+    L.push(
+      `${i.level === "scam" ? "SCAM" : "BE CAREFUL"} [${INBOX[i.source].name} · ${i.folder}] ${i.fromName || i.fromEmail} — ${i.subject}`
+    );
+    L.push("  " + bestWhy(i));
+  });
+  const appRows = appRowsData(d);
+  if (appRows.length) {
+    L.push("", "CHECKED IN THE APP");
+    appRows.forEach(r => L.push(`${fmtTime(r.at)}  ${r.what} — ${r.result}${r.detail ? " (" + r.detail + ")" : ""}`));
+  }
+  L.push("", "Tip of the day: " + tipOfDay(), "", `Open ScamSense: ${CONFIG.APP_URL}`);
+  return L.join("\n");
+}
+
+function tipOfDay() {
+  const day = Math.floor(Date.now() / 86400000);
+  return TIPS[day % TIPS.length];
+}
+
+// Rows for "Checked in the app".
+function appRowsData(d) {
+  return d.app.events.map(e => {
+    if (e.t === "scammed")
+      return { at: e.at, lv: "scam", what: "Opened “I was scammed”", result: "Recovery plan", detail: "" };
+    if (e.t === "pause")
+      return e.o === "paid"
+        ? { at: e.at, lv: "scam", what: "Pause before you pay", result: "Already paid", detail: "" }
+        : {
+            at: e.at,
+            lv: "safe", // stopping a payment is a good outcome
+            what: "Pause before you pay",
+            result: "Payment stopped",
+            detail: e.l === "scam" ? "it looked like a scam" : e.l === "warn" ? "it looked risky" : ""
+          };
+    return {
+      at: e.at,
+      lv: e.l || "safe",
+      what: CHANNEL[e.c] || "Message",
+      result: WORD[e.l || "safe"],
+      detail: e.l !== "safe" && e.k && TYPES[e.k] ? "looks like a " + TYPES[e.k] : ""
+    };
+  });
+}
+
+/* ----- small HTML pieces (email-safe: tables and inline styles only) ----- */
+const pill = (lv, text) =>
+  `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${TINT[lv]};color:${COL[lv]};font-weight:700;font-size:12px;letter-spacing:.02em">${esc(text)}</span>`;
+const badge = src =>
+  `<span style="display:inline-block;padding:3px 9px;border-radius:6px;background:${INBOX[src].bg};color:${INBOX[src].fg};font-weight:700;font-size:12px">${INBOX[src].name}</span>`;
+const sectionTitle = (title, note) =>
+  `<tr><td style="padding:26px 6px 10px"><div style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:${MUTED}">${esc(title)}${note ? `<span style="font-weight:600;letter-spacing:0;text-transform:none"> · ${esc(note)}</span>` : ""}</div></td></tr>`;
+const box = (inner, extra) =>
+  `<tr><td style="padding:0 0 12px"><div style="background:#ffffff;border:1px solid ${LINE};border-radius:14px;${extra || ""}">${inner}</div></td></tr>`;
+
+function tile(label, value, sub, color) {
+  return `<td width="33%" valign="top" style="padding:5px"><div style="background:#ffffff;border:1px solid ${LINE};border-radius:12px;padding:12px 12px 11px">
+    <div style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:${MUTED}">${esc(label)}</div>
+    <div style="font-size:28px;line-height:1.1;font-weight:800;color:${color || INK};margin-top:6px">${esc(value)}</div>
+    <div style="font-size:12px;color:${MUTED};margin-top:2px">${esc(sub)}</div></div></td>`;
+}
+
+// Green / amber / red bar showing how everything came out.
+function safetyBar(d) {
+  const c = { safe: d.n.safe, warn: d.n.warn, scam: d.n.scam };
+  d.checks.forEach(e => c[e.l || "safe"]++);
+  const total = c.safe + c.warn + c.scam;
+  if (!total) return "";
+  const cells = ["safe", "warn", "scam"]
+    .filter(k => c[k])
+    .map(k => `<td width="${Math.max(4, Math.round((100 * c[k]) / total))}%" style="background:${COL[k]};height:10px;font-size:0;line-height:0">&nbsp;</td>`)
+    .join("");
+  const key = ["safe", "warn", "scam"]
+    .map(
+      k =>
+        `<span style="white-space:nowrap;margin-right:14px"><span style="display:inline-block;width:9px;height:9px;border-radius:9px;background:${COL[k]};vertical-align:middle"></span> <b style="color:${INK}">${c[k]}</b> ${k === "safe" ? "safe" : k === "warn" ? "be careful" : c[k] === 1 ? "scam" : "scams"}</span>`
+    )
+    .join("");
+  return `<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:separate;border-radius:6px;overflow:hidden;margin-top:16px"><tr>${cells}</tr></table>
+    <div style="font-size:13px;color:${MUTED};margin-top:8px">${key}</div>`;
+}
+
+// One risky email.
+function emailCard(i) {
+  const why = bestWhy(i);
+  const signs = i.reasons
+    .filter(r => r !== why)
+    .slice(0, 3)
+    .map(r => `<li style="margin:3px 0">${esc(r)}</li>`)
+    .join("");
+  const todo = ((i.ai && i.ai.what_to_do) || ADVICE[i.level].concat(i.level === "scam" ? [REPORT_HOW[i.source]] : []))
+    .slice(0, 4)
+    .map(t => `<li style="margin:3px 0">${esc(t)}</li>`)
+    .join("");
+  const where = i.blocked ? `<b style="color:${COL.scam}">Blocked → moved to Spam</b>` : esc(i.folder);
+  const label = s =>
+    `<div style="font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:${MUTED};margin-top:14px">${s}</div>`;
+  return box(
+    `<div style="border-top:5px solid ${COL[i.level]};border-radius:14px 14px 0 0"></div>
+    <div style="padding:14px 18px 16px">
+      <div>${pill(i.level, i.level === "scam" ? "SCAM" : "BE CAREFUL")} ${badge(i.source)} <span style="font-size:12px;color:${MUTED}">${where} · ${esc(fmt(i.date))}</span></div>
+      <div style="font-size:17px;font-weight:800;margin-top:10px;color:${INK}">${esc(i.fromName || i.fromEmail)}</div>
+      <div style="font-size:13px;color:${MUTED}">${esc(i.fromEmail)}</div>
+      <div style="font-size:15px;margin-top:6px;color:${INK}">“${esc(i.subject)}”</div>
+      ${i.kind ? `<div style="font-size:14px;font-weight:700;color:${COL[i.level]};margin-top:10px">Looks like: ${esc(i.kind)}</div>` : ""}
+      <div style="background:${TINT[i.level]};border-radius:10px;padding:10px 12px;margin-top:10px;font-size:15px;line-height:1.45;color:${INK}">${esc(why)}</div>
+      ${signs ? `${label("Other warning signs")}<ul style="margin:6px 0 0 18px;padding:0;font-size:14px;line-height:1.4;color:${INK}">${signs}</ul>` : ""}
+      ${label("What to do")}<ol style="margin:6px 0 0 18px;padding:0;font-size:14px;line-height:1.4;color:${INK}">${todo}</ol>
+      <a href="${esc(i.link)}" style="display:inline-block;margin-top:14px;padding:9px 14px;border-radius:9px;border:1px solid ${LINE};color:${BRAND};font-weight:700;font-size:14px;text-decoration:none">View in ${INBOX[i.source].name} →</a>
+      <span style="font-size:12px;color:${MUTED}">&nbsp; Don't click links inside it.</span>
+    </div>`
+  );
 }
 
 // The designed report email.
-function htmlReport(items, n, aiUsed) {
-  const C = { scam: "#B42318", warn: "#9A5B00", safe: "#1F7A3E" },
-    BG = { scam: "#FDE7E4", warn: "#FFF2DC", safe: "#E4F4E9" };
-  const lv = n.scam ? "scam" : n.warn ? "warn" : "safe";
-  const head = n.scam
-    ? `${n.scam} scam${n.scam > 1 ? "s" : ""} caught. Don't open ${n.scam > 1 ? "them" : "it"}.`
-    : n.warn
-      ? `${n.warn} email${n.warn > 1 ? "s" : ""} need a careful look.`
-      : "All clear. No scams found.";
-  const pill = (l, t) =>
-    `<span style="display:inline-block;padding:4px 10px;border-radius:999px;background:${BG[l]};color:${C[l]};font-weight:700;font-size:13px;margin-right:6px">${t}</span>`;
-  const folders = {};
-  items.forEach(i => (folders[i.folder] = (folders[i.folder] || 0) + 1));
-  const fsum = Object.keys(folders)
-    .map(k => `${k} ${folders[k]}`)
-    .join(", ");
-  const card = i => {
-    const why = bestWhy(i);
-    const signs = i.reasons
-      .filter(r => r !== why)
-      .slice(0, 3)
-      .map(r => `<li style="margin:2px 0">${esc(r)}</li>`)
-      .join("");
-    const todo = ((i.ai && i.ai.what_to_do) || ADVICE[i.level])
-      .slice(0, 3)
-      .map(t => `<li style="margin:2px 0">${esc(t)}</li>`)
-      .join("");
-    return `<div style="border:1px solid #DDE5E3;border-left:5px solid ${C[i.level]};border-radius:12px;padding:14px 16px;margin:0 0 12px;background:#fff">
-      <div>${pill(i.level, i.level === "scam" ? "SCAM" : "SUSPICIOUS")}<span style="color:#5B6B6E;font-size:13px">${i.blocked ? '<b style="color:#B42318">Blocked → Spam</b>' : esc(i.folder)} · ${esc(fmt(i.date))}</span></div>
-      <div style="font-weight:700;font-size:16px;margin-top:8px">${esc(i.fromName || i.fromEmail)}</div>
-      <div style="color:#5B6B6E;font-size:13px">${esc(i.fromEmail)}</div>
-      <div style="font-size:15px;margin-top:4px">${esc(i.subject)}</div>
-      ${i.kind ? `<div style="color:${C[i.level]};font-weight:700;font-size:14px;margin-top:8px">Looks like: ${esc(i.kind)}</div>` : ""}
-      <p style="margin:8px 0 0;font-size:15px;line-height:1.45">${esc(why)}</p>
-      ${signs ? `<div style="font-size:13px;font-weight:700;color:#5B6B6E;margin-top:10px;text-transform:uppercase;letter-spacing:.05em">Warning signs</div><ul style="margin:4px 0 0 18px;padding:0;font-size:14px">${signs}</ul>` : ""}
-      <div style="font-size:13px;font-weight:700;color:#5B6B6E;margin-top:10px;text-transform:uppercase;letter-spacing:.05em">What to do</div><ol style="margin:4px 0 0 18px;padding:0;font-size:14px">${todo}</ol>
-      <a href="https://mail.google.com/mail/u/0/#all/${i.threadId}" style="display:inline-block;margin-top:10px;color:#0E7C7B;font-weight:700;font-size:14px">View in Gmail (don't click links inside)</a></div>`;
-  };
-  const risky = items.filter(i => i.level !== "safe"),
-    safe = items.filter(i => i.level === "safe");
-  const safeList = safe
-    .slice(0, 40)
+function htmlReport(d) {
+  const h = headline(d);
+  const risky = d.items.filter(i => i.level !== "safe"),
+    safe = d.items.filter(i => i.level === "safe");
+  const day = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "EEEE, MMMM d");
+
+  const tiles =
+    `<tr>${tile("Gmail", d.gmail.count, d.gmail.scams ? `${d.gmail.scams} need a look` : "emails · all clean")}` +
+    tile(
+      "Outlook",
+      d.outlook.connected ? (d.outlook.error ? "!" : d.outlook.count) : "—",
+      !d.outlook.connected
+        ? "not connected"
+        : d.outlook.error
+          ? "couldn't read"
+          : d.outlook.scams
+            ? `${d.outlook.scams} need a look`
+            : "emails · all clean"
+    ) +
+    tile("In the app", d.checks.length, d.app.linked ? "texts, calls & more" : "not linked yet") +
+    `</tr><tr>${tile("Scams caught", d.scams, d.caught > d.scams ? `+${d.caught - d.scams} be careful` : "today", d.scams ? COL.scam : COL.safe)}` +
+    tile("Blocked", d.blocked, "moved to Spam for you", d.blocked ? BRAND : INK) +
+    tile("Paused", d.paused, d.paused === 1 ? "payment stopped" : "payments stopped", d.paused ? BRAND : INK) +
+    "</tr>";
+
+  const appRows = appRowsData(d)
     .map(
-      i =>
-        `<tr><td style="padding:6px 0;border-top:1px solid #EEF2F1;font-size:14px"><b>${esc(i.fromName || i.fromEmail)}</b><br><span style="color:#5B6B6E">${esc(i.subject)}</span></td><td style="padding:6px 0 6px 10px;border-top:1px solid #EEF2F1;font-size:12px;color:#5B6B6E;white-space:nowrap;text-align:right">${esc(i.folder)}${i.trusted ? "<br>✓ verified sender" : ""}</td></tr>`
+      (r, k) => `<tr>
+      <td style="padding:11px 0 11px 16px;${k ? `border-top:1px solid ${LINE};` : ""}vertical-align:top;width:12px"><span style="display:inline-block;width:10px;height:10px;border-radius:10px;background:${COL[r.lv]};margin-top:5px"></span></td>
+      <td style="padding:11px 10px;${k ? `border-top:1px solid ${LINE};` : ""}font-size:15px;color:${INK}"><b>${esc(r.what)}</b>${r.detail ? `<br><span style="font-size:13px;color:${MUTED}">${esc(r.detail)}</span>` : ""}</td>
+      <td style="padding:11px 16px 11px 0;${k ? `border-top:1px solid ${LINE};` : ""}text-align:right;white-space:nowrap;vertical-align:top">${pill(r.lv, r.result)}<div style="font-size:12px;color:${MUTED};margin-top:4px">${esc(fmtTime(r.at))}</div></td></tr>`
     )
     .join("");
-  return `<!doctype html><html><body style="margin:0;background:#F3F6F5;font-family:Arial,Helvetica,sans-serif;color:#0E3B43">
-  <div style="max-width:620px;margin:0 auto;padding:20px 14px">
-    <div style="font-size:20px;font-weight:800;margin:0 0 12px">🦉 ScamSense</div>
-    <div style="background:#fff;border-radius:16px;border-top:6px solid ${C[lv]};padding:18px 18px 16px">
-      <div style="font-size:12px;font-weight:700;letter-spacing:.07em;color:#5B6B6E;text-transform:uppercase">Daily Safety Report · ${esc(fmt(new Date()))}</div>
-      <div style="font-size:24px;font-weight:800;line-height:1.2;margin:8px 0 12px">${head}</div>
-      <div>${pill("scam", `${n.scam} Scam`)}${pill("warn", `${n.warn} Suspicious`)}${pill("safe", `${n.safe} Safe`)}</div>
-      ${items.filter(i => i.blocked).length ? `<p style="font-size:15px;margin:12px 0 0">🛡️ <b>ScamSense blocked ${items.filter(i => i.blocked).length}</b> of them and moved them to Spam.</p>` : ""}
-      <p style="color:#5B6B6E;font-size:14px;margin:12px 0 0">Checked ${items.length} emails from the last ${CONFIG.DAYS === 1 ? "24 hours" : CONFIG.DAYS + " days"} across all folders${fsum ? ` (${esc(fsum)})` : ""}. ${aiUsed ? "AI double-checked the risky ones." : "Checked with ScamSense's built-in rules."}</p>
-    </div>
-    ${risky.length ? `<h2 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#5B6B6E;margin:22px 4px 10px">Needs your attention</h2>${risky.map(card).join("")}` : ""}
-    ${safe.length ? `<h2 style="font-size:13px;letter-spacing:.07em;text-transform:uppercase;color:#5B6B6E;margin:22px 4px 10px">Looked safe (${safe.length})</h2><div style="background:#fff;border-radius:12px;padding:6px 16px"><table style="width:100%;border-collapse:collapse">${safeList}</table>${safe.length > 40 ? `<p style="font-size:13px;color:#5B6B6E">…and ${safe.length - 40} more.</p>` : ""}</div>` : ""}
-    <div style="background:#E6F2F1;border-radius:12px;padding:14px 16px;margin-top:18px;font-size:14px;line-height:1.45">
-      <b>Remember:</b> real companies never ask for gift cards, crypto, or codes. If in doubt, call them back using the number on your card.</div>
-    <p style="text-align:center;margin:18px 0 0"><a href="${CONFIG.APP_URL}" style="display:inline-block;background:#0E7C7B;color:#fff;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:12px">Open ScamSense</a></p>
-    <p style="color:#5B6B6E;font-size:12px;text-align:center;margin:16px 0 0">This report was made inside your own Google account. ScamSense never stores or sells your email.<br>To stop it, open the ScamSense script and run <b>stopDailyReport</b>.</p>
-  </div></body></html>`;
+  const appSection = d.app.events.length
+    ? sectionTitle("Checked in the app", "texts, calls, payments") +
+      box(`<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${appRows}</table>`)
+    : d.app.linked
+      ? sectionTitle("Checked in the app") +
+        box(
+          `<div style="padding:14px 18px;font-size:14px;color:${MUTED}">Nothing was checked in the app today. Got a strange text or call? Open ScamSense and tap <b>Check something</b>.</div>`
+        )
+      : "";
+
+  const safeRows = safe
+    .slice(0, 30)
+    .map(
+      (i, k) => `<tr><td style="padding:9px 0 9px 16px;${k ? `border-top:1px solid ${LINE};` : ""}font-size:14px;color:${INK}"><b>${esc(i.fromName || i.fromEmail)}</b>${i.trusted ? ` <span style="color:${COL.safe};font-size:12px">✓ verified</span>` : ""}<br><span style="color:${MUTED}">${esc(i.subject)}</span></td>
+      <td style="padding:9px 16px 9px 8px;${k ? `border-top:1px solid ${LINE};` : ""}text-align:right;white-space:nowrap;vertical-align:top">${badge(i.source)}<div style="font-size:12px;color:${MUTED};margin-top:4px">${esc(i.folder)}</div></td></tr>`
+    )
+    .join("");
+
+  const notes = [];
+  if (d.outlook.error) notes.push(`Outlook couldn't be read: ${d.outlook.error}`);
+  if (!d.outlook.connected)
+    notes.push("Outlook isn't connected. In the ScamSense script, run connectOutlook to add it.");
+  if (!d.app.linked)
+    notes.push("Want your checked texts and calls here too? Link the app: run showAppLink in the ScamSense script.");
+
+  return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:#EEF3F2;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${INK}">
+<div style="display:none;max-height:0;overflow:hidden">${esc(h.head)} ${esc(coverage(d))}</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#EEF3F2"><tr><td align="center" style="padding:18px 10px 28px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px">
+
+  <tr><td style="background:#0B2A30;border-radius:18px 18px 0 0;padding:18px 22px">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
+      <td style="font-size:20px;font-weight:800;color:#ffffff">🦉 ScamSense</td>
+      <td align="right" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9CC9C6">Daily Safety Report</td>
+    </tr></table>
+    <div style="font-size:14px;color:#CFE3E1;margin-top:4px">${esc(day)}</div>
+  </td></tr>
+
+  <tr><td style="background:#ffffff;border-radius:0 0 18px 18px;border-top:6px solid ${COL[h.tone]};padding:22px 22px 20px">
+    <table role="presentation" cellspacing="0" cellpadding="0"><tr>
+      <td valign="top" style="padding-right:14px"><div style="width:46px;height:46px;border-radius:46px;background:${TINT[h.tone]};color:${COL[h.tone]};font-size:26px;font-weight:800;line-height:46px;text-align:center">${h.icon}</div></td>
+      <td valign="top"><div style="font-size:24px;line-height:1.2;font-weight:800;color:${INK}">${esc(h.head)}</div>
+        <div style="font-size:15px;line-height:1.45;color:${INK};margin-top:6px">${esc(h.sub)}</div></td>
+    </tr></table>
+    <div style="font-size:14px;line-height:1.45;color:${MUTED};margin-top:14px">${esc(coverage(d))}${d.aiUsed ? " AI double-checked the risky ones." : ""}</div>
+    ${safetyBar(d)}
+  </td></tr>
+
+  <tr><td style="padding:12px 0 0"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="table-layout:fixed">${tiles}</table></td></tr>
+
+  <tr><td><table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+    ${risky.length ? sectionTitle("Needs your attention", plural(risky.length, "email")) + risky.map(emailCard).join("") : ""}
+    ${appSection}
+    ${safe.length ? sectionTitle("Looked safe", plural(safe.length, "email")) + box(`<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${safeRows}</table>${safe.length > 30 ? `<div style="padding:4px 16px 12px;font-size:13px;color:${MUTED}">…and ${safe.length - 30} more.</div>` : ""}`) : ""}
+    ${sectionTitle("Tip of the day")}
+    ${box(`<div style="padding:16px 18px;font-size:16px;line-height:1.5;color:${INK}"><span style="color:${BRAND};font-weight:800">💡</span> ${esc(tipOfDay())}</div>`, `background:#E6F2F1;border-color:#CFE5E3`)}
+    ${notes.length ? `<tr><td style="padding:4px 6px 0;font-size:13px;line-height:1.5;color:${MUTED}">${notes.map(esc).join("<br>")}</td></tr>` : ""}
+  </table></td></tr>
+
+  <tr><td align="center" style="padding:22px 0 0">
+    <a href="${CONFIG.APP_URL}" style="display:inline-block;background:${BRAND};color:#ffffff;text-decoration:none;font-weight:800;font-size:16px;padding:14px 28px;border-radius:12px">Open ScamSense</a>
+  </td></tr>
+  <tr><td align="center" style="padding:18px 16px 0;font-size:12px;line-height:1.55;color:${MUTED}">
+    Made inside your own Google account. ScamSense never stores or sells your email, and the app never sends your messages here, only what kind they were.<br>
+    To stop this report, open the ScamSense script and run <b>stopDailyReport</b>.
+  </td></tr>
+
+</table></td></tr></table></body></html>`;
 }
 
 /* ========================================================================

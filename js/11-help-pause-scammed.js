@@ -195,8 +195,10 @@ async function runPause() {
     const h = S.get("paused", []);
     h.push({ at: Date.now(), level });
     S.set("paused", h.slice(-50));
+    reportSync({ t: "pause", l: level });
   };
   document.getElementById("ppaid").onclick = () => {
+    reportSync({ t: "pause", l: level, o: "paid" });
     scamState = Object.assign(scamState, {
       what: ["paid"],
       method:
@@ -506,6 +508,10 @@ function contactHTML(k) {
 function renderScammed() {
   const s = scamState;
   const today = new Date().toISOString().slice(0, 10);
+  if (!scamExample && S.get("scammedSync", "") !== today) {
+    S.set("scammedSync", today);
+    reportSync({ t: "scammed" });
+  }
   const chk = k =>
     `<label class="checkrow"><input type="checkbox" value="${k}" ${s.what.includes(k) ? "checked" : ""}> ${t("w_" + k)}</label>`;
   view.innerHTML = `${pageHead(t("s_title"), t("s_sub"), "today")}

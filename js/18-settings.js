@@ -82,7 +82,8 @@ function renderSettings() {
     <div class="grow col"><label for="cid" class="gl"><b>${t("set_cid")}</b></label><input id="cid" autocomplete="off" spellcheck="false" value="${esc(c.clientId)}"></div>
     <div class="grow col"><label for="msid" class="gl"><b>${tr("Microsoft app ID (for Outlook)", "ID de app de Microsoft (para Outlook)")}</b><span>${tr("From Microsoft Entra → App registrations. See docs/outlook-setup.md.", "De Microsoft Entra → Registros de aplicaciones. Vea docs/outlook-setup.md.")}</span></label><input id="msid" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000" value="${esc(c.msClientId || "")}"></div>
     <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
-    <div class="grow col"><label for="murl" class="gl"><b>${tr("Mahi server", "Servidor de Mahi")}</b><span>${tr("Web app URL from the Mahi Server script. Lets Mahi answer anything with no key in the app.", "URL de la app web del script Mahi Server. Permite que Mahi responda todo sin clave en la app.")}</span></label><input id="murl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.mahiUrl)}"></div></div></details>
+    <div class="grow col"><label for="murl" class="gl"><b>${tr("Mahi server", "Servidor de Mahi")}</b><span>${tr("Web app URL from the Mahi Server script. Lets Mahi answer anything with no key in the app.", "URL de la app web del script Mahi Server. Permite que Mahi responda todo sin clave en la app.")}</span></label><input id="murl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.mahiUrl)}"></div>
+    <div class="grow col"><label for="rurl" class="gl"><b>${tr("Daily report link", "Enlace del reporte diario")}</b><span>${tr("From the Daily Report script (run showAppLink). Adds the texts, calls, and payments you check here to your morning report. Only the result is sent, never the message.", "Del script del Reporte diario (ejecute showAppLink). Agrega a su reporte de la mañana los textos, llamadas y pagos que revise aquí. Solo se envía el resultado, nunca el mensaje.")}</span></label><input id="rurl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec?key=…" value="${esc(c.reportUrl || "")}"></div></div></details>
   <p class="footnote center">${t("footer")}</p>`;
   const save = () => {
     saveCfg(
@@ -94,6 +95,7 @@ function renderSettings() {
         aiMode: document.getElementById("aim").value,
         model: document.getElementById("mdl").value.trim() || "claude-haiku-5-5",
         mahiUrl: document.getElementById("murl").value.trim(),
+        reportUrl: document.getElementById("rurl").value.trim(),
         msClientId: document.getElementById("msid").value.trim(),
         days: +document.getElementById("days").value,
         max: +document.getElementById("max").value
@@ -104,6 +106,7 @@ function renderSettings() {
   view.querySelectorAll("input,select").forEach(x => {
     if (x.id !== "applock") x.onchange = save;
   });
+  document.getElementById("rurl").addEventListener("change", e => testReportLink(e.target.value));
   const chp = document.getElementById("chpin");
   if (chp) chp.onclick = () => setupPin(ok => ok && renderSettings());
   document.getElementById("applock").onchange = e => {
