@@ -672,9 +672,9 @@ function sendBlockedNotice(me, blocked) {
     .join("");
   const html = `<!doctype html><html><body style="margin:0;background:#F3F6F5;font-family:Arial,Helvetica,sans-serif;color:#0E3B43">
     <div style="max-width:560px;margin:0 auto;padding:20px 14px">
-      <div style="font-size:20px;font-weight:800;margin:0 0 12px">🦉 ScamSense</div>
+      <div style="font-size:20px;font-weight:800;margin:0 0 12px">&#129417; ScamSense</div>
       <div style="background:#fff;border-radius:16px;border-top:6px solid #B42318;padding:16px 18px;margin-bottom:14px">
-        <div style="font-size:22px;font-weight:800;line-height:1.25">🛡️ Blocked ${n} scam email${n > 1 ? "s" : ""}</div>
+        <div style="font-size:22px;font-weight:800;line-height:1.25">&#128737; Blocked ${n} scam email${n > 1 ? "s" : ""}</div>
         <p style="font-size:15px;margin:8px 0 0">${n > 1 ? "They were" : "It was"} moved to Spam. You don't need to do anything. Don't open ${n > 1 ? "them" : "it"}.</p></div>
       ${rows}
       <p style="color:#5B6B6E;font-size:13px;margin:12px 4px 0">If one was a real email, open <b>Spam</b> in Gmail and tap <b>Not spam</b>.</p>
@@ -1151,7 +1151,7 @@ function htmlReport(d) {
 
   <tr><td style="background:#0B2A30;border-radius:18px 18px 0 0;padding:18px 22px">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
-      <td style="font-size:20px;font-weight:800;color:#ffffff">🦉 ScamSense</td>
+      <td style="font-size:20px;font-weight:800;color:#ffffff">&#129417; ScamSense</td>
       <td align="right" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9CC9C6">Daily Safety Report</td>
     </tr></table>
     <div style="font-size:14px;color:#CFE3E1;margin-top:4px">${esc(day)}</div>
@@ -1174,7 +1174,7 @@ function htmlReport(d) {
     ${appSection}
     ${safe.length ? sectionTitle("Looked safe", plural(safe.length, "email")) + box(`<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${safeRows}</table>${safe.length > 30 ? `<div style="padding:4px 16px 12px;font-size:13px;color:${MUTED}">…and ${safe.length - 30} more.</div>` : ""}`) : ""}
     ${sectionTitle("Tip of the day")}
-    ${box(`<div style="padding:16px 18px;font-size:16px;line-height:1.5;color:${INK}"><span style="color:${BRAND};font-weight:800">💡</span> ${esc(tipOfDay())}</div>`, `background:#E6F2F1;border-color:#CFE5E3`)}
+    ${box(`<div style="padding:16px 18px;font-size:16px;line-height:1.5;color:${INK}"><span style="color:${BRAND};font-weight:800">&#128161;</span> ${esc(tipOfDay())}</div>`, `background:#E6F2F1;border-color:#CFE5E3`)}
     ${notes.length ? `<tr><td style="padding:4px 6px 0;font-size:13px;line-height:1.5;color:${MUTED}">${notes.map(esc).join("<br>")}</td></tr>` : ""}
   </table></td></tr>
 
