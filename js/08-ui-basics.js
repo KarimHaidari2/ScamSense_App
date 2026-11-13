@@ -141,3 +141,53 @@ function stopSpeaking() {
   } catch (e) {}
   updatePlayer();
 }
+
+/* ----- Speech to text ("Say it"): fills a text box with what the person says, in the app's language ----- */
+let listening = null;
+const canListenHere = () => !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+function stopListening() {
+  if (listening) listening.stop();
+}
+/* boxId: the text box to fill. btnId: the mic button (its <span> shows "Say it" / "Listening…"). onText: called with the new text. */
+function toggleListening(boxId, btnId, onText, onDone) {
+  const btn = document.getElementById(btnId);
+  if (listening) {
+    listening.stop();
+    return;
+  }
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new R();
+  rec.lang = LANGS[langCode()].speech;
+  rec.interimResults = true;
+  rec.continuous = true;
+  const box = document.getElementById(boxId);
+  const before = box.value ? box.value.trim() + " " : "";
+  const label = btn.querySelector("span");
+  const idle = label.textContent;
+  rec.onresult = e => {
+    let txt = "";
+    for (const r of e.results) txt += r[0].transcript;
+    box.value = before + txt;
+    if (onText) onText(box.value);
+  };
+  rec.onend = () => {
+    listening = null;
+    btn.classList.remove("on");
+    btn.setAttribute("aria-pressed", "false");
+    label.textContent = idle;
+    if (onDone && box.value.trim()) onDone(box.value);
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed")
+      toast(tr("Please allow the microphone to use Say it.", "Permita el micrófono para usar Dígalo."));
+  };
+  try {
+    rec.start();
+    listening = rec;
+    btn.classList.add("on");
+    btn.setAttribute("aria-pressed", "true");
+    label.textContent = tr("Listening… tap to stop", "Escuchando… toque para parar");
+  } catch (e) {
+    toast(tr("The microphone isn't available right now.", "El micrófono no está disponible ahora."));
+  }
+}

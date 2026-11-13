@@ -39,7 +39,7 @@ const CHECK_EXAMPLES = [
 /* ----- The screen ----- */
 let checkDraft = "";
 function renderCheck() {
-  const canListen = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  const canListen = canListenHere();
   view.innerHTML = `${pageHead(tr("Check something", "Revisar algo"), tr("Paste or type anything: a text, an email, a phone number, a website, or a wallet address. You can also tell us what a caller said.", "Pegue o escriba cualquier cosa: un texto, un correo, un número, un sitio web o una billetera. También puede contar qué dijo quien llamó."), "today")}
   <section class="card checkbox">
     <label for="cx" class="sr">${tr("What do you want to check?", "¿Qué quiere revisar?")}</label>
@@ -67,53 +67,13 @@ function renderCheck() {
     previewMode = "text";
     go("preview");
   };
-  if (canListen) document.getElementById("cmic").onclick = listenInto;
-}
-
-/* ----- "Say it": turn speech into text in the box (in the app's language) ----- */
-let listening = null;
-function listenInto() {
-  const btn = document.getElementById("cmic");
-  if (listening) {
-    listening.stop();
-    return;
-  }
-  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const rec = new R();
-  rec.lang = LANGS[langCode()].speech;
-  rec.interimResults = true;
-  rec.continuous = true;
-  const box = document.getElementById("cx");
-  const before = box.value ? box.value.trim() + " " : "";
-  rec.onresult = e => {
-    let txt = "";
-    for (const r of e.results) txt += r[0].transcript;
-    box.value = checkDraft = before + txt;
-  };
-  rec.onend = () => {
-    listening = null;
-    btn.classList.remove("on");
-    btn.setAttribute("aria-pressed", "false");
-    btn.querySelector("span").textContent = tr("Say it", "Dígalo");
-  };
-  rec.onerror = e => {
-    if (e.error === "not-allowed")
-      toast(tr("Please allow the microphone to use Say it.", "Permita el micrófono para usar Dígalo."));
-  };
-  try {
-    rec.start();
-    listening = rec;
-    btn.classList.add("on");
-    btn.setAttribute("aria-pressed", "true");
-    btn.querySelector("span").textContent = tr("Listening… tap to stop", "Escuchando… toque para parar");
-  } catch (e) {
-    toast(tr("The microphone isn't available right now.", "El micrófono no está disponible ahora."));
-  }
+  if (canListen)
+    document.getElementById("cmic").onclick = () => toggleListening("cx", "cmic", v => (checkDraft = v));
 }
 
 /* ----- Run the right check for what was pasted ----- */
 async function runCheck(sampleKey) {
-  if (listening) listening.stop();
+  stopListening();
   const v = document.getElementById("cx").value.trim();
   const out = document.getElementById("result");
   if (!v) {

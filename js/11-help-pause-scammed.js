@@ -7,44 +7,98 @@
 /* ----- Pause before you pay ----- */
 const opt = (v, key, sel) => `<option value="${v}" ${sel === v ? "selected" : ""}>${t(key)}</option>`;
 let pauseState = { who: "", how: "", amt: "", note: "" };
+let pauseByVoice = false;
 function renderPause() {
   const p = pauseState;
-  view.innerHTML = `${pageHead(t("p_title"), t("p_sub"), "today")}
-  <section class="card">
-    <div class="field"><label for="pw">${t("p_who")}</label><select id="pw"><option value=""></option>${["gov", "tech", "family", "online", "prize", "company", "seller", "other"].map(k => opt(k, "who_" + k, p.who)).join("")}</select></div>
-    <div class="field"><label for="ph">${t("p_how")}</label><select id="ph"><option value=""></option>${["gift", "crypto", "wire", "p2p", "cash", "card", "check", "other"].map(k => opt(k, "how_" + k, p.how)).join("")}</select></div>
-    <div class="field"><label for="pa">${t("p_amt")}</label><input id="pa" inputmode="decimal" placeholder="$500" value="${esc(p.amt)}"></div>
-    <div class="field"><label for="pn">${t("p_note")}</label><textarea id="pn" dir="auto" placeholder="${esc(t("p_note_ph"))}">${esc(p.note)}</textarea></div>
-    <button class="btn primary" id="pgo">${t("p_go")}</button></section><section id="presult" aria-live="polite"></section>`;
+  const mic = canListenHere();
+  view.innerHTML = `${pageHead(t("p_title"), tr("Tell ScamSense what's happening, in your own words. It tells you if it's safe to pay.", "Cuéntele a ScamSense qué está pasando, con sus palabras. Le dirá si es seguro pagar."), "today")}
+  <section class="card voicecard">
+    ${mic ? `<button class="bigmic" id="pmic" aria-pressed="false">${ic("mic")}<span>${tr("Tap and tell me what's happening", "Toque y cuénteme qué pasa")}</span></button><p class="small muted center">${tr("Or type it below.", "O escríbalo abajo.")}</p>` : ""}
+    <div class="field"><label for="pn">${tr("What is happening?", "¿Qué está pasando?")}</label><textarea id="pn" dir="auto" placeholder="${esc(t("p_note_ph"))}">${esc(p.note)}</textarea></div>
+    <details class="more"><summary>${tr("Or answer 3 quick questions", "O responda 3 preguntas rápidas")}</summary>
+    <div class="field"><label for="pw">${t("p_who")}</label><select id="pw"><option value=""></option>${["gov", "tech", "family", "online", "prize", "company", "seller", "other"].map(k => opt(k, "who_" + k, p.whoGuessed ? "" : p.who)).join("")}</select></div>
+    <div class="field"><label for="ph">${t("p_how")}</label><select id="ph"><option value=""></option>${["gift", "crypto", "wire", "p2p", "cash", "card", "check", "other"].map(k => opt(k, "how_" + k, p.howGuessed ? "" : p.how)).join("")}</select></div>
+    <div class="field"><label for="pa">${t("p_amt")}</label><input id="pa" inputmode="decimal" placeholder="$500" value="${esc(p.amt)}"></div></details>
+    <button class="btn primary big" id="pgo">${t("p_go")}</button></section><section id="presult" aria-live="polite"></section>`;
   bindBack();
-  document.getElementById("pgo").onclick = runPause;
+  document.getElementById("pgo").onclick = () => {
+    pauseByVoice = false;
+    runPause();
+  };
+  if (mic)
+    document.getElementById("pmic").onclick = () =>
+      toggleListening("pn", "pmic", null, () => {
+        pauseByVoice = true;
+        runPause();
+      });
+}
+/* Works out who is asking and how they want to be paid from what the person said, when they didn't pick it. */
+function guessWho(x) {
+  const rules = [
+    [
+      "gov",
+      /\b(irs|social security|medicare|police|sheriff|government|court|warrant|marshal|fbi|tax(es)?|seguro social|polic[ií]a|impuesto)\b/i
+    ],
+    [
+      "tech",
+      /\b(microsoft|apple support|computer|virus|tech support|geek squad|hacked|antivirus|pop.?up|computadora)\b/i
+    ],
+    [
+      "family",
+      /\b(grand(son|daughter|ma|pa|child)|nephew|niece|my (son|daughter)|bail|jail|accident|hospital|nieto|nieta|fianza)\b/i
+    ],
+    [
+      "online",
+      /\b(dating|met (him|her|them)? ?online|facebook|instagram|whatsapp|telegram|boyfriend|girlfriend|invest(ment|ing)?)\b/i
+    ],
+    ["prize", /\b(won|winner|prize|lottery|sweepstakes?|inheritance|job offer|premio|loter[ií]a)\b/i],
+    ["company", /\b(bank|amazon|paypal|chase|wells fargo|fraud department|account|banco)\b/i],
+    ["seller", /\b(selling|marketplace|craigslist|seller|buy(ing)? (a|an|the))\b/i]
+  ];
+  const hit = rules.find(([, re]) => re.test(x));
+  return hit ? hit[0] : "";
+}
+function guessHow(x) {
+  const rules = [
+    ["gift", /gift ?cards?|itunes|google play|steam card|tarjetas? de regalo/i],
+    ["crypto", /bitcoin|crypto|\bbtc\b|usdt|coin ?atm|cripto/i],
+    ["wire", /\bwire\b|western union|moneygram|transferencia/i],
+    ["p2p", /zelle|venmo|cash ?app|paypal/i],
+    ["cash", /\bcash\b|courier|pick(ed)? ?up|mail (the )?money|efectivo/i],
+    ["card", /credit card|debit card|tarjeta de cr[eé]dito/i]
+  ];
+  const hit = rules.find(([, re]) => re.test(x));
+  return hit ? hit[0] : "";
 }
 function assessPayment(p) {
   let score = 0;
   const reasons = [];
-  const add = (n, k) => {
-    score += n;
+  // Answers the person picked count fully. Answers ScamSense guessed from their words count half,
+  // and only the strong ones, so "my daughter paid me back with Zelle" isn't flagged.
+  const add = (n, k, guessed) => {
+    if (guessed && n < 6) return;
+    score += guessed ? Math.ceil(n / 2) : n;
     reasons.push(t(k));
   };
   (
     ({
-      gift: () => add(10, "r_gift"),
-      crypto: () => add(9, "r_crypto"),
-      wire: () => add(6, "r_wire"),
-      p2p: () => add(4, "r_p2p"),
-      cash: () => add(9, "r_cash"),
-      check: () => add(2, "r_check")
+      gift: () => add(10, "r_gift", p.howGuessed),
+      crypto: () => add(9, "r_crypto", p.howGuessed),
+      wire: () => add(6, "r_wire", p.howGuessed),
+      p2p: () => add(4, "r_p2p", p.howGuessed),
+      cash: () => add(9, "r_cash", p.howGuessed),
+      check: () => add(2, "r_check", p.howGuessed)
     })[p.how] || (() => {})
   )();
   (
     ({
-      gov: () => add(8, "r_gov"),
-      tech: () => add(8, "r_tech"),
-      family: () => add(4, "r_family"),
-      online: () => add(8, "r_online"),
-      prize: () => add(8, "r_prize"),
-      company: () => add(3, "r_company"),
-      seller: () => add(2, "r_seller")
+      gov: () => add(8, "r_gov", p.whoGuessed),
+      tech: () => add(8, "r_tech", p.whoGuessed),
+      family: () => add(4, "r_family", p.whoGuessed),
+      online: () => add(8, "r_online", p.whoGuessed),
+      prize: () => add(8, "r_prize", p.whoGuessed),
+      company: () => add(3, "r_company", p.whoGuessed),
+      seller: () => add(2, "r_seller", p.whoGuessed)
     })[p.who] || (() => {})
   )();
   if (p.note) {
@@ -63,12 +117,23 @@ function assessPayment(p) {
 }
 let stillTimer = null;
 async function runPause() {
+  stopListening();
+  const note = document.getElementById("pn").value.trim();
+  const money = note.match(/\$\s?([\d,]+(\.\d+)?)/);
+  const pickedWho = document.getElementById("pw").value,
+    pickedHow = document.getElementById("ph").value;
   pauseState = {
-    who: document.getElementById("pw").value,
-    how: document.getElementById("ph").value,
-    amt: document.getElementById("pa").value.trim(),
-    note: document.getElementById("pn").value.trim()
+    who: pickedWho || guessWho(note),
+    how: pickedHow || guessHow(note),
+    whoGuessed: !pickedWho,
+    howGuessed: !pickedHow,
+    amt: document.getElementById("pa").value.trim() || (money ? money[0].replace(/\s/g, "") : ""),
+    note
   };
+  if (!note && !pauseState.who && !pauseState.how) {
+    toast(tr("Tell me what's happening first.", "Primero cuénteme qué está pasando."));
+    return;
+  }
   const out = document.getElementById("presult");
   const btn = document.getElementById("pgo");
   const r = assessPayment(pauseState);
@@ -147,6 +212,8 @@ async function runPause() {
     speak(
       `${t(head[0])} ${t(head[1])} ${ai && ai.explanation ? ai.explanation : ""} ${reasons.slice(0, 4).join(" ")} ${t("p_before")}: ${t("p_b1")} ${t("p_b2")} ${t("p_b3")}`
     );
+  // Spoke to ScamSense? Then it answers out loud too.
+  if (pauseByVoice) document.getElementById("pread").click();
   // the "I still want to pay" button unlocks only after a 10-second pause
   clearInterval(stillTimer);
   let left = 10;

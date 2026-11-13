@@ -18,7 +18,8 @@ const TAB_OF = {
   helper: "today",
   family: "family",
   settings: "settings",
-  plans: "settings"
+  plans: "settings",
+  share: "settings"
 };
 /* Old screen names (from saved links or Mahi) open the screen that replaced them. */
 const OLD_SCREENS = {
@@ -190,7 +191,8 @@ function go(tab) {
       pause: renderPause,
       scammed: renderScammed,
       family: renderFamily,
-      settings: renderSettings
+      settings: renderSettings,
+      share: renderShare
     })[tab] || renderToday
   )();
   window.scrollTo(0, 0);
@@ -200,10 +202,17 @@ function go(tab) {
   Fab.update(tab);
 }
 document.querySelectorAll("nav.tabs button").forEach(b => (b.onclick = () => go(b.dataset.tab)));
-loadDict().then(() => {
-  applyLang();
-  const start = OLD_SCREENS[location.hash.slice(1)] || location.hash.slice(1);
-  go(TAB_OF[start] ? start : "today");
-  showOnboarding();
-  showLock();
-});
+/* Start the app once every script file has loaded. */
+function startApp() {
+  loadDict().then(() => {
+    applyLang();
+    const start = OLD_SCREENS[location.hash.slice(1)] || location.hash.slice(1);
+    // A text shared from another app (or a ?check= link) opens straight into Check something.
+    if (!openSharedText()) go(TAB_OF[start] ? start : "today");
+    showOnboarding();
+    showLock();
+    finishOutlookSignIn(); // back from Microsoft sign-in?
+  });
+}
+if (document.readyState === "loading") addEventListener("DOMContentLoaded", startApp);
+else startApp();

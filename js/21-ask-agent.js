@@ -607,7 +607,7 @@ async function runMahiTool(name, input, ui) {
       if (!rep) {
         ui.actions.push({
           label: tr("Connect Gmail and scan", "Conectar Gmail y revisar"),
-          run: () => scanGmail()
+          run: () => scanEmail()
         });
         return { report: null, note: "No scan yet. A Connect Gmail button is shown." };
       }
@@ -656,6 +656,12 @@ async function runMahiTool(name, input, ui) {
               JSON.parse(JSON.stringify(d))
             )
           : null;
+      } else if (item.source === "outlook") {
+        try {
+          full = await outlookFullItem(item.id);
+        } catch (e) {
+          return { error: "Couldn't open that Outlook email: " + e.message };
+        }
       } else {
         if (!token) {
           ui.actions.push({
@@ -725,7 +731,7 @@ async function runMahiTool(name, input, ui) {
           ? tr("Scan my Gmail now", "Revisar mi Gmail ahora")
           : tr("Connect Gmail and scan", "Conectar Gmail y revisar"),
         primary: true,
-        run: () => scanGmail()
+        run: () => scanEmail()
       });
       return {
         shown: "A button is shown. The person taps it, signs in with Google (read-only), and the scan starts."

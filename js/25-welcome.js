@@ -70,7 +70,7 @@ function showOnboarding() {
     if (g)
       g.onclick = () => {
         fin();
-        scanGmail();
+        scanEmail();
       };
   };
   draw();

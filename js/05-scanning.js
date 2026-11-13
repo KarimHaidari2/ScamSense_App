@@ -5,39 +5,50 @@
 "use strict";
 
 let scanning = false;
-async function scanGmail() {
+/* Scans every connected email account (Gmail, Outlook) and makes one Daily Safety Report.
+   With nothing connected yet, it starts the Gmail sign-in. */
+async function scanEmail() {
   if (scanning) return;
   scanning = true;
-  const c = cfg();
   try {
-    renderToday({ progress: { label: t("prog_connect"), pct: 5 } });
-    await getToken(false);
-    renderToday({ progress: { label: t("prog_find"), pct: 10 } });
-    // Every folder: Inbox, Promotions, Social, Updates, Forums, archived, Spam and Trash. Skips only mail you sent and drafts.
-    const list = await gfetch(
-      `messages?maxResults=${Math.min(500, c.max)}&includeSpamTrash=true&q=${encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`)}`
-    );
-    const ids = (list.messages || []).map(m => m.id);
-    const items = [];
-    let done = 0;
-    await pool(ids, 5, async id => {
-      const m = await getGmailMessage(id);
-      items.push(parseGmail(m));
-      done++;
-      renderToday({
-        progress: {
-          label: t("prog_read", { d: done, n: ids.length }),
-          pct: 10 + (40 * done) / Math.max(1, ids.length)
-        }
-      });
-    });
-    await finishScan(items, "gmail");
+    const useOutlook = outlookConnected();
+    const useGmail = S.get("connected", false) || !useOutlook;
+    let items = [];
+    if (useGmail) items = items.concat(await collectGmail());
+    if (useOutlook) items = items.concat(await collectOutlook());
+    await finishScan(items, useGmail && useOutlook ? "mixed" : useOutlook ? "outlook" : "gmail");
   } catch (e) {
     toast(e.message);
     renderToday();
   } finally {
     scanning = false;
   }
+}
+/* Reads recent Gmail from every folder: Inbox, Promotions, Social, Updates, Forums, archived, Spam and Trash.
+   Skips only mail you sent and drafts. */
+async function collectGmail() {
+  const c = cfg();
+  renderToday({ progress: { label: t("prog_connect"), pct: 5 } });
+  await getToken(false);
+  renderToday({ progress: { label: t("prog_find"), pct: 10 } });
+  const list = await gfetch(
+    `messages?maxResults=${Math.min(500, c.max)}&includeSpamTrash=true&q=${encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`)}`
+  );
+  const ids = (list.messages || []).map(m => m.id);
+  const items = [];
+  let done = 0;
+  await pool(ids, 5, async id => {
+    const m = await getGmailMessage(id);
+    items.push(parseGmail(m));
+    done++;
+    renderToday({
+      progress: {
+        label: t("prog_read", { d: done, n: ids.length }),
+        pct: 10 + (40 * done) / Math.max(1, ids.length)
+      }
+    });
+  });
+  return items;
 }
 async function finishScan(items, source) {
   const c = cfg();

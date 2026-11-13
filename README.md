@@ -46,5 +46,7 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | 25-welcome.js | First-run welcome |
 | 26-today-shortcuts.js | The three big buttons on Home |
 | 27-navigation-and-start.js | Moving between screens, Ask Mahi button, start-up |
+| 28-outlook.js | Outlook / Hotmail / Microsoft 365 email (read-only, Microsoft sign-in). Setup: docs/outlook-setup.md |
+| 29-send-to-scamsense.js | Send a text to ScamSense: ?check= links, Android Share, iPhone Shortcut steps |
 
 Run it on your Mac: `python3 -m http.server 8000`, then open http://localhost:8000

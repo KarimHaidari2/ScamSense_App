@@ -6,27 +6,69 @@
 
 function renderSettings() {
   const c = cfg();
+  const lead = (icn, cls) => `<span class="lead ${cls}">${ic(icn)}</span>`;
+  const gmailOn = !!S.get("connected", false),
+    outlookOn = typeof outlookConnected === "function" && outlookConnected(),
+    pinOn = !!S.get("lock", null),
+    helpersN = S.get("helpers", []).length,
+    aiOn = !!(c.apiKey || c.mahiUrl);
+  /* "Your protection": four safety steps, each one tap away from being turned on. */
+  const steps = [
+    [gmailOn || outlookOn, "mail", tr("Your email is checked", "Su correo se revisa"), "connect"],
+    [pinOn, "lock", tr("The app is locked with a PIN", "La app tiene un PIN"), "pin"],
+    [helpersN > 0, "user", tr("A trusted person is added", "Hay una persona de confianza"), "family"],
+    [
+      aiOn,
+      "spark",
+      tr("Mahi's smart answers are on", "Las respuestas inteligentes de Mahi están activas"),
+      "ai"
+    ]
+  ];
+  const done = steps.filter(x => x[0]).length;
   view.innerHTML = `${pageHead(t("tab_settings"), "")}
+  <section class="protect" aria-label="${esc(tr("Your protection", "Su protección"))}">
+    <div class="protect-top"><div class="ring" style="--p:${done / steps.length}"><b>${done}/${steps.length}</b></div>
+      <div><h2>${done === steps.length ? tr("You're fully protected", "Está totalmente protegido") : tr("Your protection", "Su protección")}</h2>
+      <p>${tr(`${done} of ${steps.length} safety steps are on.`, `${done} de ${steps.length} pasos de seguridad activos.`)}</p></div></div>
+    <ul class="protect-list">${steps
+      .map(
+        ([on, icn, label, fix]) =>
+          `<li class="${on ? "on" : ""}"><span class="pl-ic">${ic(on ? "check" : icn)}</span><span class="pl-tx">${label}</span>${on ? "" : `<button class="btn sm primary" data-fix="${fix}">${tr("Turn on", "Activar")}</button>`}</li>`
+      )
+      .join("")}</ul></section>
+
   <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">
-    <div class="grow"><span class="gl"><b>Gmail</b><span>${S.get("connected", false) ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") : tr("Not connected", "No conectado")}</span></span>${S.get("connected", false) ? `<button class="btn sm ghost" id="gdisc">${tr("Disconnect", "Desconectar")}</button>` : `<button class="btn sm primary" id="gconn">${tr("Connect", "Conectar")}</button>`}</div></div></section>
-  <section class="sect"><h2 class="sect-h">${tr("Appearance", "Apariencia")}</h2><div class="group">
-    <div class="grow"><label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic matches your phone or computer.", "Automático usa el ajuste de su teléfono o computadora.")}</span></label><select id="theme" class="inline">${[
+    <div class="grow">${lead("mail", "l-red")}<span class="gl"><b>Gmail</b><span>${gmailOn ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") : tr("Not connected", "No conectado")}</span></span>${gmailOn ? `<button class="btn sm ghost" id="gdisc">${tr("Disconnect", "Desconectar")}</button>` : `<button class="btn sm primary" id="gconn">${tr("Connect", "Conectar")}</button>`}</div>
+    <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>Outlook, Hotmail, Live</b><span>${outlookOn ? tr("Connected · read-only", "Conectado · solo lectura") : outlookReady() ? tr("Not connected", "No conectado") : tr("Coming soon", "Próximamente")}</span></span>${outlookOn ? `<button class="btn sm ghost" id="odisc">${tr("Disconnect", "Desconectar")}</button>` : outlookReady() ? `<button class="btn sm primary" id="oconn">${tr("Connect", "Conectar")}</button>` : `<span class="badge">${tr("Soon", "Pronto")}</span>`}</div>
+    <div class="grow">${lead("mail", "l-gray")}<span class="gl"><b>Yahoo, iCloud, AOL</b><span>${tr("Coming soon. For now, paste those emails into Check something.", "Próximamente. Por ahora, pegue esos correos en Revisar algo.")}</span></span><span class="badge">${tr("Soon", "Pronto")}</span></div></div></section>
+
+  <section class="sect"><h2 class="sect-h">${tr("Texts and calls", "Textos y llamadas")}</h2><div class="group">
+    <button class="grow linkrow" data-go="share">${lead("msg", "l-green")}<span class="gl"><b>${tr("Send a text to ScamSense", "Enviar un texto a ScamSense")}</b><span>${tr("Check a suspicious text in 2 taps, on iPhone or Android.", "Revise un texto sospechoso en 2 toques, en iPhone o Android.")}</span></span>${ic("chev", "chev")}</button>
+    <button class="grow linkrow" data-go="preview">${lead("phone", "l-green")}<span class="gl"><b>${tr("Automatic blocking", "Bloqueo automático")}</b><span>${tr("Coming with the iPhone app.", "Llega con la app de iPhone.")}</span></span>${ic("chev", "chev")}</button></div></section>
+
+  <section class="sect"><h2 class="sect-h">${tr("Look", "Apariencia")}</h2><div class="group">
+    <div class="grow">${lead("sun", "l-amber")}<label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic matches your phone or computer.", "Automático usa el ajuste de su teléfono o computadora.")}</span></label><select id="theme" class="inline">${[
       ["auto", tr("Automatic", "Automático")],
       ["light", tr("Light", "Claro")],
       ["dark", tr("Dark", "Oscuro")]
     ]
       .map(([k, v]) => `<option value="${k}" ${(c.theme || "auto") === k ? "selected" : ""}>${v}</option>`)
       .join("")}</select></div></div></section>
+
   <section class="sect"><h2 class="sect-h">${tr("Security", "Seguridad")}</h2><div class="group">
-    <div class="grow"><span class="gl"><b>${tr("Lock ScamSense with a PIN", "Bloquear ScamSense con un PIN")}</b><span>${tr("Asks for your PIN when you open the app or come back after 2 minutes.", "Pide su PIN al abrir la app o al volver después de 2 minutos.")}</span></span>${switchHTML("applock", !!S.get("lock", null), "")}</div>${S.get("lock", null) ? `<button class="grow linkrow" id="chpin"><span class="gl"><b>${tr("Change PIN", "Cambiar PIN")}</b><span>${tr("6 numbers. 5 wrong tries makes the app wait.", "6 números. Tras 5 intentos fallidos, la app hace esperar.")}</span></span>${ic("chev", "chev")}</button>` : ""}</div></section>
+    <div class="grow">${lead("lock", "l-teal")}<span class="gl"><b>${tr("Lock ScamSense with a PIN", "Bloquear ScamSense con un PIN")}</b><span>${tr("Asks for your PIN when you open the app or come back after 2 minutes.", "Pide su PIN al abrir la app o al volver después de 2 minutos.")}</span></span>${switchHTML("applock", pinOn, "")}</div>${pinOn ? `<button class="grow linkrow" id="chpin">${lead("key", "l-teal")}<span class="gl"><b>${tr("Change PIN", "Cambiar PIN")}</b><span>${tr("6 numbers. 5 wrong tries makes the app wait.", "6 números. Tras 5 intentos fallidos, la app hace esperar.")}</span></span>${ic("chev", "chev")}</button>` : ""}</div></section>
+
   <section class="sect"><h2 class="sect-h">${tr("Plan", "Plan")}</h2><div class="group">
-    <button class="grow linkrow" data-go="plans"><span class="gl"><b>${tr("Plans and pricing", "Planes y precios")}</b><span>${tr("Personal $9.99/month · Family $15.99/month", "Personal $9.99/mes · Familia $15.99/mes")}</span></span>${ic("chev", "chev")}</button></div></section>
+    <button class="grow linkrow" data-go="plans">${lead("shield", "l-purple")}<span class="gl"><b>${tr("Plans and pricing", "Planes y precios")}</b><span>${tr("Personal $9.99/month · Family $15.99/month", "Personal $9.99/mes · Familia $15.99/mes")}</span></span>${ic("chev", "chev")}</button></div></section>
+
   <section class="sect"><h2 class="sect-h">${t("set_priv")}</h2><div class="group">
-    <div class="grow col"><span class="gl"><span>${t("priv1")}</span></span></div>
-    <div class="grow col"><span class="gl"><span>${t("priv2")}</span></span></div>
-    <div class="grow"><a class="gl" href="https://myaccount.google.com/permissions" target="_blank" rel="noopener"><b>${tr("Remove Gmail access in Google", "Quitar el acceso de Gmail en Google")}</b><span>myaccount.google.com/permissions</span></a>${ic("chev", "chev")}</div>
-    <button class="grow linkrow danger" id="wipe"><span class="gl"><b>${t("wipe")}</b></span>${ic("trash")}</button></div></section>
-  <section class="sect"><h2 class="sect-h">${t("set_home")}</h2><div class="group"><div class="grow col"><ol class="steps"><li>${t("home1")}</li><li>${t("home2")}</li><li>${t("home3")}</li></ol></div></div></section>
+    <details class="grow col fold"><summary>${lead("info", "l-gray")}<span class="gl"><b>${tr("How ScamSense keeps you private", "Cómo ScamSense protege su privacidad")}</b></span>${ic("chev", "chev")}</summary><p>${t("priv1")}</p><p>${t("priv2")}</p></details>
+    <div class="grow">${lead("user", "l-gray")}<a class="gl" href="https://myaccount.google.com/permissions" target="_blank" rel="noopener"><b>${tr("Remove Gmail access in Google", "Quitar el acceso de Gmail en Google")}</b><span>myaccount.google.com/permissions</span></a>${ic("chev", "chev")}</div>
+    <button class="grow linkrow danger" id="wipe">${lead("trash", "l-red")}<span class="gl"><b>${t("wipe")}</b></span></button></div></section>
+
+  <section class="sect"><h2 class="sect-h">${tr("Help", "Ayuda")}</h2><div class="group">
+    <details class="grow col fold"><summary>${lead("device", "l-blue")}<span class="gl"><b>${t("set_home")}</b></span>${ic("chev", "chev")}</summary><ol class="steps"><li>${t("home1")}</li><li>${t("home2")}</li><li>${t("home3")}</li></ol></details></div></section>
+
   <details class="sect adv"><summary class="sect-h">${tr("Advanced", "Avanzado")}</summary>
   <div class="subsect"><h3 class="sub-h">${tr("Smart AI checks", "Revisión con IA")}</h3><div class="group">
     <div class="grow col"><label for="key" class="gl"><b>${t("set_key")}</b><span>${tr("Used only to ask Anthropic's AI about risky messages.", "Solo para preguntar a la IA de Anthropic sobre mensajes riesgosos.")}</span></label>
@@ -40,6 +82,7 @@ function renderSettings() {
     <p class="footnote">${t("set_folders")}</p></div>
 <div class="group">
     <div class="grow col"><label for="cid" class="gl"><b>${t("set_cid")}</b></label><input id="cid" autocomplete="off" spellcheck="false" value="${esc(c.clientId)}"></div>
+    <div class="grow col"><label for="msid" class="gl"><b>${tr("Microsoft app ID (for Outlook)", "ID de app de Microsoft (para Outlook)")}</b><span>${tr("From Microsoft Entra → App registrations. See docs/outlook-setup.md.", "De Microsoft Entra → Registros de aplicaciones. Vea docs/outlook-setup.md.")}</span></label><input id="msid" autocomplete="off" spellcheck="false" placeholder="00000000-0000-0000-0000-000000000000" value="${esc(c.msClientId || "")}"></div>
     <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
     <div class="grow col"><label for="murl" class="gl"><b>${tr("Mahi server", "Servidor de Mahi")}</b><span>${tr("Web app URL from the Mahi Server script. Lets Mahi answer anything with no key in the app.", "URL de la app web del script Mahi Server. Permite que Mahi responda todo sin clave en la app.")}</span></label><input id="murl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.mahiUrl)}"></div></div></details>
   <p class="footnote center">${t("footer")}</p>`;
@@ -53,6 +96,7 @@ function renderSettings() {
         aiMode: document.getElementById("aim").value,
         model: document.getElementById("mdl").value.trim() || "claude-haiku-5-5",
         mahiUrl: document.getElementById("murl").value.trim(),
+        msClientId: document.getElementById("msid").value.trim(),
         days: +document.getElementById("days").value,
         max: +document.getElementById("max").value
       })
@@ -77,6 +121,29 @@ function renderSettings() {
       renderSettings();
     }
   };
+  view.querySelectorAll("[data-fix]").forEach(
+    b =>
+      (b.onclick = () => {
+        const f = b.dataset.fix;
+        if (f === "connect") document.getElementById("gconn").click();
+        else if (f === "pin") setupPin(ok => ok && renderSettings());
+        else if (f === "family") go("family");
+        else {
+          const adv = view.querySelector("details.adv");
+          adv.open = true;
+          adv.scrollIntoView({ behavior: "smooth", block: "start" });
+          document.getElementById("key").focus();
+        }
+      })
+  );
+  const oc = document.getElementById("oconn");
+  if (oc) oc.onclick = () => connectOutlook();
+  const od = document.getElementById("odisc");
+  if (od)
+    od.onclick = () => {
+      disconnectOutlook();
+      renderSettings();
+    };
   const gc = document.getElementById("gconn");
   if (gc)
     gc.onclick = async () => {
@@ -84,7 +151,7 @@ function renderSettings() {
         await getToken(true);
         toast(t("gmail_ok"));
         go("today");
-        scanGmail();
+        scanEmail();
       } catch (e) {
         toast(e.message);
       }
@@ -101,6 +168,10 @@ function renderSettings() {
       toast(t("gmail_off"));
       renderSettings();
     };
+  document.getElementById("msid").onchange = () => {
+    save();
+    renderSettings();
+  };
   document.getElementById("theme").onchange = () => {
     save();
     applyTheme();

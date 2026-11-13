@@ -173,6 +173,7 @@ function slimItem(it) {
     date: it.date,
     level: it.level,
     attachments: it.attachments,
+    link: it.link,
     local: it.local,
     ai: it.ai,
     aiError: it.aiError

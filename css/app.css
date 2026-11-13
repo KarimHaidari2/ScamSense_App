@@ -2942,3 +2942,273 @@ select optgroup {
   color: var(--muted);
   margin: 12px 4px 8px;
 }
+
+/* ===== Someone wants my money: big microphone ===== */
+.bigmic {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 150px;
+  border: 0;
+  border-radius: 22px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font: inherit;
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  padding: 18px;
+}
+.bigmic .ic {
+  width: 52px;
+  height: 52px;
+  stroke-width: 1.6;
+}
+.bigmic.on {
+  background: var(--scam);
+  animation: micpulse 1.4s ease-in-out infinite;
+}
+@keyframes micpulse {
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--scam) 25%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bigmic.on {
+    animation: none;
+  }
+}
+.voicecard {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.voicecard .center {
+  text-align: center;
+  margin: 0;
+}
+details.more > summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--brand);
+  padding: 6px 0;
+}
+details.more[open] > summary {
+  margin-bottom: 8px;
+}
+.btn.big {
+  min-height: 56px;
+  font-size: 1.1rem;
+}
+
+/* ===== Settings: "Your protection" card ===== */
+.protect {
+  background: linear-gradient(160deg, #0e7c7b 0%, #0a4a4f 100%);
+  color: #fff;
+  border-radius: 24px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(14, 59, 67, 0.18);
+}
+.protect-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.protect h2 {
+  font-family: var(--display);
+  font-size: 1.3rem;
+  margin: 0 0 2px;
+}
+.protect p {
+  margin: 0;
+  opacity: 0.9;
+}
+.ring {
+  --p: 0;
+  flex: none;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(#fff calc(var(--p) * 360deg), rgba(255, 255, 255, 0.22) 0);
+}
+.ring b {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #0b5d5f;
+  font-size: 1.1rem;
+}
+.protect-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.protect-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  padding: 10px 12px;
+  min-height: 52px;
+}
+.pl-ic {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.18);
+}
+.pl-ic .ic {
+  width: 18px;
+  height: 18px;
+}
+.protect-list li.on .pl-ic {
+  background: #fff;
+  color: #0e7c7b;
+}
+.pl-tx {
+  flex: 1;
+  font-weight: 700;
+}
+.protect-list li.on .pl-tx {
+  opacity: 0.85;
+}
+.protect .btn.primary {
+  background: #fff;
+  color: #0b1f23;
+  border-color: #fff;
+}
+
+/* Settings rows: a small colored icon at the start */
+.lead {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--l-bg, var(--brand-soft));
+  color: var(--l, var(--brand));
+}
+.lead .ic {
+  width: 20px;
+  height: 20px;
+}
+.l-teal {
+  --l: var(--brand);
+  --l-bg: var(--brand-soft);
+}
+.l-red {
+  --l: var(--scam);
+  --l-bg: var(--scam-bg);
+}
+.l-amber {
+  --l: var(--warn);
+  --l-bg: var(--warn-bg);
+}
+.l-green {
+  --l: var(--safe);
+  --l-bg: var(--safe-bg);
+}
+.l-blue {
+  --l: #1d63c9;
+  --l-bg: #e3edfb;
+}
+.l-purple {
+  --l: #6b3fd4;
+  --l-bg: #efe8fd;
+}
+.l-gray {
+  --l: var(--muted);
+  --l-bg: var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .l-blue {
+    --l: #8db8ff;
+    --l-bg: #172c4a;
+  }
+  :root:not([data-theme="light"]) .l-purple {
+    --l: #c3a8ff;
+    --l-bg: #2a1f45;
+  }
+}
+:root[data-theme="dark"] .l-blue {
+  --l: #8db8ff;
+  --l-bg: #172c4a;
+}
+:root[data-theme="dark"] .l-purple {
+  --l: #c3a8ff;
+  --l-bg: #2a1f45;
+}
+/* Rows that open to show more (privacy, home screen) */
+details.fold {
+  padding: 0;
+}
+details.fold > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+details.fold > summary::-webkit-details-marker {
+  display: none;
+}
+details.fold[open] > summary .chev {
+  transform: rotate(90deg);
+}
+details.fold > p,
+details.fold > ol {
+  margin: 0 16px 14px;
+  color: var(--muted);
+}
+
+/* ===== Send a text to ScamSense: numbered steps ===== */
+.howto p {
+  margin: 0 0 10px;
+}
+.steplist {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.steplist li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  line-height: 1.45;
+}
+.stepn {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 800;
+}
+.howto code {
+  word-break: break-all;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 1px 5px;
+  font-size: 0.85em;
+}

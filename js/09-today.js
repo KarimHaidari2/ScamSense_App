@@ -33,7 +33,7 @@ function renderToday(opt) {
       ${homeActionsHTML()}
       <p class="footnote">${ic("lock")}<span><b>${t("private_title")}</b> ${t("private_body")}</span></p></div>`;
     view.innerHTML = h;
-    document.getElementById("scan").onclick = scanGmail;
+    document.getElementById("scan").onclick = scanEmail;
     document.getElementById("demo").onclick = loadDemo;
     bindGo();
     return;
@@ -54,10 +54,10 @@ function renderToday(opt) {
     <div class="sc-main"><span class="sc-badge">${ic(lv === "safe" ? "shield" : "alert")}</span><p class="big">${esc(headline)}</p></div>
     <div class="tally"><button class="ts" data-ef="scam"><b>${n.scam}</b>${t("scam")}</button><button class="tw" data-ef="warn"><b>${n.warn}</b>${t("warn")}</button><button class="tk" data-ef="safe"><b>${n.safe}</b>${t("safe")}</button></div>
     <p class="meta">${t("checked", { n: rep.items.length, d: dtxt })}${folderSummary(rep.items)}.</p>`;
-  h += `<div class="btnrow"><button class="btn primary" data-ef="all">${tr(`See all ${rep.items.length} emails`, `Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source === "demo" ? t("scan_my") : t("scan_again")}</button></div></section>
+  h += `<div class="btnrow"><button class="btn primary" data-ef="all">${tr(`See all ${rep.items.length} emails`, `Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source === "demo" ? t("scan_my") : rep.source === "gmail" ? t("scan_again") : tr("Scan email again", "Revisar el correo otra vez")}</button></div></section>
     ${homeActionsHTML()}</div>`;
   view.innerHTML = h;
-  document.getElementById("scan").onclick = scanGmail;
+  document.getElementById("scan").onclick = scanEmail;
   document.getElementById("readsum").onclick = () =>
     speak(
       `${headline} ` +
@@ -179,6 +179,8 @@ function detailHTML(it) {
   h += `<div class="row">`;
   if (it.source === "gmail")
     h += `<a class="btn ghost" href="https://mail.google.com/mail/u/0/#all/${encodeURIComponent(it.id)}" target="_blank" rel="noopener">${t("open_gmail")}</a>`;
+  if (it.source === "outlook" && /^https:\/\/outlook\./.test(it.link || ""))
+    h += `<a class="btn ghost" href="${esc(it.link)}" target="_blank" rel="noopener">${tr("Open in Outlook", "Abrir en Outlook")}</a>`;
   h += `<button class="btn ghost" data-speak>${t("read_aloud")}</button></div>`;
   if (it.level !== "safe" && it.source !== "paste")
     h += `<div class="row"><button class="btn ghost" data-real>${tr("This email is real", "Este correo es real")}</button><button class="btn ghost" data-askmahi>${tr("Ask Mahi about it", "Preguntarle a Mahi")}</button></div>`;
