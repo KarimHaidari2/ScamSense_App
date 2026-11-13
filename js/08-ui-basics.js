@@ -99,6 +99,7 @@ function speakNext() {
   speechSynthesis.speak(u);
 }
 function speak(text) {
+  stopListening(); // never let the mic hear the app talking
   try {
     if (!("speechSynthesis" in window)) throw 0;
     speechSynthesis.cancel();
@@ -155,16 +156,19 @@ function toggleListening(boxId, btnId, onText, onDone) {
     listening.stop();
     return;
   }
+  // The app stops reading aloud before it listens, so it only hears the person.
+  stopSpeaking();
   const R = window.SpeechRecognition || window.webkitSpeechRecognition;
   const rec = new R();
   rec.lang = LANGS[langCode()].speech;
   rec.interimResults = true;
-  rec.continuous = true;
+  rec.continuous = false; // stops by itself when the person stops talking
   const box = document.getElementById(boxId);
   const before = box.value ? box.value.trim() + " " : "";
   const label = btn.querySelector("span");
   const idle = label.textContent;
   rec.onresult = e => {
+    if (window.speechSynthesis && speechSynthesis.speaking) return; // ignore the app's own voice
     let txt = "";
     for (const r of e.results) txt += r[0].transcript;
     box.value = before + txt;
