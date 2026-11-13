@@ -3005,14 +3005,14 @@ details.more[open] > summary {
   font-size: 1.1rem;
 }
 
-/* ===== Settings: "Your protection" card ===== */
+/* ===== Settings: "Your protection" card (same look in light, dark teal, and black) ===== */
 .protect {
-  background: linear-gradient(160deg, #0e7c7b 0%, #0a4a4f 100%);
-  color: #fff;
+  background: var(--surface);
+  color: var(--ink);
   border-radius: 24px;
   padding: 20px;
   margin-bottom: 20px;
-  box-shadow: 0 8px 24px rgba(14, 59, 67, 0.18);
+  box-shadow: 0 0 0 1px var(--line);
 }
 .protect-top {
   display: flex;
@@ -3026,7 +3026,7 @@ details.more[open] > summary {
 }
 .protect p {
   margin: 0;
-  opacity: 0.9;
+  color: var(--muted);
 }
 .ring {
   --p: 0;
@@ -3036,15 +3036,15 @@ details.more[open] > summary {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: conic-gradient(#fff calc(var(--p) * 360deg), rgba(255, 255, 255, 0.22) 0);
+  background: conic-gradient(var(--brand) calc(var(--p) * 360deg), var(--line) 0);
 }
 .ring b {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: #0b5d5f;
+  background: var(--surface);
   font-size: 1.1rem;
 }
 .protect-list {
@@ -3058,7 +3058,7 @@ details.more[open] > summary {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--bg);
   border-radius: 14px;
   padding: 10px 12px;
   min-height: 52px;
@@ -3070,27 +3070,23 @@ details.more[open] > summary {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: rgba(255, 255, 255, 0.18);
+  background: var(--brand-soft);
+  color: var(--brand);
 }
 .pl-ic .ic {
   width: 18px;
   height: 18px;
 }
 .protect-list li.on .pl-ic {
-  background: #fff;
-  color: #0e7c7b;
+  background: var(--safe-bg);
+  color: var(--safe);
 }
 .pl-tx {
   flex: 1;
   font-weight: 700;
 }
 .protect-list li.on .pl-tx {
-  opacity: 0.85;
-}
-.protect .btn.primary {
-  background: #fff;
-  color: #0b1f23;
-  border-color: #fff;
+  color: var(--muted);
 }
 
 /* Settings rows: a small colored icon at the start */
@@ -3443,22 +3439,6 @@ details.fold > ol {
 }
 
 /* Black mode: no teal. Buttons, switches and highlights are white on black. */
-:root[data-theme="dark"] .protect {
-  background: var(--surface);
-  box-shadow: 0 0 0 1px var(--line);
-}
-:root[data-theme="dark"] .ring {
-  background: conic-gradient(#fff calc(var(--p) * 360deg), #333 0);
-}
-:root[data-theme="dark"] .ring b {
-  background: #000;
-}
-:root[data-theme="dark"] .protect-list li {
-  background: #1f1f1f;
-}
-:root[data-theme="dark"] .protect-list li.on .pl-ic {
-  color: #000;
-}
 :root[data-theme="dark"] .fab {
   color: #000;
 }
