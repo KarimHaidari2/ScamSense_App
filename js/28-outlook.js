@@ -9,7 +9,7 @@
  */
 "use strict";
 
-const DEFAULT_MS_CLIENT_ID = "";
+const DEFAULT_MS_CLIENT_ID = "1187ff8b-fa16-43d4-acb6-788bb696c627";
 const MS_LOGIN = "https://login.microsoftonline.com/common/oauth2/v2.0";
 const MS_GRAPH = "https://graph.microsoft.com/v1.0/";
 const MS_SCOPES = "openid offline_access User.Read Mail.Read";
