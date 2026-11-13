@@ -6,7 +6,7 @@
 
 function renderSettings() {
   const c = cfg();
-  const lead = (icn, cls) => `<span class="lead ${cls}">${ic(icn)}</span>`;
+  const lead = (icn, cls) => `<span class="lead-ic ${cls}">${ic(icn)}</span>`;
   const gmailOn = !!S.get("connected", false),
     outlookOn = typeof outlookConnected === "function" && outlookConnected(),
     pinOn = !!S.get("lock", null),
@@ -38,19 +38,17 @@ function renderSettings() {
       .join("")}</ul></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">
-    <div class="grow">${lead("mail", "l-red")}<span class="gl"><b>Gmail</b><span>${gmailOn ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") : tr("Not connected", "No conectado")}</span></span>${gmailOn ? `<button class="btn sm ghost" id="gdisc">${tr("Disconnect", "Desconectar")}</button>` : `<button class="btn sm primary" id="gconn">${tr("Connect", "Conectar")}</button>`}</div>
-    <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>Outlook, Hotmail, Live</b><span>${outlookOn ? tr("Connected · read-only", "Conectado · solo lectura") : outlookReady() ? tr("Not connected", "No conectado") : tr("Coming soon", "Próximamente")}</span></span>${outlookOn ? `<button class="btn sm ghost" id="odisc">${tr("Disconnect", "Desconectar")}</button>` : outlookReady() ? `<button class="btn sm primary" id="oconn">${tr("Connect", "Conectar")}</button>` : `<span class="badge">${tr("Soon", "Pronto")}</span>`}</div>
-    <div class="grow">${lead("mail", "l-gray")}<span class="gl"><b>Yahoo, iCloud, AOL</b><span>${tr("Coming soon. For now, paste those emails into Check something.", "Próximamente. Por ahora, pegue esos correos en Revisar algo.")}</span></span><span class="badge">${tr("Soon", "Pronto")}</span></div></div></section>
+    ${emailAccountsHTML()}</div></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Texts and calls", "Textos y llamadas")}</h2><div class="group">
     <button class="grow linkrow" data-go="share">${lead("msg", "l-green")}<span class="gl"><b>${tr("Send a text to ScamSense", "Enviar un texto a ScamSense")}</b><span>${tr("Check a suspicious text in 2 taps, on iPhone or Android.", "Revise un texto sospechoso en 2 toques, en iPhone o Android.")}</span></span>${ic("chev", "chev")}</button>
     <button class="grow linkrow" data-go="preview">${lead("phone", "l-green")}<span class="gl"><b>${tr("Automatic blocking", "Bloqueo automático")}</b><span>${tr("Coming with the iPhone app.", "Llega con la app de iPhone.")}</span></span>${ic("chev", "chev")}</button></div></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Look", "Apariencia")}</h2><div class="group">
-    <div class="grow">${lead("sun", "l-amber")}<label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic matches your phone or computer.", "Automático usa el ajuste de su teléfono o computadora.")}</span></label><select id="theme" class="inline">${[
+    <div class="grow">${lead("sun", "l-amber")}<label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic follows your phone: light, or dark teal at night.", "Automático sigue su teléfono: claro, o verde oscuro de noche.")}</span></label><select id="theme" class="inline">${[
       ["auto", tr("Automatic", "Automático")],
       ["light", tr("Light", "Claro")],
-      ["dark", tr("Dark", "Oscuro")]
+      ["dark", tr("Dark (black)", "Oscuro (negro)")]
     ]
       .map(([k, v]) => `<option value="${k}" ${(c.theme || "auto") === k ? "selected" : ""}>${v}</option>`)
       .join("")}</select></div></div></section>
@@ -136,38 +134,7 @@ function renderSettings() {
         }
       })
   );
-  const oc = document.getElementById("oconn");
-  if (oc) oc.onclick = () => connectOutlook();
-  const od = document.getElementById("odisc");
-  if (od)
-    od.onclick = () => {
-      disconnectOutlook();
-      renderSettings();
-    };
-  const gc = document.getElementById("gconn");
-  if (gc)
-    gc.onclick = async () => {
-      try {
-        await getToken(true);
-        toast(t("gmail_ok"));
-        go("today");
-        scanEmail();
-      } catch (e) {
-        toast(e.message);
-      }
-    };
-  const gd = document.getElementById("gdisc");
-  if (gd)
-    gd.onclick = () => {
-      try {
-        if (token) google.accounts.oauth2.revoke(token, () => {});
-      } catch (e) {}
-      token = null;
-      S.set("connected", false);
-      setStatus();
-      toast(t("gmail_off"));
-      renderSettings();
-    };
+  bindEmailAccounts(renderSettings);
   document.getElementById("msid").onchange = () => {
     save();
     renderSettings();

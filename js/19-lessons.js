@@ -308,14 +308,30 @@ function renderLearn() {
   );
 }
 function renderLesson() {
-  const l = LESSONS().find(x => x.id === currentLesson) || LESSONS()[0];
-  view.innerHTML = `${pageHead(esc(l.title), "", "learn")}
-  <section class="card"><p class="lead">${esc(l.how)}</p>
-    <div><p class="label">${tr("Warning signs", "Señales de alerta")}</p><ul class="ticks">${l.flags.map(x => `<li>${ic("alert")}<span>${esc(x)}</span></li>`).join("")}</ul></div>
-    <div><p class="label">${tr("What to do", "Qué hacer")}</p><ul class="ticks ok">${l.todo.map(x => `<li>${ic("check")}<span>${esc(x)}</span></li>`).join("")}</ul></div>
-    <button class="btn ghost" id="lread">${t("read_aloud")}</button></section>
-  <section class="card"><p class="label">${tr("Quick question", "Pregunta rápida")}</p><p class="qq">${esc(l.q.q)}</p>
-    <div class="qopts">${l.q.o.map((o, i) => `<button class="qopt" data-o="${i}">${esc(o)}</button>`).join("")}</div><p id="qres" class="qres" hidden></p></section>`;
+  const all = LESSONS();
+  const i = Math.max(
+    0,
+    all.findIndex(x => x.id === currentLesson)
+  );
+  const l = all.at(i);
+  const next = all.at((i + 1) % all.length);
+  view.innerHTML = `<div class="pagehead">${backBtn("learn")}</div>
+  <section class="lesson-hero"><span class="lh-ic">${ic(l.icon)}</span><div>
+    <p class="lh-kicker">${tr(`Lesson ${i + 1} of ${all.length} · 1 minute`, `Lección ${i + 1} de ${all.length} · 1 minuto`)}</p>
+    <h1>${esc(l.title)}</h1></div></section>
+  <p class="lesson-how">${esc(l.how)}</p>
+  <button class="btn ghost sm readbtn" id="lread">${ic("speaker")}<span>${t("read_aloud").replace(/^\S*🔊\S*\s*/u, "")}</span></button>
+  <section class="lcard lc-warn"><h2>${ic("alert")}${tr("Warning signs", "Señales de alerta")}</h2>
+    <ol class="lsteps">${l.flags.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ol></section>
+  <section class="lcard lc-ok"><h2>${ic("check")}${tr("What to do", "Qué hacer")}</h2>
+    <ul class="lchecks">${l.todo.map(x => `<li>${ic("check")}<span>${esc(x)}</span></li>`).join("")}</ul></section>
+  <section class="lcard lc-quiz"><p class="label">${tr("Quick question", "Pregunta rápida")}</p><p class="qq">${esc(l.q.q)}</p>
+    <div class="qopts">${l.q.o.map((o, k) => `<button class="qopt" data-o="${k}">${esc(o)}</button>`).join("")}</div><p id="qres" class="qres" hidden></p></section>
+  <button class="btn primary big nextlesson" id="lnext"><span>${tr("Next lesson", "Siguiente lección")}: ${esc(next.title)}</span>${ic("chev", "chev")}</button>`;
+  document.getElementById("lnext").onclick = () => {
+    currentLesson = next.id;
+    go("lesson");
+  };
   bindBack();
   document.getElementById("lread").onclick = () =>
     speak(`${l.title}. ${l.how} ${l.flags.join(". ")}. ${l.todo.join(" ")}`);

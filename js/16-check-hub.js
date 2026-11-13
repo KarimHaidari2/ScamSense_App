@@ -36,14 +36,116 @@ const CHECK_EXAMPLES = [
   ["TQ5kW8xZ3vN7pR2mY9bL4cF6hJ1aD8eS3u", () => tr("Wallet address", "Dirección de billetera")]
 ];
 
-/* ----- The screen ----- */
-let checkDraft = "";
+/* ----- Email accounts: Gmail, Outlook, and the ones coming next (used here and in Settings) ----- */
+function emailAccountsHTML() {
+  const lead = (icn, cls) => `<span class="lead-ic ${cls}">${ic(icn)}</span>`;
+  const gmailOn = !!S.get("connected", false),
+    outlookOn = outlookConnected();
+  const anyOn = gmailOn || outlookOn;
+  return `<div class="grow">${lead("mail", "l-red")}<span class="gl"><b>Gmail</b><span>${gmailOn ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") : tr("Not connected", "No conectado")}</span></span>${gmailOn ? `<button class="btn sm ghost" id="gdisc">${tr("Disconnect", "Desconectar")}</button>` : `<button class="btn sm primary" id="gconn">${tr("Connect", "Conectar")}</button>`}</div>
+    <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>Outlook, Hotmail, Live</b><span>${outlookOn ? tr("Connected · read-only", "Conectado · solo lectura") : outlookReady() ? tr("Not connected", "No conectado") : tr("Coming soon", "Próximamente")}</span></span>${outlookOn ? `<button class="btn sm ghost" id="odisc">${tr("Disconnect", "Desconectar")}</button>` : outlookReady() ? `<button class="btn sm primary" id="oconn">${tr("Connect", "Conectar")}</button>` : `<span class="badge">${tr("Soon", "Pronto")}</span>`}</div>
+    <div class="grow">${lead("mail", "l-gray")}<span class="gl"><b>Yahoo, iCloud, AOL</b><span>${tr("Coming soon. For now, paste those emails into Check something.", "Próximamente. Por ahora, pegue esos correos en Revisar algo.")}</span></span><span class="badge">${tr("Soon", "Pronto")}</span></div>
+    ${anyOn ? `<div class="grow"><button class="btn primary" id="escan">${tr("Scan my email now", "Revisar mi correo ahora")}</button></div>` : ""}`;
+}
+function bindEmailAccounts(rerender) {
+  const on = (id, fn) => {
+    const el = document.getElementById(id);
+    if (el) el.onclick = fn;
+  };
+  on("gconn", async () => {
+    try {
+      await getToken(true);
+      toast(t("gmail_ok"));
+      go("today");
+      scanEmail();
+    } catch (e) {
+      toast(e.message);
+    }
+  });
+  on("gdisc", () => {
+    try {
+      if (token) google.accounts.oauth2.revoke(token, () => {});
+    } catch (e) {}
+    token = null;
+    S.set("connected", false);
+    setStatus();
+    toast(t("gmail_off"));
+    rerender();
+  });
+  on("oconn", () => connectOutlook());
+  on("odisc", () => {
+    disconnectOutlook();
+    rerender();
+  });
+  on("escan", () => {
+    go("today");
+    scanEmail();
+  });
+}
+
+/* ----- What kind of thing? Optional: each choice explains what to paste. Detection stays automatic. ----- */
+const CHECK_KINDS = () => [
+  [
+    "email",
+    "mail",
+    "t-mail",
+    tr("Email", "Correo"),
+    tr("Connect your inbox, or paste one email below.", "Conecte su correo, o pegue un correo abajo."),
+    tr(
+      "Paste the email here, with the sender's address…",
+      "Pegue el correo aquí, con la dirección del remitente…"
+    )
+  ],
+  [
+    "text",
+    "msg",
+    "t-msg",
+    tr("Text message", "Mensaje de texto"),
+    tr("Paste the text and the number it came from.", "Pegue el texto y el número del que vino."),
+    tr("Paste the text message here…", "Pegue el mensaje de texto aquí…")
+  ],
+  [
+    "call",
+    "phone",
+    "t-call",
+    tr("Phone call", "Llamada"),
+    tr("Type the phone number, or what the caller said.", "Escriba el número, o lo que dijo quien llamó."),
+    tr(
+      "Example: (800) 555-0144, or: A man said he was from my bank…",
+      "Ejemplo: (800) 555-0144, o: Un hombre dijo que era de mi banco…"
+    )
+  ],
+  [
+    "web",
+    "globe",
+    "t-crypto",
+    tr("Website or crypto", "Sitio web o cripto"),
+    tr(
+      "Paste a website, a crypto wallet address, or an investment offer.",
+      "Pegue un sitio web, una billetera cripto o una oferta de inversión."
+    ),
+    tr("Example: coinbase-pro-wallet.vip", "Ejemplo: coinbase-pro-wallet.vip")
+  ]
+];
+let checkDraft = "",
+  checkKind = "";
 function renderCheck() {
   const canListen = canListenHere();
+  const kinds = CHECK_KINDS();
+  const k = kinds.find(x => x.at(0) === checkKind);
   view.innerHTML = `${pageHead(tr("Check something", "Revisar algo"), tr("Paste or type anything: a text, an email, a phone number, a website, or a wallet address. You can also tell us what a caller said.", "Pegue o escriba cualquier cosa: un texto, un correo, un número, un sitio web o una billetera. También puede contar qué dijo quien llamó."), "today")}
+  <div class="kindrow" role="group" aria-label="${esc(tr("What do you want to check?", "¿Qué quiere revisar?"))}">${kinds
+    .map(
+      ([id, icn, cls, label]) =>
+        `<button class="kind ${checkKind === id ? "on" : ""}" data-kind="${id}" aria-pressed="${checkKind === id}"><span class="tile-ic sm ${cls}">${ic(icn)}</span><span>${label}</span></button>`
+    )
+    .join("")}</div>
+  ${k ? `<p class="kindhint">${k.at(4)}</p>` : ""}
+  ${checkKind === "email" ? `<section class="sect"><h2 class="sect-h">${tr("Your email accounts", "Sus cuentas de correo")}</h2><div class="group">${emailAccountsHTML()}</div></section>` : ""}
+  ${checkKind === "text" ? `<button class="tile" data-go="share"><span class="tile-ic t-msg">${ic("msg")}</span><span class="tile-tx"><b>${tr("Send a text to ScamSense", "Enviar un texto a ScamSense")}</b><span>${tr("Check a suspicious text in 2 taps, on iPhone or Android.", "Revise un texto sospechoso en 2 toques, en iPhone o Android.")}</span></span>${ic("chev", "chev")}</button>` : ""}
   <section class="card checkbox">
     <label for="cx" class="sr">${tr("What do you want to check?", "¿Qué quiere revisar?")}</label>
-    <textarea id="cx" dir="auto" placeholder="${esc(tr("Paste or type it here…", "Péguelo o escríbalo aquí…"))}">${esc(checkDraft)}</textarea>
+    <textarea id="cx" dir="auto" placeholder="${esc(k ? k.at(5) : tr("Paste or type it here…", "Péguelo o escríbalo aquí…"))}">${esc(checkDraft)}</textarea>
     <div class="btnrow"><button class="btn primary" id="cgo">${tr("Check it", "Revisar")}</button>${canListen ? `<button class="btn ghost" id="cmic" aria-pressed="false">${ic("mic")}<span>${tr("Say it", "Dígalo")}</span></button>` : ""}</div>
     <div class="samples"><span class="small muted">${t("try_example")}</span>${CHECK_EXAMPLES.map(([v, label]) => `<button class="chip" data-cx="${esc(v)}">${esc(label())}</button>`).join("")}</div>
   </section>
@@ -51,6 +153,16 @@ function renderCheck() {
   <p class="footnote">${ic("lock")}${tr("Checks run on this device. Nothing you type is saved.", "Las revisiones se hacen en este dispositivo. No se guarda lo que escribe.")}</p>
   <button class="textlink soon" data-go="preview">${tr("Coming soon: iPhone catches scam texts and calls for you", "Pronto: el iPhone atrapará textos y llamadas de estafa por usted")} ${ic("chev", "chev")}</button>`;
   bindBack();
+  bindEmailAccounts(renderCheck);
+  view.querySelectorAll("[data-kind]").forEach(
+    b =>
+      (b.onclick = () => {
+        checkKind = checkKind === b.dataset.kind ? "" : b.dataset.kind;
+        renderCheck();
+      })
+  );
+  const share = view.querySelector("[data-go=share]");
+  if (share) share.onclick = () => go("share");
   const box = document.getElementById("cx");
   box.oninput = () => (checkDraft = box.value);
   document.getElementById("cgo").onclick = () => runCheck();

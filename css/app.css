@@ -43,23 +43,23 @@
   }
 }
 /*
-  Dark mode chosen in Settings 
+  Dark mode chosen in Settings: true black (Automatic keeps the dark teal above when the phone is dark).
  */
 :root[data-theme="dark"] {
-  --bg: #0b1f23;
-  --surface: #11292e;
-  --ink: #e6f2f0;
-  --muted: #9db8b9;
-  --line: #24444a;
+  --bg: #000000;
+  --surface: #141414;
+  --ink: #f2f2f2;
+  --muted: #a6a6a6;
+  --line: #2c2c2c;
   --brand: #3fbfbc;
-  --brand-ink: #0b1f23;
-  --brand-soft: #15393c;
+  --brand-ink: #000000;
+  --brand-soft: #0f2a2a;
   --safe: #6fd394;
-  --safe-bg: #12321f;
+  --safe-bg: #0f2417;
   --warn: #f5b95a;
-  --warn-bg: #3a2a0e;
+  --warn-bg: #2a1f0a;
   --scam: #ff8a7e;
-  --scam-bg: #3d1714;
+  --scam-bg: #2e100e;
   color-scheme: dark;
 }
 * {
@@ -220,7 +220,8 @@ body {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
-.stats div {
+.stats div,
+.stats .stat {
   background: var(--surface);
   border-radius: 16px;
   padding: 14px;
@@ -3093,7 +3094,7 @@ details.more[open] > summary {
 }
 
 /* Settings rows: a small colored icon at the start */
-.lead {
+.lead-ic {
   flex: none;
   width: 36px;
   height: 36px;
@@ -3103,7 +3104,7 @@ details.more[open] > summary {
   background: var(--l-bg, var(--brand-soft));
   color: var(--l, var(--brand));
 }
-.lead .ic {
+.lead-ic .ic {
   width: 20px;
   height: 20px;
 }
@@ -3211,4 +3212,232 @@ details.fold > ol {
   border-radius: 6px;
   padding: 1px 5px;
   font-size: 0.85em;
+}
+
+/* ===== Lesson page ===== */
+.lesson-hero {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 4px 0 14px;
+}
+.lh-ic {
+  flex: none;
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.lh-ic .ic {
+  width: 34px;
+  height: 34px;
+}
+.lh-kicker {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.lesson-hero h1 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+.lesson-how {
+  font-size: 1.15rem;
+  line-height: 1.55;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+.readbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  margin-bottom: 16px;
+}
+.readbtn .ic {
+  width: 18px;
+  height: 18px;
+}
+.lcard {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 0 0 1px var(--line);
+  border-inline-start: 6px solid var(--lc, var(--brand));
+}
+.lcard h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+  font-size: 1.1rem;
+  color: var(--lc, var(--ink));
+}
+.lcard h2 .ic {
+  width: 22px;
+  height: 22px;
+}
+.lc-warn {
+  --lc: var(--warn);
+}
+.lc-ok {
+  --lc: var(--safe);
+}
+.lc-quiz {
+  --lc: var(--brand);
+}
+.lsteps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: s;
+  display: grid;
+  gap: 10px;
+}
+.lsteps li {
+  counter-increment: s;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  line-height: 1.45;
+}
+.lsteps li::before {
+  content: counter(s);
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.lchecks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+.lchecks li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  line-height: 1.45;
+}
+.lchecks .ic {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  color: var(--safe);
+  margin-top: 1px;
+}
+.nextlesson {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  text-align: start;
+}
+.nextlesson .ic {
+  width: 20px;
+  height: 20px;
+  flex: none;
+}
+
+/* Monthly report: each number is a button that opens what it counts */
+.stats .stat {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  cursor: pointer;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 0 0 1px var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.stats .stat:hover,
+.stats .stat:focus-visible {
+  box-shadow: 0 0 0 2px var(--brand);
+}
+.stats .stat .chev {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 12px;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+/* ===== Check something: optional "what is it?" choices ===== */
+.kindrow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.kind {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  min-height: 60px;
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.kind.on {
+  box-shadow: 0 0 0 2px var(--brand);
+  background: var(--brand-soft);
+}
+.kind:focus-visible {
+  outline: 3px solid var(--amber);
+}
+.kindhint {
+  margin: 0 2px 12px;
+  color: var(--muted);
+}
+@media (min-width: 560px) {
+  .kindrow {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+/* Mahi: talk button beside the text box */
+.micbtn {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+}
+.micbtn .ic {
+  width: 24px;
+  height: 24px;
+}
+.micbtn.on {
+  background: var(--scam);
+  border-color: var(--scam);
+  color: #fff;
+  animation: micpulse 1.4s ease-in-out infinite;
 }
