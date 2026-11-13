@@ -25,9 +25,9 @@
 
 const MAHI = {
   MODEL: "claude-haiku-5-5",
-  MAX_TOKENS: 600, // length of each answer
+  MAX_TOKENS: 900, // length of each answer
   MAX_PER_DAY: 300, // answers per day for everyone together (protects your bill)
-  MAX_MESSAGES: 12, // how much of the chat is sent each time
+  MAX_MESSAGES: 12, // how much of the chat is sent each time (tool steps count double)
   MAX_CHARS: 2500 // longest single message accepted
 };
 
@@ -40,7 +40,8 @@ function doGet() {
   return json({ ok: true, name: "Mahi", answersToday: countToday() });
 }
 
-// The app sends { messages: [...], lang: "English" } and gets back { text }.
+// The app sends { messages, lang, tools? } and gets back { text, content, stop_reason }.
+// "tools" lets Mahi take actions in the app (check a number, build a report...). The app runs them.
 function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
@@ -50,7 +51,15 @@ function doPost(e) {
     const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
     if (!key) return json({ error: "The Mahi server has no AI key yet." });
     const lang = String(req.lang || "English").slice(0, 40);
-    return json({ text: askAI(key, mahiRules(lang), messages) });
+    const tools = cleanTools(req.tools);
+    const extra = typeof req.system_extra === "string" ? " " + req.system_extra.slice(0, 1200) : "";
+    const r = askAI(key, mahiRules(lang) + extra, messages, tools);
+    const text = (r.content || [])
+      .filter(c => c.type === "text")
+      .map(c => c.text)
+      .join("\n")
+      .trim();
+    return json({ text, content: r.content, stop_reason: r.stop_reason });
   } catch (err) {
     return json({ error: "Mahi couldn't answer right now. Please try again." });
   }
@@ -64,15 +73,33 @@ function json(o) {
    3. SAFETY
    ======================================================================== */
 
-// Keeps only real chat turns, trims long ones, and makes sure it starts with the person.
+// Keeps only real chat turns (text, or tool steps), trims long ones, starts with the person.
 function cleanMessages(list) {
   if (!Array.isArray(list)) return [];
+  const okBlock = b =>
+    b &&
+    ["text", "tool_use", "tool_result"].includes(b.type) &&
+    JSON.stringify(b).length <= MAHI.MAX_CHARS * 3;
   let out = list
-    .filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-    .map(m => ({ role: m.role, content: m.content.slice(0, MAHI.MAX_CHARS) }))
-    .slice(-MAHI.MAX_MESSAGES);
-  while (out.length && out[0].role !== "user") out.shift();
+    .filter(m => m && (m.role === "user" || m.role === "assistant"))
+    .map(m =>
+      typeof m.content === "string"
+        ? { role: m.role, content: m.content.slice(0, MAHI.MAX_CHARS) }
+        : Array.isArray(m.content)
+          ? { role: m.role, content: m.content.filter(okBlock) }
+          : null
+    )
+    .filter(m => m && (typeof m.content === "string" ? m.content : m.content.length))
+    .slice(-MAHI.MAX_MESSAGES * 2);
+  while (out.length && (out[0].role !== "user" || typeof out[0].content !== "string")) out.shift();
   return out;
+}
+
+// Accepts the app's list of actions (tools), with a size limit.
+function cleanTools(list) {
+  if (!Array.isArray(list) || !list.length) return undefined;
+  const t = list.slice(0, 20).filter(x => x && typeof x.name === "string" && x.input_schema);
+  return JSON.stringify(t).length <= 20000 ? t : undefined;
 }
 
 // Counts answers per day. Returns false when today's limit is reached.
@@ -99,19 +126,21 @@ function countToday() {
    4. AI CALL
    ======================================================================== */
 
-function askAI(key, system, messages) {
+function askAI(key, system, messages, tools) {
   const res = UrlFetchApp.fetch("https://api.anthropic.com/v1/messages", {
     method: "post",
     contentType: "application/json",
     muteHttpExceptions: true,
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
-    payload: JSON.stringify({ model: MAHI.MODEL, max_tokens: MAHI.MAX_TOKENS, system, messages })
+    payload: JSON.stringify(
+      Object.assign(
+        { model: MAHI.MODEL, max_tokens: MAHI.MAX_TOKENS, system, messages },
+        tools ? { tools } : {}
+      )
+    )
   });
   if (res.getResponseCode() !== 200) throw new Error("AI error " + res.getResponseCode());
-  return (JSON.parse(res.getContentText()).content || [])
-    .map(c => c.text || "")
-    .join("")
-    .trim();
+  return JSON.parse(res.getContentText());
 }
 
 /* ========================================================================

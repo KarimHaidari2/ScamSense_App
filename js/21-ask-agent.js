@@ -202,7 +202,14 @@ function renderHelper() {
   const viaServer = !!c0.mahiUrl;
   const has = viaServer || (!!c0.apiKey && c0.aiMode !== "off");
   const bubble = m =>
-    `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${esc(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}</div>`;
+    `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${esc(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}${(
+      m.actions || []
+    )
+      .map(
+        (a, k) =>
+          `<button class="btn ${a.primary ? "primary" : "ghost"} sm bgo" data-act="${m.aid}:${k}">${esc(a.label)} ${ic("chev", "chev")}</button>`
+      )
+      .join("")}</div>`;
   const hello = {
     role: "assistant",
     content: tr(
@@ -231,9 +238,20 @@ function renderHelper() {
   const tools = () => {
     ["chatsave", "chatclear"].forEach(id => (document.getElementById(id).disabled = !chatLog.length));
   };
+  const bindActs = () =>
+    log.querySelectorAll("[data-act]").forEach(b => {
+      if (b.dataset.bound) return;
+      b.dataset.bound = "1";
+      b.onclick = () => {
+        const [aid, k] = b.dataset.act.split(":");
+        const m = chatLog.find(x => String(x.aid) === aid);
+        if (m && m.actions && m.actions[+k]) m.actions[+k].run();
+      };
+    });
   const add = m => {
     log.insertAdjacentHTML("beforeend", bubble(m));
     bindGo(log);
+    bindActs();
     scroll();
   };
   let busy = false;
@@ -258,13 +276,12 @@ function renderHelper() {
     const local = await localAgent(q);
     if (has) {
       try {
-        const msgs = chatLog
-          .filter(m => m.role)
-          .map(m => ({ role: m.role, content: m.content }))
-          .slice(-12);
-        const a = viaServer ? await callMahiServer(msgs) : await callClaude(HELPER_SYSTEM(), msgs, 600);
-        reply = { role: "assistant", content: a.trim(), go: local.go === "settings" ? null : local.go };
+        const ui = { actions: [], after: null, used: [] };
+        const a = await mahiAgentTurn(q, ui);
+        reply = { role: "assistant", content: a || "…", actions: ui.actions, aid: Date.now() };
+        if (ui.after) setTimeout(ui.after, 1400);
       } catch (e) {
+        mahiHistory = [];
         reply =
           local.go === "settings"
             ? {
@@ -313,6 +330,7 @@ function renderHelper() {
   };
   document.getElementById("chatclear").onclick = () => {
     chatLog = [];
+    mahiHistory = [];
     renderHelper();
   };
   document.getElementById("chatsave").onclick = () => {
@@ -327,4 +345,426 @@ function renderHelper() {
     a.remove();
   };
   if (matchMedia("(pointer:fine)").matches) inp.focus();
+}
+
+/* =====================================================================
+   MAHI'S ACTIONS (tools)
+   With AI on, Mahi doesn't just talk: she can check things and do things
+   in the app. The AI picks a tool, the app runs it, and Mahi explains.
+   ===================================================================== */
+
+const MAHI_SCREENS = {
+  today: "Today: daily safety report",
+  emails: "List of checked emails",
+  check: "Check tab (email, texts, calls, crypto)",
+  checkEmail: "Check an email / connect email accounts",
+  checkText: "Check a text message",
+  checkCall: "Look up a phone number or describe a call",
+  checkCrypto: "Check a crypto website, wallet, or offer",
+  pause: "Pause before you pay",
+  scammed: "I was scammed: recovery plan and reports",
+  learn: "Short scam lessons",
+  monthly: "Monthly report",
+  family: "Family and trusted people",
+  settings: "Settings",
+  plans: "Plans and prices"
+};
+
+const MAHI_TOOLS = [
+  {
+    name: "check_message",
+    description:
+      "Check a message the person pasted or described (email, text, call script, social media message) for scam warning signs. Use whenever they share message text.",
+    input_schema: {
+      type: "object",
+      properties: {
+        text: { type: "string", description: "The message text or what the caller said" },
+        sender: { type: "string", description: "Sender email address or phone number, if known" },
+        channel: { type: "string", enum: ["email", "text", "call", "other"] }
+      },
+      required: ["text"]
+    }
+  },
+  {
+    name: "lookup_phone",
+    description:
+      "Look up a phone number: fake format, reported scam number, expensive international or one-ring area code, toll-free.",
+    input_schema: { type: "object", properties: { number: { type: "string" } }, required: ["number"] }
+  },
+  {
+    name: "lookup_email",
+    description:
+      "Check who is behind an email address: throwaway, lookalike/fake brand, real company, or free personal email.",
+    input_schema: { type: "object", properties: { email: { type: "string" } }, required: ["email"] }
+  },
+  {
+    name: "check_website",
+    description:
+      "Check a website address: real brand site, fake lookalike, risky ending, or crypto investment scam site.",
+    input_schema: { type: "object", properties: { url: { type: "string" } }, required: ["url"] }
+  },
+  {
+    name: "check_wallet",
+    description: "Check a crypto wallet address: what kind it is and whether it has been reported for scams.",
+    input_schema: { type: "object", properties: { address: { type: "string" } }, required: ["address"] }
+  },
+  {
+    name: "get_email_report",
+    description:
+      "Get the person's latest Daily Safety Report from their Gmail scan: counts and the risky emails with reasons. Use when they ask about their email, inbox, or report.",
+    input_schema: { type: "object", properties: {} }
+  },
+  {
+    name: "connect_gmail",
+    description:
+      "Show a button that connects the person's Gmail (read-only) and scans every folder. Use when they want to connect or scan their email. They must tap the button themselves (Google requires it).",
+    input_schema: { type: "object", properties: {} }
+  },
+  {
+    name: "start_scam_report",
+    description:
+      "When someone was scammed (paid, gave bank details, SSN, passwords or codes, or remote access): fill in the 'I was scammed' form with what they told you and build their recovery plan and ready-to-send report documents (bank, FTC, police, FBI IC3, etc.). Ask for missing key details only if needed; it's fine to start with what you have.",
+    input_schema: {
+      type: "object",
+      properties: {
+        story: { type: "string", description: "What happened, in the person's words" },
+        how_it_started: { type: "string", enum: ["email", "text", "call", "web", "social", "person"] },
+        what_happened: {
+          type: "array",
+          items: { type: "string", enum: ["paid", "bank", "ssn", "pass", "remote"] },
+          description:
+            "paid=sent money/gift cards, bank=gave bank/card info, ssn=gave SSN, pass=gave password or code, remote=gave computer/phone control"
+        },
+        payment_method: {
+          type: "string",
+          enum: ["credit", "debit", "bank", "wire", "app", "gift", "crypto", "cashmail", "courier", "none"]
+        },
+        amount: { type: "string", description: "Like $500" },
+        date: { type: "string", description: "YYYY-MM-DD" },
+        pretended_to_be: {
+          type: "string",
+          enum: [
+            "chase",
+            "bofa",
+            "wells",
+            "capone",
+            "bankother",
+            "amazon",
+            "apple",
+            "microsoft",
+            "paymentapp",
+            "ssa",
+            "medicare",
+            "irs",
+            "insurance",
+            "other"
+          ]
+        },
+        name_they_used: { type: "string" },
+        their_contact: { type: "string", description: "Scammer's phone, email, or website" },
+        your_bank: {
+          type: "string",
+          enum: ["chase", "bofa", "wells", "capone", "bankother", "paymentapp", ""]
+        }
+      },
+      required: ["story"]
+    }
+  },
+  {
+    name: "pause_payment",
+    description:
+      "Someone is asking the person for money and they haven't paid yet: run the 'Pause before you pay' check and show the result.",
+    input_schema: {
+      type: "object",
+      properties: {
+        who: {
+          type: "string",
+          enum: ["gov", "tech", "family", "online", "prize", "company", "seller", "other"]
+        },
+        how: { type: "string", enum: ["gift", "crypto", "wire", "p2p", "cash", "card", "check", "other"] },
+        amount: { type: "string" },
+        story: { type: "string" }
+      }
+    }
+  },
+  {
+    name: "add_trusted_person",
+    description: "Add a family member or friend to the person's trusted people (Family tab).",
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        phone: { type: "string" },
+        email: { type: "string" },
+        relation: {
+          type: "string",
+          enum: ["daughter", "son", "spouse", "grandchild", "sibling", "friend", "caregiver"]
+        }
+      },
+      required: ["name"]
+    }
+  },
+  {
+    name: "start_lesson",
+    description: "Open a one-minute scam lesson with a quiz.",
+    input_schema: {
+      type: "object",
+      properties: {
+        topic: {
+          type: "string",
+          enum: ["payment", "impostor", "codes", "family", "tech", "texts", "prize", "crypto"]
+        }
+      },
+      required: ["topic"]
+    }
+  },
+  {
+    name: "open_screen",
+    description:
+      "Open a screen in the ScamSense app for the person. Screens: " + JSON.stringify(MAHI_SCREENS),
+    input_schema: {
+      type: "object",
+      properties: { screen: { type: "string", enum: Object.keys(MAHI_SCREENS) } },
+      required: ["screen"]
+    }
+  }
+];
+
+/* Runs one tool. `ui` collects buttons to show and a screen to open after Mahi replies. */
+async function runMahiTool(name, input, ui) {
+  const i = input || {};
+  switch (name) {
+    case "check_message": {
+      const text = String(i.text || "");
+      const sender = String(i.sender || "");
+      const urls =
+        text.match(/\bhttps?:\/\/[^\s<>"']+|\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/gi) || [];
+      const links = urls
+        .slice(0, 20)
+        .map(u => ({ href: /^https?:/i.test(u) ? u : "https://" + u, host: hostOf(u), text: "" }));
+      const r = analyze({
+        subject: "",
+        text,
+        fromName: "",
+        fromEmail: sender.includes("@") ? sender : "",
+        replyTo: "",
+        auth: "",
+        links,
+        attachments: []
+      });
+      const out = {
+        verdict: r.level === "warn" ? "suspicious" : r.level,
+        kind: r.kind || null,
+        warning_signs: r.reasons
+      };
+      if (sender && !sender.includes("@")) out.sender_number = numberInfo(sender);
+      if (sender.includes("@")) out.sender_email = await emailInfo(sender);
+      return out;
+    }
+    case "lookup_phone":
+      return numberInfo(i.number) || { error: "Not a phone number" };
+    case "lookup_email":
+      try {
+        await loadDisposable();
+      } catch (e) {}
+      return (await emailInfo(i.email)) || { error: "Not an email address" };
+    case "check_website":
+      return cryptoSiteInfo(i.url) || { error: "Not a website address" };
+    case "check_wallet":
+      return walletInfo(i.address) || { error: "Not a wallet address" };
+    case "get_email_report": {
+      const rep = S.get("report", null);
+      if (!rep) {
+        ui.actions.push({
+          label: tr("Connect Gmail and scan", "Conectar Gmail y revisar"),
+          run: () => scanGmail()
+        });
+        return { report: null, note: "No scan yet. A Connect Gmail button is shown." };
+      }
+      const n = { scam: 0, warn: 0, safe: 0 };
+      rep.items.forEach(x => n[x.level]++);
+      ui.actions.push({ label: tr("See your emails", "Ver sus correos"), run: () => go("emails") });
+      return {
+        scanned_at: new Date(rep.at).toString(),
+        source: rep.source === "demo" ? "demo inbox (made-up emails)" : "Gmail",
+        counts: { scam: n.scam, suspicious: n.warn, safe: n.safe },
+        risky: rep.items
+          .filter(x => x.level !== "safe")
+          .slice(0, 12)
+          .map(x => ({
+            level: x.level,
+            from: x.fromName || x.fromEmail,
+            email: x.fromEmail,
+            subject: x.subject,
+            folder: x.folder,
+            why: (x.reasons || []).slice(0, 2)
+          }))
+      };
+    }
+    case "connect_gmail":
+      ui.actions.push({
+        label: S.get("connected", false)
+          ? tr("Scan my Gmail now", "Revisar mi Gmail ahora")
+          : tr("Connect Gmail and scan", "Conectar Gmail y revisar"),
+        primary: true,
+        run: () => scanGmail()
+      });
+      return {
+        shown: "A button is shown. The person taps it, signs in with Google (read-only), and the scan starts."
+      };
+    case "start_scam_report": {
+      const what = Array.isArray(i.what_happened) ? i.what_happened : [];
+      scamState = Object.assign({}, scamState, {
+        how: i.how_it_started || scamState.how,
+        what: what.length ? what : scamState.what,
+        method: i.payment_method || scamState.method,
+        amt: i.amount || scamState.amt,
+        date: i.date || scamState.date,
+        pretend: i.name_they_used || scamState.pretend,
+        org: i.pretended_to_be || scamState.org,
+        bank: i.your_bank != null ? i.your_bank : scamState.bank,
+        contact: i.their_contact || scamState.contact,
+        story: i.story || scamState.story
+      });
+      ui.after = () => {
+        go("scammed");
+        setTimeout(() => {
+          try {
+            buildPlan(true);
+            document.getElementById("splan").scrollIntoView({ behavior: "smooth" });
+          } catch (e) {}
+        }, 150);
+      };
+      ui.actions.push({ label: tr("Open my recovery plan", "Abrir mi plan"), primary: true, run: ui.after });
+      return {
+        done: "The 'I was scammed' form is filled in. The recovery plan and report documents (case file, bank, FTC, police, IC3) open right after this reply.",
+        filled: {
+          what_happened: scamState.what,
+          payment_method: scamState.method,
+          amount: scamState.amt,
+          pretended_to_be: scamState.org,
+          your_bank: scamState.bank
+        }
+      };
+    }
+    case "pause_payment": {
+      pauseState = { who: i.who || "", how: i.how || "", amt: i.amount || "", note: i.story || "" };
+      const r = assessPayment(pauseState);
+      ui.after = () => {
+        go("pause");
+        setTimeout(() => runPause(), 150);
+      };
+      ui.actions.push({ label: t("pause_card"), primary: true, run: ui.after });
+      return {
+        result: r && r.level ? r.level : r,
+        reasons: r && r.reasons ? r.reasons : undefined,
+        note: "The Pause screen opens after this reply."
+      };
+    }
+    case "add_trusted_person": {
+      if (!i.phone && !i.email)
+        return { error: "Need a phone number or email for this person. Ask for one." };
+      const hs = S.get("helpers", []);
+      hs.push({
+        name: String(i.name).slice(0, 60),
+        rel: i.relation || "",
+        phone: i.phone || "",
+        email: i.email || ""
+      });
+      S.set("helpers", hs);
+      ui.actions.push({ label: tr("Open Family", "Abrir Familia"), run: () => go("family") });
+      return { added: i.name, total_trusted_people: hs.length };
+    }
+    case "start_lesson":
+      currentLesson = i.topic;
+      ui.after = () => go("lesson");
+      ui.actions.push({ label: tr("Start the lesson", "Empezar la lección"), primary: true, run: ui.after });
+      return { opening: i.topic };
+    case "open_screen":
+      if (!MAHI_SCREENS[i.screen]) return { error: "Unknown screen" };
+      ui.after = () => go(i.screen);
+      ui.actions.push({ label: tr("Open it", "Abrirlo"), primary: true, run: ui.after });
+      return { done: "The " + i.screen + " screen opens right after this reply." };
+  }
+  return { error: "Unknown tool" };
+}
+
+/* One AI turn with tools. Uses the Mahi server if set, otherwise the AI key in Settings. */
+async function mahiAI(messages) {
+  const c = cfg();
+  const system = HELPER_SYSTEM() + " " + MAHI_ACTION_RULES;
+  if (c.mahiUrl) {
+    const res = await fetch(c.mahiUrl, {
+      method: "POST",
+      body: JSON.stringify({
+        messages,
+        tools: MAHI_TOOLS,
+        lang: LANGS[langCode()].ai,
+        system_extra: MAHI_ACTION_RULES
+      })
+    });
+    const j = await res.json();
+    if (j.error) throw new Error(j.error);
+    return j.content ? j : { content: [{ type: "text", text: j.text || "" }], stop_reason: "end_turn" };
+  }
+  if (!c.apiKey) throw new Error("no-key");
+  let res,
+    tries = 0;
+  while (true) {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": c.apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({ model: c.model, max_tokens: 900, system, tools: MAHI_TOOLS, messages })
+    });
+    if ((res.status === 429 || res.status === 529 || res.status >= 500) && tries < 2) {
+      tries++;
+      await new Promise(r => setTimeout(r, 2000 * tries));
+      continue;
+    }
+    break;
+  }
+  if (!res.ok) throw new Error("AI error " + res.status);
+  return res.json();
+}
+
+const MAHI_ACTION_RULES =
+  "You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. After using a tool, explain the result simply and say what you did. Never invent tool results.";
+
+/* The full agent loop: ask the AI, run any tools it picks, repeat (up to 6 steps). */
+let mahiHistory = [];
+async function mahiAgentTurn(question, ui) {
+  mahiHistory.push({ role: "user", content: question });
+  mahiHistory = mahiHistory.slice(-24);
+  while (mahiHistory.length && (mahiHistory[0].role !== "user" || typeof mahiHistory[0].content !== "string"))
+    mahiHistory.shift();
+  const said = [];
+  for (let step = 0; step < 6; step++) {
+    const r = await mahiAI(mahiHistory);
+    const content = r.content || [];
+    mahiHistory.push({ role: "assistant", content });
+    content.filter(b => b.type === "text" && b.text.trim()).forEach(b => said.push(b.text.trim()));
+    const uses = content.filter(b => b.type === "tool_use");
+    if (!uses.length || r.stop_reason !== "tool_use") return said.join("\n\n");
+    const results = [];
+    for (const u of uses) {
+      let out;
+      try {
+        out = await runMahiTool(u.name, u.input, ui);
+      } catch (e) {
+        out = { error: String((e && e.message) || e) };
+      }
+      ui.used.push(u.name);
+      results.push({ type: "tool_result", tool_use_id: u.id, content: JSON.stringify(out).slice(0, 6000) });
+    }
+    mahiHistory.push({ role: "user", content: results });
+  }
+  return tr(
+    "I've done the steps I could. Tap a button below to continue.",
+    "Hice los pasos que pude. Toque un botón abajo para seguir."
+  );
 }
