@@ -262,8 +262,29 @@ function toMsg(m, from) {
     auth: safeHeader(m, "Authentication-Results") + " " + safeHeader(m, "ARC-Authentication-Results"),
     listUnsub: !!safeHeader(m, "List-Unsubscribe"),
     links: linksFromHtml(html),
-    attachments: m.getAttachments({ includeInlineImages: false }).map(a => a.getName())
+    attachments: realAttachments(m, html)
   };
+}
+
+// Attachment names, skipping an .htm part that is just the email's own body
+// (some company mailers send the body that way, e.g. "sapwebform.htm").
+function realAttachments(m, html) {
+  return m
+    .getAttachments({ includeInlineImages: false })
+    .filter(a => {
+      if (!/\.html?$/i.test(a.getName())) return true;
+      const start = a
+        .getDataAsString()
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 120);
+      const body = String(html || "")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ");
+      return !(start && body.includes(start));
+    })
+    .map(a => a.getName());
 }
 
 // Reads one email header without failing.

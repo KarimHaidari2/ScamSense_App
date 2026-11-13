@@ -81,16 +81,27 @@ function parseGmail(m) {
     const k = h.name.toLowerCase();
     H[k] = H[k] ? H[k] + " ; " + h.value : h.value;
   });
-  const acc = { plain: "", html: "", attachments: [] };
+  const acc = { plain: "", html: "", attachments: [], namedBodies: [] };
+  const disposition = p =>
+    ((p.headers || []).find(h => h.name.toLowerCase() === "content-disposition") || {}).value || "";
   (function walk(p) {
     if (!p) return;
     if (p.parts) p.parts.forEach(walk);
-    else if (p.filename) acc.attachments.push(p.filename);
-    else if (p.body && p.body.data) {
+    else if (p.filename) {
+      // Some company mailers (Salesforce, SAP…) send the email's own body as a named part,
+      // like "sapwebform.htm". If it's text shown inline, it's the body, not an attachment.
+      const isText = /^text\/(html|plain)$/i.test(p.mimeType || "");
+      if (isText && p.body && p.body.data && !/^\s*attachment/i.test(disposition(p))) acc.namedBodies.push(p);
+      else acc.attachments.push(p.filename);
+    } else if (p.body && p.body.data) {
       if (p.mimeType === "text/plain") acc.plain += b64(p.body.data) + "\n";
       else if (p.mimeType === "text/html") acc.html += b64(p.body.data);
     }
   })(m.payload);
+  acc.namedBodies.forEach(p => {
+    if (/html/i.test(p.mimeType)) acc.html += b64(p.body.data);
+    else acc.plain += b64(p.body.data) + "\n";
+  });
   let text = acc.plain.trim(),
     links = [];
   if (acc.html) {
@@ -131,7 +142,7 @@ function parseGmail(m) {
     replyTo: rtm ? rtm[1] : rt.trim(),
     subject: H["subject"] || "(no subject)",
     date: Number(m.internalDate) || Date.now(),
-    text: text.replace(/\s+/g, " ").slice(0, 6000),
+    text: (text || m.snippet || "").replace(/\s+/g, " ").slice(0, 6000),
     snippet: m.snippet || "",
     links,
     attachments: acc.attachments,
