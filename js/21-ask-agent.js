@@ -11,6 +11,7 @@ const HELPER_SYSTEM = () =>
 /* Shows Mahi's **bold** words in bold and "- " lines as bullets (everything else stays plain text). */
 function fmtMahi(text) {
   return esc(text)
+    .replace(/https?:\/\/[^\s<]+[^\s<.,)]/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`)
     .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
     .replace(/^(?:-|\*|•)\s+/gm, "• ")
     .replace(/^#{1,3}\s+/gm, "");
@@ -856,7 +857,13 @@ async function mahiAI(messages) {
         "anthropic-version": "2023-06-01",
         "anthropic-dangerous-direct-browser-access": "true"
       },
-      body: JSON.stringify({ model: c.model, max_tokens: 900, system, tools: MAHI_TOOLS, messages })
+      body: JSON.stringify({
+        model: c.model,
+        max_tokens: 900,
+        system,
+        tools: MAHI_TOOLS.concat([MAHI_WEB]),
+        messages
+      })
     });
     if ((res.status === 429 || res.status === 529 || res.status >= 500) && tries < 2) {
       tries++;
@@ -866,11 +873,50 @@ async function mahiAI(messages) {
     break;
   }
   if (!res.ok) throw new Error("AI error " + res.status);
-  return res.json();
+  const r = await res.json();
+  return {
+    content: simplifyAI(r.content || [], r.stop_reason),
+    stop_reason: r.stop_reason === "pause_turn" ? "end_turn" : r.stop_reason
+  };
+}
+/* Web search for Mahi (the Mahi server adds the same tool on its side). */
+const MAHI_WEB = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 2,
+  user_location: { type: "approximate", country: "US" }
+};
+/* Joins the answer's text pieces, keeps app actions, drops raw search data, and lists the web sources. */
+function simplifyAI(blocks, stop) {
+  const out = [],
+    sources = [];
+  blocks.forEach(b => {
+    if (b.type === "text") {
+      (b.citations || []).forEach(c => {
+        if (c.url && !sources.some(x => x.url === c.url))
+          sources.push({ url: c.url, title: c.title || c.url });
+      });
+      const last = out.at(-1);
+      if (last && last.type === "text") last.text += b.text;
+      else out.push({ type: "text", text: b.text });
+    } else if (b.type === "tool_use") out.push({ type: "tool_use", id: b.id, name: b.name, input: b.input });
+  });
+  if (sources.length && stop !== "tool_use") {
+    const last = out.filter(b => b.type === "text").pop();
+    if (last)
+      last.text =
+        last.text.trim() +
+        "\n\nSources:\n" +
+        sources
+          .slice(0, 4)
+          .map(x => `• ${x.title} — ${x.url}`)
+          .join("\n");
+  }
+  return out;
 }
 
 const MAHI_ACTION_RULES =
-  "When the person asks about an email in their report, read it yourself with read_email (never ask them to paste it). Judge it from the sender's real domain, Gmail's SPF/DKIM/DMARC results, the links, and the text, then update its label with set_email_verdict and tell them clearly: real or scam, and why. Official senders include toll agencies like getipass.com (Illinois Tollway I-PASS), pikepass.com, txtag.org, E-ZPass sites, and sunpass.com. You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. After using a tool, explain the result simply and say what you did. Never invent tool results.";
+  "When the person asks about an email in their report, read it yourself with read_email (never ask them to paste it). Judge it from the sender's real domain, Gmail's SPF/DKIM/DMARC results, the links, and the text, then update its label with set_email_verdict and tell them clearly: real or scam, and why. Official senders include toll agencies like getipass.com (Illinois Tollway I-PASS), pikepass.com, txtag.org, E-ZPass sites, and sunpass.com. You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. You can also search the web for news, recent scam alerts, statistics, laws, and real phone numbers or websites of companies and agencies; use it whenever the answer could have changed or you aren't sure. After using a tool, explain the result simply and say what you did. Never invent tool results.";
 
 /* The full agent loop: ask the AI, run any tools it picks, repeat (up to 6 steps). */
 let mahiHistory = [];
