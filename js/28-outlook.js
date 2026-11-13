@@ -108,6 +108,7 @@ async function finishOutlookSignIn() {
     });
     const me = await msGet("me?$select=mail,userPrincipalName").catch(() => ({}));
     S.set("ms", Object.assign(S.get("ms", {}), { email: me.mail || me.userPrincipalName || "" }));
+    setStatus();
     toast(tr("Outlook connected.", "Outlook conectado."));
     go("today");
     scanEmail();
@@ -119,6 +120,7 @@ async function finishOutlookSignIn() {
 function disconnectOutlook() {
   S.del("ms");
   msAccess = null;
+  setStatus();
   toast(
     tr(
       "Outlook disconnected. To fully remove access, visit account.live.com/consent/Manage.",

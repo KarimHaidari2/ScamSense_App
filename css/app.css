@@ -3445,3 +3445,32 @@ details.fold > ol {
 :root[data-theme="dark"] .switch input:checked + span::after {
   background: #000;
 }
+/* Which inbox an email came from */
+.pill.src {
+  background: var(--bg);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.pill.src-gmail {
+  color: #c5221f;
+}
+.pill.src-outlook {
+  color: #0f6cbd;
+}
+:root:not([data-theme="light"]) .pill.src-gmail {
+  color: #ff8a7e;
+}
+:root:not([data-theme="light"]) .pill.src-outlook {
+  color: #8db8ff;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .pill.src-gmail {
+    color: #c5221f;
+  }
+  :root:not([data-theme="dark"]) .pill.src-outlook {
+    color: #0f6cbd;
+  }
+}
+.seg.acct {
+  margin-bottom: 8px;
+}

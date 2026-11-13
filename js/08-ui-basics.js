@@ -47,8 +47,17 @@ function toast(m) {
 }
 function setStatus() {
   const el = document.getElementById("status");
-  const on = S.get("connected", false);
-  el.textContent = on ? t("connected") : "";
+  const g = S.get("connected", false),
+    o = !!S.get("ms", null);
+  const on = g || o;
+  el.textContent =
+    g && o
+      ? tr("Gmail + Outlook connected", "Gmail + Outlook conectados")
+      : o
+        ? tr("Outlook connected", "Outlook conectado")
+        : g
+          ? t("connected")
+          : "";
   el.hidden = !on;
   el.classList.toggle("on", !!on);
 }

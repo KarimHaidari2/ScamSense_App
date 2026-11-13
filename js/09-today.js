@@ -5,7 +5,8 @@
 "use strict";
 
 /* ----- Today ----- */
-let filter = "all";
+let filter = "all",
+  acctFilter = "all";
 function plural(s, n) {
   return s.replace(/\((s|es|n|a\(s\))\)/g, (m, x) => (n === 1 ? "" : x));
 }
@@ -53,7 +54,7 @@ function renderToday(opt) {
     <div class="sc-top"><p class="label">${rep.source === "demo" ? t("demo_label") : t("daily")} · ${esc(fmtTime(rep.at))}</p><button class="iconbtn" id="readsum" aria-label="${esc(t("read_aloud"))}" title="${esc(t("read_aloud"))}">${ic("speaker")}</button></div>
     <div class="sc-main"><span class="sc-badge">${ic(lv === "safe" ? "shield" : "alert")}</span><p class="big">${esc(headline)}</p></div>
     <div class="tally"><button class="ts" data-ef="scam"><b>${n.scam}</b>${t("scam")}</button><button class="tw" data-ef="warn"><b>${n.warn}</b>${t("warn")}</button><button class="tk" data-ef="safe"><b>${n.safe}</b>${t("safe")}</button></div>
-    <p class="meta">${t("checked", { n: rep.items.length, d: dtxt })}${folderSummary(rep.items)}.</p>`;
+    <p class="meta">${t("checked", { n: rep.items.length, d: dtxt })}${folderSummary(rep.items)}.${accountSummary(rep.items) ? `<br><b>${accountSummary(rep.items)}</b>` : ""}</p>`;
   h += `<div class="btnrow"><button class="btn primary" data-ef="all">${tr(`See all ${rep.items.length} emails`, `Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source === "demo" ? t("scan_my") : rep.source === "gmail" ? t("scan_again") : tr("Scan email again", "Revisar el correo otra vez")}</button></div></section>
     ${homeActionsHTML()}</div>`;
   view.innerHTML = h;
@@ -81,17 +82,28 @@ function renderEmails() {
     go("today");
     return;
   }
+  // With more than one inbox, people can look at one inbox at a time.
+  const srcs = [...new Set(rep.items.map(i => i.source).filter(x => SRC_NAME[x]))];
+  if (!srcs.includes(acctFilter)) acctFilter = "all";
+  const A =
+    srcs.length > 1
+      ? [
+          ["all", tr("All inboxes", "Todos los buzones"), rep.items.length],
+          ...srcs.map(k => [k, SRC_NAME[k], rep.items.filter(i => i.source === k).length])
+        ]
+      : [];
+  const base = rep.items.filter(i => acctFilter === "all" || i.source === acctFilter);
   const n = { scam: 0, warn: 0, safe: 0 };
-  rep.items.forEach(i => n[i.level]++);
+  base.forEach(i => n[i.level]++);
   if (!["all", "scam", "warn", "safe"].includes(filter)) filter = "all";
   const F = [
-    ["all", tr("All", "Todos"), rep.items.length],
+    ["all", tr("All", "Todos"), base.length],
     ["scam", t("scam"), n.scam],
     ["warn", t("warn"), n.warn],
     ["safe", t("safe"), n.safe]
   ].filter(f => f[0] === "all" || f[2] > 0 || filter === f[0]);
   const rank = { scam: 0, warn: 1, safe: 2 };
-  const shown = rep.items
+  const shown = base
     .filter(i => filter === "all" || i.level === filter)
     .sort((a, b) => rank[a.level] - rank[b.level]);
   const dtxt = rep.days === 1 ? t("d24") : t("ddays", { n: rep.days });
@@ -102,6 +114,7 @@ function renderEmails() {
         ? t("ai_checked", { n: rep.aiChecked })
         : t("ai_off");
   view.innerHTML = `${pageHead(tr("Your emails", "Sus correos"), t("checked", { n: rep.items.length, d: dtxt }) + ".", "today")}
+    ${A.length ? `<div class="seg wide acct" role="group" aria-label="${esc(tr("Inbox", "Buzón"))}">${A.map(([k, l, c]) => `<button data-a="${k}" aria-pressed="${acctFilter === k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>` : ""}
     <div class="seg wide" role="group">${F.map(([k, l, c]) => `<button data-f="${k}" aria-pressed="${filter === k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>
     <div class="list" style="margin-top:12px">${shown.length ? shown.map((it, idx) => itemHTML(it, idx)).join("") : `<div class="empty card">${tr("Nothing here.", "Nada aquí.")}</div>`}</div>
     <p class="footnote" style="margin-top:12px">${ic("info")}<span>${aiNote}</span></p>`;
@@ -110,6 +123,13 @@ function renderEmails() {
     b =>
       (b.onclick = () => {
         filter = b.dataset.f;
+        renderEmails();
+      })
+  );
+  view.querySelectorAll("[data-a]").forEach(
+    b =>
+      (b.onclick = () => {
+        acctFilter = b.dataset.a;
         renderEmails();
       })
   );
@@ -138,6 +158,18 @@ function folderSummary(items) {
     ? ` ${tr("across all folders", "en todas las carpetas")} (${order.map(k => `${fname(k)} ${n[k]}`).join({ fa: "، ", ar: "، ", zh: "、" }[langCode()] || ", ")})`
     : "";
 }
+/* Which inbox an email came from: a small Gmail or Outlook label. */
+const SRC_NAME = { gmail: "Gmail", outlook: "Outlook" };
+function srcPill(it) {
+  return SRC_NAME[it.source] ? `<span class="pill src src-${it.source}">${SRC_NAME[it.source]}</span>` : "";
+}
+/* "Gmail 48 · Outlook 4" when more than one inbox was checked. */
+function accountSummary(items) {
+  const n = {};
+  items.forEach(i => SRC_NAME[i.source] && (n[i.source] = (n[i.source] || 0) + 1));
+  const keys = Object.keys(n);
+  return keys.length > 1 ? keys.map(k => `${SRC_NAME[k]} ${n[k]}`).join(" · ") : "";
+}
 function explanation(it) {
   if (it.ai && it.ai.explanation) return it.ai.explanation;
   if (it.level === "safe") return it.local.trusted ? t("ex_trusted") : t("ex_none");
@@ -150,7 +182,7 @@ function itemHTML(it, idx) {
     <span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span>
     <span style="min-width:0"><span class="who">${esc(it.fromName || it.fromEmail || "")}</span>
       <span class="subj" style="display:block">${esc(it.subject || "")}</span>
-      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${it.folder ? `<span class="pill" style="background:var(--line);color:var(--muted)">${esc(fname(it.folder))}</span>` : ""}<span dir="auto">${it.level !== "safe" && kind ? esc(kind) : ""}</span></span></span>
+      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${srcPill(it)}${it.folder ? `<span class="pill" style="background:var(--line);color:var(--muted)">${esc(fname(it.folder))}</span>` : ""}<span dir="auto">${it.level !== "safe" && kind ? esc(kind) : ""}</span></span></span>
   </button><div class="detail" hidden id="d${idx}"></div></article>`;
 }
 function detailHTML(it) {
