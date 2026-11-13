@@ -180,6 +180,8 @@ function detailHTML(it) {
   if (it.source === "gmail")
     h += `<a class="btn ghost" href="https://mail.google.com/mail/u/0/#all/${encodeURIComponent(it.id)}" target="_blank" rel="noopener">${t("open_gmail")}</a>`;
   h += `<button class="btn ghost" data-speak>${t("read_aloud")}</button></div>`;
+  if (it.level !== "safe" && it.source !== "paste")
+    h += `<div class="row"><button class="btn ghost" data-real>${tr("This email is real", "Este correo es real")}</button><button class="btn ghost" data-askmahi>${tr("Ask Mahi about it", "Preguntarle a Mahi")}</button></div>`;
   return h;
 }
 function speakItem(it) {
@@ -200,6 +202,51 @@ function bindItems(list) {
           const it = list[i];
           d.innerHTML = detailHTML(it);
           d.querySelector("[data-speak]").onclick = () => speakItem(it);
+          const real = d.querySelector("[data-real]");
+          if (real)
+            real.onclick = () => {
+              // Remember this sender as real, and fix the label in the saved report.
+              const dom = baseDomain((it.fromEmail || "").split("@")[1] || "");
+              if (dom) S.set("mysenders", [...new Set([...S.get("mysenders", []), dom])]);
+              const rep = S.get("report", null);
+              if (rep) {
+                rep.items.forEach(x => {
+                  if (x.id === it.id) {
+                    x.level = "safe";
+                    x.ai = null;
+                    x.local = Object.assign({}, x.local, {
+                      level: "safe",
+                      kind: "",
+                      kindKey: "",
+                      reasons: [
+                        tr("You marked this sender as real.", "Usted marcó este remitente como real.")
+                      ]
+                    });
+                  }
+                });
+                S.set("report", rep);
+              }
+              toast(
+                tr(
+                  `Marked as real. Emails from ${dom} will be trusted when Gmail's sender checks pass.`,
+                  `Marcado como real. Los correos de ${dom} serán de confianza si pasan las verificaciones de Gmail.`
+                )
+              );
+              go("emails");
+            };
+          const ask = d.querySelector("[data-askmahi]");
+          if (ask)
+            ask.onclick = () => {
+              go("helper");
+              const inp = document.getElementById("chatin");
+              if (inp) {
+                inp.value = tr(
+                  `Is this email real or a scam? From ${it.fromName || ""} <${it.fromEmail || ""}>, subject "${it.subject || ""}"`,
+                  `¿Este correo es real o una estafa? De ${it.fromName || ""} <${it.fromEmail || ""}>, asunto "${it.subject || ""}"`
+                );
+                document.getElementById("chatgo").click();
+              }
+            };
         }
       })
   );

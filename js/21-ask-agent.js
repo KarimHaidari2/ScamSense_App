@@ -633,7 +633,7 @@ async function runMahiTool(name, input, ui) {
             email: x.fromEmail,
             subject: x.subject,
             folder: x.folder,
-            why: (x.reasons || []).slice(0, 2)
+            why: ((x.local && x.local.reasons) || x.reasons || []).slice(0, 2)
           })),
         note: "To check one fully, call read_email with its id. Never ask the person to paste it."
       };
@@ -680,7 +680,7 @@ async function runMahiTool(name, input, ui) {
               "Gmail sign-in has expired (it lasts about an hour). A Reconnect button is shown; ask the person to tap it and ask again."
           };
         }
-        full = parseGmail(await gfetch(`messages/${item.id}?format=full`));
+        full = parseGmail(await getGmailMessage(item.id));
       }
       if (!full) return { error: "Couldn't open that email." };
       const r = analyze(full);
@@ -712,8 +712,13 @@ async function runMahiTool(name, input, ui) {
       const lv = { safe: "safe", suspicious: "warn", scam: "scam" }[i.verdict];
       if (!lv) return { error: "Unknown verdict" };
       it.level = lv;
-      it.reasons = [String(i.reason || "").slice(0, 300)];
-      if (lv === "safe") it.kind = "";
+      it.ai = null;
+      it.local = Object.assign({}, it.local, {
+        level: lv,
+        reasons: [String(i.reason || "").slice(0, 300)],
+        kind: lv === "safe" ? "" : (it.local && it.local.kind) || "",
+        kindKey: lv === "safe" ? "" : (it.local && it.local.kindKey) || ""
+      });
       it.checkedByMahi = true;
       S.set("report", rep);
       ui.actions.push({ label: tr("See your emails", "Ver sus correos"), run: () => go("emails") });

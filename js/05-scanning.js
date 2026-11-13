@@ -21,7 +21,7 @@ async function scanGmail() {
     const items = [];
     let done = 0;
     await pool(ids, 5, async id => {
-      const m = await gfetch(`messages/${id}?format=full`);
+      const m = await getGmailMessage(id);
       items.push(parseGmail(m));
       done++;
       renderToday({

@@ -452,7 +452,10 @@ function analyze(msg) {
         );
     }
     const legitBrand = Object.keys(BRANDS).some(b => legitFor(b, dom));
-    if (legitBrand && /dmarc=pass|dkim=pass/.test(auth)) trusted = true;
+    // Senders the person marked as real ("This email is real") count like a known company.
+    const mySenders = typeof S !== "undefined" ? S.get("mysenders", []) : [];
+    const markedReal = mySenders.includes(baseDomain(dom));
+    if ((legitBrand || markedReal) && /dmarc=pass|dkim=pass/.test(auth)) trusted = true;
     if (trusted) score = Math.max(0, score - 5);
     else if (msg.listUnsub && /dmarc=pass/.test(auth) && score < 8) score = Math.max(0, score - 2);
   }

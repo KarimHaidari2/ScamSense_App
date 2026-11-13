@@ -75,6 +75,34 @@ function htmlToParts(html) {
   doc.querySelectorAll("br,p,div,tr,li").forEach(n => n.append(" "));
   return { text: (doc.body ? doc.body.textContent : "").replace(/\s+/g, " ").trim(), links };
 }
+/* Gets one message in full. Gmail doesn't include the content of parts that have a file name
+   (some companies send their whole email body that way, e.g. "sapwebform.htm"), so for
+   text parts like that we download them too, then the parser can treat them as the body. */
+async function getGmailMessage(id) {
+  const m = await gfetch(`messages/${id}?format=full`);
+  const named = [];
+  (function walk(p) {
+    if (!p) return;
+    if (p.parts) p.parts.forEach(walk);
+    else if (
+      p.filename &&
+      /^text\/(html|plain)$/i.test(p.mimeType || "") &&
+      p.body &&
+      !p.body.data &&
+      p.body.attachmentId &&
+      (p.body.size || 0) < 400000
+    )
+      named.push(p);
+  })(m.payload);
+  for (const p of named.slice(0, 3)) {
+    try {
+      const a = await gfetch(`messages/${id}/attachments/${p.body.attachmentId}`);
+      if (a && a.data) p.body.data = a.data;
+    } catch (e) {}
+  }
+  return m;
+}
+
 function parseGmail(m) {
   const H = {};
   (m.payload.headers || []).forEach(h => {
@@ -91,16 +119,20 @@ function parseGmail(m) {
       // Some company mailers (Salesforce, SAP…) send the email's own body as a named part,
       // like "sapwebform.htm". If it's text shown inline, it's the body, not an attachment.
       const isText = /^text\/(html|plain)$/i.test(p.mimeType || "");
-      if (isText && p.body && p.body.data && !/^\s*attachment/i.test(disposition(p))) acc.namedBodies.push(p);
+      if (isText && p.body && p.body.data) acc.namedBodies.push(p);
       else acc.attachments.push(p.filename);
     } else if (p.body && p.body.data) {
       if (p.mimeType === "text/plain") acc.plain += b64(p.body.data) + "\n";
       else if (p.mimeType === "text/html") acc.html += b64(p.body.data);
     }
   })(m.payload);
+  // A named text part is the body when the email has no other body, or when it's shown inline.
+  const noBody = !acc.plain.trim() && !acc.html.trim();
   acc.namedBodies.forEach(p => {
-    if (/html/i.test(p.mimeType)) acc.html += b64(p.body.data);
-    else acc.plain += b64(p.body.data) + "\n";
+    if (noBody || !/^\s*attachment/i.test(disposition(p))) {
+      if (/html/i.test(p.mimeType)) acc.html += b64(p.body.data);
+      else acc.plain += b64(p.body.data) + "\n";
+    } else acc.attachments.push(p.filename);
   });
   let text = acc.plain.trim(),
     links = [];
