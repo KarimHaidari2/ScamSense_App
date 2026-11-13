@@ -3,6 +3,8 @@
 A scam checker for email, texts, calls, and crypto, made for older adults and everyone.
 Live: https://karimhaidari2.github.io/ScamSense_App/
 
+**All links in one place (scripts, consoles, setup): [LINKS.md](LINKS.md)**
+
 ## Where things are
 
 | Folder / file | What it is |
