@@ -51,9 +51,9 @@
   --ink: #f2f2f2;
   --muted: #a6a6a6;
   --line: #2c2c2c;
-  --brand: #3fbfbc;
+  --brand: #ffffff;
   --brand-ink: #000000;
-  --brand-soft: #0f2a2a;
+  --brand-soft: #262626;
   --safe: #6fd394;
   --safe-bg: #0f2417;
   --warn: #f5b95a;
@@ -3440,4 +3440,28 @@ details.fold > ol {
   border-color: var(--scam);
   color: #fff;
   animation: micpulse 1.4s ease-in-out infinite;
+}
+
+/* Black mode: no teal. Buttons, switches and highlights are white on black. */
+:root[data-theme="dark"] .protect {
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+}
+:root[data-theme="dark"] .ring {
+  background: conic-gradient(#fff calc(var(--p) * 360deg), #333 0);
+}
+:root[data-theme="dark"] .ring b {
+  background: #000;
+}
+:root[data-theme="dark"] .protect-list li {
+  background: #1f1f1f;
+}
+:root[data-theme="dark"] .protect-list li.on .pl-ic {
+  color: #000;
+}
+:root[data-theme="dark"] .fab {
+  color: #000;
+}
+:root[data-theme="dark"] .switch input:checked + span::after {
+  background: #000;
 }
