@@ -6,7 +6,7 @@
 
 const STR = {
   en: {
-    tab_today: "Today",
+    tab_today: "Home",
     tab_check: "Check",
     tab_help: "Help",
     tab_family: "Family",
@@ -292,7 +292,7 @@ const STR = {
     prog_demo: "Checking the demo inbox…"
   },
   es: {
-    tab_today: "Hoy",
+    tab_today: "Inicio",
     tab_check: "Revisar",
     tab_help: "Ayuda",
     tab_family: "Familia",

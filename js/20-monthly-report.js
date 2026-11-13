@@ -41,7 +41,7 @@ function renderMonthly() {
   ]
     .filter(id => !(st[id] && st[id].correct))
     .slice(0, 3);
-  view.innerHTML = `${pageHead(tr("Your monthly report", "Su reporte mensual"), tr("The last 30 days on this device.", "Los últimos 30 días en este dispositivo."), "help")}
+  view.innerHTML = `${pageHead(tr("Your monthly report", "Su reporte mensual"), tr("The last 30 days on this device.", "Los últimos 30 días en este dispositivo."), "today")}
   <div class="stats"><div><b>${m.checked}</b><span>${tr("emails scanned", "correos revisados")}</span></div><div><b>${m.caught}</b><span>${tr("scams caught", "estafas detectadas")}</span></div><div><b>${m.checks}</b><span>${tr("messages checked", "mensajes revisados")}</span></div><div><b>${m.paused}</b><span>${tr("payments paused", "pagos pausados")}</span></div></div>
   <section class="sect"><h2 class="sect-h">${tr("Scams that reached you most", "Estafas que más le llegaron")}</h2>
     ${top.length ? `<div class="group">${top.map(([k, n]) => `<div class="grow"><span class="gl"><b>${esc(cap(TYPES[k] || k))}</b></span><span class="badge">${n}</span></div>`).join("")}</div>` : `<div class="emptybox">${ic("check")}<b>${tr("Nothing yet", "Nada todavía")}</b><span>${tr("Scan your email or check a message, and this fills in.", "Revise su correo o un mensaje y esto se llenará.")}</span></div>`}</section>

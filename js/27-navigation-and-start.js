@@ -8,22 +8,25 @@
 const TAB_OF = {
   today: "today",
   emails: "today",
-  check: "check",
-  checkCrypto: "check",
-  learn: "help",
-  lesson: "help",
-  monthly: "help",
-  helper: "help",
-  plans: "settings",
+  check: "today",
+  preview: "today",
+  pause: "today",
+  scammed: "today",
+  learn: "today",
+  lesson: "today",
+  monthly: "today",
+  helper: "today",
+  family: "family",
+  settings: "settings",
+  plans: "settings"
+};
+/* Old screen names (from saved links or Mahi) open the screen that replaced them. */
+const OLD_SCREENS = {
   checkEmail: "check",
   checkText: "check",
   checkCall: "check",
-  preview: "check",
-  help: "help",
-  pause: "help",
-  scammed: "help",
-  family: "family",
-  settings: "settings"
+  checkCrypto: "check",
+  help: "today"
 };
 function fillLangTop() {
   const el = document.getElementById("langtop");
@@ -167,6 +170,7 @@ function go(tab) {
   if (Reader.active) stopSpeaking();
   clearInterval(stillTimer);
   if (typeof simClear === "function") simClear();
+  tab = OLD_SCREENS[tab] || tab;
   const top = TAB_OF[tab] || "today";
   document.querySelectorAll("nav.tabs button").forEach(b => {
     if (b.dataset.tab === top) b.setAttribute("aria-current", "page");
@@ -177,17 +181,12 @@ function go(tab) {
       today: renderToday,
       emails: renderEmails,
       check: renderCheck,
-      checkCrypto: renderCheckCrypto,
       learn: renderLearn,
       lesson: renderLesson,
       monthly: renderMonthly,
       helper: renderHelper,
       plans: renderPlans,
-      checkEmail: renderCheckEmail,
-      checkText: renderCheckText,
-      checkCall: renderCheckCall,
       preview: renderPreview,
-      help: renderHelp,
       pause: renderPause,
       scammed: renderScammed,
       family: renderFamily,
@@ -203,7 +202,8 @@ function go(tab) {
 document.querySelectorAll("nav.tabs button").forEach(b => (b.onclick = () => go(b.dataset.tab)));
 loadDict().then(() => {
   applyLang();
-  go(TAB_OF[location.hash.slice(1)] ? location.hash.slice(1) : "today");
+  const start = OLD_SCREENS[location.hash.slice(1)] || location.hash.slice(1);
+  go(TAB_OF[start] ? start : "today");
   showOnboarding();
   showLock();
 });

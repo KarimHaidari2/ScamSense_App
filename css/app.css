@@ -1607,13 +1607,13 @@ nav.tabs {
 }
 nav.tabs .in {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   width: 100%;
   max-width: 620px;
 }
 nav.tabs button {
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   min-width: 0;
   font-weight: 700;
   border: 0;
@@ -1628,8 +1628,8 @@ nav.tabs button {
   border-radius: 10px;
 }
 nav.tabs button svg {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
 }
 nav.tabs button[aria-current="page"] {
   color: var(--brand);
@@ -2806,4 +2806,139 @@ select option,
 select optgroup {
   background: var(--surface);
   color: var(--ink);
+}
+
+/* ===== Home: "What's happening?" and the three big buttons ===== */
+.home-q {
+  font-family: var(--display);
+  font-size: 1.35rem;
+  margin: 6px 2px 12px;
+  color: var(--ink);
+}
+.acts {
+  display: grid;
+  gap: 12px;
+}
+.act {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 88px;
+  padding: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--line),
+    0 2px 6px rgba(14, 59, 67, 0.06);
+  border-inline-start: 6px solid var(--act, var(--brand));
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.act:active {
+  transform: scale(0.99);
+}
+.act-ic {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+  background: var(--act-bg, var(--brand-soft));
+  color: var(--act, var(--brand));
+}
+.act-ic .ic {
+  width: 28px;
+  height: 28px;
+}
+.act-tx {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.act-tx b {
+  font-size: 1.18rem;
+  line-height: 1.25;
+}
+.act-tx span {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+.act > .chev {
+  color: var(--muted);
+}
+.a-check {
+  --act: var(--brand);
+  --act-bg: var(--brand-soft);
+}
+.a-pause {
+  --act: var(--warn);
+  --act-bg: var(--warn-bg);
+}
+.a-sos {
+  --act: var(--scam);
+  --act-bg: var(--scam-bg);
+}
+
+/* ===== Check something: one big box ===== */
+.checkbox textarea {
+  min-height: 170px;
+  font-size: 1.1rem;
+  line-height: 1.45;
+}
+.checkbox .btnrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.checkbox .btnrow .btn {
+  flex: 1 1 140px;
+  min-height: 54px;
+  font-size: 1.08rem;
+}
+#cmic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+#cmic .ic {
+  width: 22px;
+  height: 22px;
+}
+#cmic.on {
+  background: var(--scam-bg);
+  color: var(--scam);
+  border-color: var(--scam);
+}
+.textlink.soon {
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px auto 0;
+}
+.textlink.soon .ic {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===== Settings: groups inside Advanced ===== */
+.subsect {
+  margin-bottom: 14px;
+}
+.sub-h {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 12px 4px 8px;
 }

@@ -295,7 +295,7 @@ function renderLearn() {
   const st = lessonState();
   const L = LESSONS();
   const done = L.filter(l => st[l.id]).length;
-  view.innerHTML = `${pageHead(tr("Learn about scams", "Aprenda sobre estafas"), tr("Short lessons, about one minute each. Each ends with one question.", "Lecciones cortas, de un minuto. Cada una termina con una pregunta."), "help")}
+  view.innerHTML = `${pageHead(tr("Learn about scams", "Aprenda sobre estafas"), tr("Short lessons, about one minute each. Each ends with one question.", "Lecciones cortas, de un minuto. Cada una termina con una pregunta."), "today")}
   <div class="progresscard"><div><b>${done} / ${L.length}</b><span>${tr("lessons done", "lecciones hechas")}</span></div><div class="progress"><i style="width:${Math.round((done / L.length) * 100)}%"></i></div></div>
   <div class="group">${L.map(l => `<button class="grow linkrow" data-lesson="${l.id}"><span class="tile-ic sm t-dev">${ic(l.icon)}</span><span class="gl"><b>${esc(l.title)}</b><span>${st[l.id] ? (st[l.id].correct ? tr("Done ✓", "Hecha ✓") : tr("Done · review it", "Hecha · repásela")) : tr("1 minute", "1 minuto")}</span></span>${ic("chev", "chev")}</button>`).join("")}</div>`;
   bindBack();

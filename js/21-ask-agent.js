@@ -63,7 +63,7 @@ const AGENT_FAQ = () => [
   },
   {
     re: /toll|peaje|usps|package|paquete|deliver|fedex|\bups\b|shipping|عوارض|بسته|مرسوله|رسوم الطريق|طرد|过路费|包裹|통행료|택배|phí cầu đường|gói hàng|платн\S* дорог|посылк|доставк|péage|colis|livraison|pedágio|pacote|entrega|peyaj|pake|livrezon/i,
-    go: "checkText",
+    go: "check",
     a: tr(
       "Texts about unpaid tolls or missed packages are almost always fake. Don't tap the link. Check your account by typing the official website yourself, or open the official app. You can forward the text to 7726 to report it, then delete it.",
       "Los textos sobre peajes sin pagar o paquetes perdidos casi siempre son falsos. No toque el enlace. Revise su cuenta escribiendo usted mismo el sitio oficial o abriendo la app oficial. Puede reenviar el texto al 7726 para reportarlo y luego borrarlo."
@@ -113,7 +113,7 @@ const AGENT_FAQ = () => [
   },
   {
     re: /crypto|bitcoin|\busdt\b|tether|invest|inversi|mining|miner[ií]a|trading|whatsapp|telegram|wallet|billetera|کریپتو|بیت‌?کوین|سرمایه‌?گذاری|عملات رقمية|بيتكوين|استثمار|加密货币|比特币|投资|암호화폐|비트코인|투자|tiền điện tử|đầu tư|крипт|биткоин|инвест|investissement|investimento|envestisman|kripto/i,
-    go: "checkCrypto",
+    go: "check",
     a: tr(
       "Be very careful. Guaranteed or daily profits, a stranger who moves the chat to WhatsApp or Telegram, or a fee to withdraw your own money are signs of a crypto scam. Crypto can't be reversed. Paste the website or wallet address here and I'll check it, or open the crypto check.",
       "Tenga mucho cuidado. Ganancias garantizadas o diarias, un extraño que lleva el chat a WhatsApp o Telegram, o una tarifa para retirar su propio dinero son señales de estafa cripto. Las cripto no se pueden revertir. Pegue aquí el sitio o la billetera y la reviso."
@@ -200,8 +200,7 @@ async function localAgent(q) {
 const AGENT_GO = {
   scammed: () => tr('Open "I was scammed"', 'Abrir "Me estafaron"'),
   pause: () => t("pause_card"),
-  checkText: () => tr("Check a text message", "Revisar un texto"),
-  checkCrypto: () => tr("Open the crypto check", "Abrir la revisión cripto"),
+  check: () => tr("Check something", "Revisar algo"),
   family: () => tr("Open Family", "Abrir Familia"),
   settings: () => tr("Turn on Mahi's AI in Settings", "Activar la IA de Mahi en Ajustes")
 };
@@ -225,7 +224,7 @@ function renderHelper() {
       "¡Hola! Soy Mahi, su asistente de ScamSense. Pregúnteme sobre cualquier mensaje, llamada o pago, o pegue un teléfono, correo o sitio web y lo reviso."
     )
   };
-  view.innerHTML = `${pageHead(tr("Ask Mahi", "Pregúntele a Mahi"), "", "help")}
+  view.innerHTML = `${pageHead(tr("Ask Mahi", "Pregúntele a Mahi"), "", "today")}
   <section class="chat card"><div class="chatlog" id="chatlog" aria-live="polite">${[hello, ...chatLog].map(bubble).join("")}</div>
     <div class="samples" id="chatsamples" ${chatLog.length ? "hidden" : ""}>${[tr("Is a text about an unpaid toll real?", "¿Es real un texto sobre un peaje sin pagar?"), tr("Someone wants me to pay with gift cards", "Alguien quiere que pague con tarjetas de regalo"), tr("How do I know if a website is real?", "¿Cómo sé si un sitio web es real?")].map(q => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
     <div class="composer"><textarea id="chatin" dir="auto" rows="1" placeholder="${esc(tr("Type your question…", "Escriba su pregunta…"))}"></textarea><button class="btn primary sendbtn" id="chatgo" aria-label="${esc(tr("Send", "Enviar"))}">${ic("send")}</button></div>
@@ -362,13 +361,9 @@ function renderHelper() {
    ===================================================================== */
 
 const MAHI_SCREENS = {
-  today: "Today: daily safety report",
+  today: "Home: daily email safety report and the three main buttons",
   emails: "List of checked emails",
-  check: "Check tab (email, texts, calls, crypto)",
-  checkEmail: "Check an email / connect email accounts",
-  checkText: "Check a text message",
-  checkCall: "Look up a phone number or describe a call",
-  checkCrypto: "Check a crypto website, wallet, or offer",
+  check: "Check something: one box to paste or say a text, email, phone number, website, or wallet",
   pause: "Pause before you pay",
   scammed: "I was scammed: recovery plan and reports",
   learn: "Short scam lessons",

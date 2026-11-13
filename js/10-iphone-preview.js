@@ -35,7 +35,7 @@ const SIM_CALLS = {
 function renderPreview() {
   simClear();
   const isText = previewMode !== "call";
-  view.innerHTML = `${pageHead(isText ? tr("How texts will be caught", "Cómo se atraparán los textos") : tr("How calls will be caught", "Cómo se atraparán las llamadas"), "", isText ? "checkText" : "checkCall")}
+  view.innerHTML = `${pageHead(isText ? tr("How texts will be caught", "Cómo se atraparán los textos") : tr("How calls will be caught", "Cómo se atraparán las llamadas"), "", "check")}
   <section class="card"><div class="titlerow"><span class="tag">${tr("iPhone app preview", "Vista previa de la app")}</span></div>
     <p class="muted small" style="margin:0">${tr("This is a simulation of the coming iPhone app. Tap a button and watch what happens on the phone and inside ScamSense.", "Esta es una simulación de la próxima app para iPhone. Toque un botón y vea qué pasa en el teléfono y dentro de ScamSense.")}</p>
     <div class="simbtns">${

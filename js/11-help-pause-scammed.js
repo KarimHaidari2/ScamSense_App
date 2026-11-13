@@ -4,34 +4,12 @@
  */
 "use strict";
 
-/* ----- Help: Pause before you pay + I was scammed ----- */
-function helpCardsHTML() {
-  return `<div class="help-cards">
-    <button class="help-card hc-pause" data-h="pause"><span class="hc-icon" aria-hidden="true">${ic("hand")}</span><span><b>${t("pause_card")}</b><span>${t("pause_card_sub")}</span></span></button>
-    <button class="help-card hc-sos" data-h="scammed"><span class="hc-icon" aria-hidden="true">${ic("sos")}</span><span><b>${t("scammed_card")}</b><span>${t("scammed_card_sub")}</span></span></button></div>`;
-}
-function bindHelpCards() {
-  view
-    .querySelectorAll("[data-h]")
-    .forEach(b => (b.onclick = () => go(b.dataset.h === "pause" ? "pause" : "scammed")));
-}
-function renderHelp() {
-  const tile = (go, icn, cls, title, sub) =>
-    `<button class="tile" data-go="${go}"><span class="tile-ic ${cls}">${ic(icn)}</span><span class="tile-tx"><b>${title}</b><span>${sub}</span></span>${ic("chev", "chev")}</button>`;
-  view.innerHTML = `${pageHead(t("help_title"), tr("Stop a payment, or recover after a scam.", "Detenga un pago o recupérese de una estafa."))}
-  <div class="tiles">
-    ${tile("pause", "hand", "t-call", t("pause_card"), t("pause_card_sub"))}
-    ${tile("scammed", "sos", "t-sos", t("scammed_card"), t("scammed_card_sub"))}</div>
-  <section class="sect"><h2 class="sect-h">${tr("Stay sharp", "Manténgase alerta")}</h2><div class="tiles">
-    ${tile("learn", "spark", "t-dev", tr("Learn about scams", "Aprenda sobre estafas"), tr("Short lessons, one minute each.", "Lecciones cortas, de un minuto."))}
-    ${tile("monthly", "bell", "t-mail", tr("Your monthly report", "Su reporte mensual"), tr("What reached you, and lessons picked for you.", "Qué le llegó y lecciones para usted."))}</div></section>`;
-  bindGo();
-}
+/* ----- Pause before you pay ----- */
 const opt = (v, key, sel) => `<option value="${v}" ${sel === v ? "selected" : ""}>${t(key)}</option>`;
 let pauseState = { who: "", how: "", amt: "", note: "" };
 function renderPause() {
   const p = pauseState;
-  view.innerHTML = `${pageHead(t("p_title"), t("p_sub"), "help")}
+  view.innerHTML = `${pageHead(t("p_title"), t("p_sub"), "today")}
   <section class="card">
     <div class="field"><label for="pw">${t("p_who")}</label><select id="pw"><option value=""></option>${["gov", "tech", "family", "online", "prize", "company", "seller", "other"].map(k => opt(k, "who_" + k, p.who)).join("")}</select></div>
     <div class="field"><label for="ph">${t("p_how")}</label><select id="ph"><option value=""></option>${["gift", "crypto", "wire", "p2p", "cash", "card", "check", "other"].map(k => opt(k, "how_" + k, p.how)).join("")}</select></div>
@@ -463,7 +441,7 @@ function renderScammed() {
   const today = new Date().toISOString().slice(0, 10);
   const chk = k =>
     `<label class="checkrow"><input type="checkbox" value="${k}" ${s.what.includes(k) ? "checked" : ""}> ${t("w_" + k)}</label>`;
-  view.innerHTML = `${pageHead(t("s_title"), t("s_sub"), "help")}
+  view.innerHTML = `${pageHead(t("s_title"), t("s_sub"), "today")}
   <section class="card">
     <div class="example-box"><div><b>${tr("See how it works", "Vea cómo funciona")}</b><span class="small">${tr('Fill in a made-up case: a fake "Chase Fraud Department" call, with sample screenshots.', 'Llene un caso inventado: una llamada falsa del "Departamento de Fraude de Chase", con capturas de ejemplo.')}</span></div>
       <button class="btn ghost sm" id="sexample">${tr("Try an example", "Probar un ejemplo")}</button></div>

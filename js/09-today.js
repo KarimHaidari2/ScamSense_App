@@ -30,7 +30,7 @@ function renderToday(opt) {
     h += `<div class="today"><section class="sc sv-new"><div class="sc-main"><span class="sc-badge">${ic("shield")}</span><p class="big">${t("welcome_big")}</p></div>
       <p class="meta">${t("welcome_sub")}</p>
       <div class="btnrow"><button class="btn primary" id="demo">${t("try_demo")}</button><button class="btn ghost" id="scan">${t("scan_my")}</button></div></section>
-      ${todayExtrasHTML()}
+      ${homeActionsHTML()}
       <p class="footnote">${ic("lock")}<span><b>${t("private_title")}</b> ${t("private_body")}</span></p></div>`;
     view.innerHTML = h;
     document.getElementById("scan").onclick = scanGmail;
@@ -55,7 +55,7 @@ function renderToday(opt) {
     <div class="tally"><button class="ts" data-ef="scam"><b>${n.scam}</b>${t("scam")}</button><button class="tw" data-ef="warn"><b>${n.warn}</b>${t("warn")}</button><button class="tk" data-ef="safe"><b>${n.safe}</b>${t("safe")}</button></div>
     <p class="meta">${t("checked", { n: rep.items.length, d: dtxt })}${folderSummary(rep.items)}.</p>`;
   h += `<div class="btnrow"><button class="btn primary" data-ef="all">${tr(`See all ${rep.items.length} emails`, `Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source === "demo" ? t("scan_my") : t("scan_again")}</button></div></section>
-    ${todayExtrasHTML()}</div>`;
+    ${homeActionsHTML()}</div>`;
   view.innerHTML = h;
   document.getElementById("scan").onclick = scanGmail;
   document.getElementById("readsum").onclick = () =>

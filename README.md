@@ -27,24 +27,24 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | 06-words.js | English and Spanish words on screen |
 | 07-demo-data.js | The made-up demo inbox |
 | 08-ui-basics.js | Shared screen helpers and read aloud |
-| 09-today.js | Today tab and the Your emails screen |
+| 09-today.js | Home screen (email card) and the Your emails screen |
 | 10-iphone-preview.js | Simulation of the future iPhone app |
 | 11-help-pause-scammed.js | Pause before you pay, I was scammed |
 | 12-evidence-example.js | Screenshots, example case, where to report |
 | 13-pdf-documents.js | Case file and one document per office |
 | 14-icons.js | Icons and small page helpers |
 | 15-sender-lookup.js | Who is behind an email address or phone number |
-| 16-check-hub.js | Check tab: email, texts, calls |
+| 16-check-hub.js | Check something: one box that works out what you pasted or said |
 | 17-family.js | Family and trusted people |
-| 18-settings.js | Settings tab |
+| 18-settings.js | Settings (AI key and scan options under Advanced) |
 | 19-lessons.js | Short lessons with a quiz |
 | 20-monthly-report.js | Monthly report |
 | 21-ask-agent.js | Ask Mahi, the AI helper chat |
-| 22-crypto.js | Crypto website, wallet, and offer checks |
+| 22-crypto.js | Website and wallet checks used by Check something |
 | 23-plans.js | Plans and prices |
 | 24-app-lock.js | PIN lock |
 | 25-welcome.js | First-run welcome |
-| 26-today-shortcuts.js | Quick help list on Today |
+| 26-today-shortcuts.js | The three big buttons on Home |
 | 27-navigation-and-start.js | Moving between screens, Ask Mahi button, start-up |
 
 Run it on your Mac: `python3 -m http.server 8000`, then open http://localhost:8000
