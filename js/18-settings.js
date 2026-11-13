@@ -17,6 +17,14 @@ function renderSettings() {
     <div class="grow"><span class="gl"><b>${tr("Lock ScamSense with a PIN", "Bloquear ScamSense con un PIN")}</b><span>${tr("Asks for your PIN when you open the app or come back after 2 minutes.", "Pide su PIN al abrir la app o al volver después de 2 minutos.")}</span></span>${switchHTML("applock", !!S.get("lock", null), "")}</div>${S.get("lock", null) ? `<button class="grow linkrow" id="chpin"><span class="gl"><b>${tr("Change PIN", "Cambiar PIN")}</b><span>${tr("6 numbers. 5 wrong tries makes the app wait.", "6 números. Tras 5 intentos fallidos, la app hace esperar.")}</span></span>${ic("chev", "chev")}</button>` : ""}</div></section>
   <section class="sect"><h2 class="sect-h">${tr("Plan", "Plan")}</h2><div class="group">
     <button class="grow linkrow" data-go="plans"><span class="gl"><b>${tr("Plans and pricing", "Planes y precios")}</b><span>${tr("Personal $9.99/month · Family $15.99/month", "Personal $9.99/mes · Familia $15.99/mes")}</span></span>${ic("chev", "chev")}</button></div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Appearance", "Apariencia")}</h2><div class="group">
+    <div class="grow"><label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic matches your phone or computer.", "Automático usa el ajuste de su teléfono o computadora.")}</span></label><select id="theme" class="inline">${[
+      ["auto", tr("Automatic", "Automático")],
+      ["light", tr("Light", "Claro")],
+      ["dark", tr("Dark", "Oscuro")]
+    ]
+      .map(([k, v]) => `<option value="${k}" ${(c.theme || "auto") === k ? "selected" : ""}>${v}</option>`)
+      .join("")}</select></div></div></section>
   <section class="sect"><h2 class="sect-h">${tr("Language", "Idioma")}</h2><div class="group">
     <div class="grow"><label for="lang" class="gl"><b>${tr("App language", "Idioma de la app")}</b><span>${tr("AI answers and read-aloud use it too.", "Las respuestas de IA y la lectura también.")}</span></label><select id="lang" class="inline">${Object.entries(
       LANGS
@@ -42,6 +50,7 @@ function renderSettings() {
     saveCfg(
       Object.assign(cfg(), {
         lang: document.getElementById("lang").value,
+        theme: document.getElementById("theme").value,
         rememberKey: document.getElementById("remk").checked,
         clientId: document.getElementById("cid").value.trim() || DEFAULT_CLIENT_ID,
         apiKey: document.getElementById("key").value.trim(),
@@ -71,6 +80,10 @@ function renderSettings() {
       toast(tr("App lock is off.", "El bloqueo está apagado."));
       renderSettings();
     }
+  };
+  document.getElementById("theme").onchange = () => {
+    save();
+    applyTheme();
   };
   document.getElementById("lang").onchange = async () => {
     save();

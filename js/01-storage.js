@@ -75,6 +75,20 @@ const LANGS = {
   pt: { name: "Português", speech: "pt-BR", ai: "Brazilian Portuguese" },
   fa: { name: "فارسی", speech: "fa-IR", ai: "Persian (Farsi)", rtl: true }
 };
+/* Light or dark look, chosen in Settings → Appearance. "auto" follows the phone or computer setting. */
+function applyTheme() {
+  const t = cfg().theme;
+  const root = document.documentElement;
+  if (t === "light" || t === "dark") root.dataset.theme = t;
+  else delete root.dataset.theme;
+  const dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = dark ? "#0B1F23" : "#0E7C7B";
+}
+applyTheme();
+try {
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+} catch (e) {}
 const langCode = () => (LANGS[cfg().lang] ? cfg().lang : "en");
 const uiLang = () => langCode();
 /* Translations for languages other than English and Spanish live in i18n/<lang>.json (loaded on demand).

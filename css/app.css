@@ -24,7 +24,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0b1f23;
     --surface: #11292e;
     --ink: #e6f2f0;
@@ -41,6 +41,26 @@
     --scam-bg: #3d1714;
     color-scheme: dark;
   }
+}
+/*
+  Dark mode chosen in Settings 
+ */
+:root[data-theme="dark"] {
+  --bg: #0b1f23;
+  --surface: #11292e;
+  --ink: #e6f2f0;
+  --muted: #9db8b9;
+  --line: #24444a;
+  --brand: #3fbfbc;
+  --brand-ink: #0b1f23;
+  --brand-soft: #15393c;
+  --safe: #6fd394;
+  --safe-bg: #12321f;
+  --warn: #f5b95a;
+  --warn-bg: #3a2a0e;
+  --scam: #ff8a7e;
+  --scam-bg: #3d1714;
+  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -62,10 +82,17 @@ body {
   color: #6b3fd4;
 }
 @media (prefers-color-scheme: dark) {
-  .t-crypto {
+  :root:not([data-theme="light"]) .t-crypto {
     background: #2a1f45;
     color: #c3a8ff;
   }
+}
+/*
+  Dark mode chosen in Settings 
+ */
+:root[data-theme="dark"] .t-crypto {
+  background: #2a1f45;
+  color: #c3a8ff;
 }
 .tile-ic.sm {
   width: 40px;
@@ -1437,9 +1464,15 @@ textarea {
   background: var(--safe);
 }
 @media (prefers-color-scheme: dark) {
-  .dot {
+  :root:not([data-theme="light"]) .dot {
     color: #0b1f23;
   }
+}
+/*
+  Dark mode chosen in Settings 
+ */
+:root[data-theme="dark"] .dot {
+  color: #0b1f23;
 }
 .item .who {
   font-weight: 700;
@@ -2120,18 +2153,33 @@ details.sect[open] > summary::before {
   color: var(--brand);
 }
 @media (prefers-color-scheme: dark) {
-  .t-mail {
+  :root:not([data-theme="light"]) .t-mail {
     background: #1a2b48;
     color: #8ab4f8;
   }
-  .t-msg {
+  :root:not([data-theme="light"]) .t-msg {
     background: #12321f;
     color: #6fd394;
   }
-  .t-call {
+  :root:not([data-theme="light"]) .t-call {
     background: #3a2a0e;
     color: #f5b95a;
   }
+}
+/*
+  Dark mode chosen in Settings 
+ */
+:root[data-theme="dark"] .t-call {
+  background: #3a2a0e;
+  color: #f5b95a;
+}
+:root[data-theme="dark"] .t-msg {
+  background: #12321f;
+  color: #6fd394;
+}
+:root[data-theme="dark"] .t-mail {
+  background: #1a2b48;
+  color: #8ab4f8;
 }
 .tile-tx {
   display: flex;
@@ -2752,4 +2800,10 @@ select.inline {
   header .status {
     display: none;
   }
+}
+/* Drop-down lists: the open list uses the app's own colors, so the words are readable in light and dark. */
+select option,
+select optgroup {
+  background: var(--surface);
+  color: var(--ink);
 }
