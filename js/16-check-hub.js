@@ -246,17 +246,20 @@ async function showVerdict(it, info, kind, sample) {
   }
   it.local.level = it.local.score >= 8 ? "scam" : it.local.score >= 4 ? "warn" : "safe";
   const c = cfg();
-  if (c.apiKey && c.aiMode !== "off") {
+  if (sample) {
+    // The examples have a ready-made AI answer, so they're instant and free.
+    it.ai = JSON.parse(JSON.stringify(pickDemoAI(sample)));
+    it.ai.verdict = { safe: "safe", suspicious: "warn", scam: "scam" }[it.ai.verdict] || it.ai.verdict;
+  } else if (aiOn()) {
     out.innerHTML = `<div class="card loading">${ic("spark")} ${t("checking")}</div>`;
     try {
       it.ai = await aiCheck(it);
     } catch (e) {
-      it.aiError = e.message;
-      toast(e.message);
+      if (!e.quiet) {
+        it.aiError = e.message;
+        toast(e.message);
+      }
     }
-  } else if (sample) {
-    it.ai = JSON.parse(JSON.stringify(pickDemoAI(sample)));
-    it.ai.verdict = { safe: "safe", suspicious: "warn", scam: "scam" }[it.ai.verdict] || it.ai.verdict;
   }
   it.level = finalLevel(it);
   const L = LV[it.level];

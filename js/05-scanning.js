@@ -56,18 +56,22 @@ async function finishScan(items, source) {
   items.forEach(it => {
     it.local = analyze(it);
   });
-  const wantsAI = c.apiKey && c.aiMode !== "off";
-  const aiList = wantsAI
+  const wantsAI = aiOn();
+  let aiList = wantsAI
     ? items.filter(it => c.aiMode === "all" || it.local.score >= 2 || it.local.reasons.length)
     : [];
+  // Through the Mahi server, check the riskiest 10 only (it has a daily limit for everyone).
+  if (aiViaServer()) aiList = aiList.sort((a, b) => b.local.score - a.local.score).slice(0, 10);
   let done = 0,
     aiErr = null;
   await pool(aiList, 3, async it => {
     try {
       it.ai = await aiCheck(it);
     } catch (e) {
-      it.aiError = e.message;
-      aiErr = e.message;
+      if (!e.quiet) {
+        it.aiError = e.message;
+        aiErr = e.message;
+      }
     }
     done++;
     renderToday({

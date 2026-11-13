@@ -46,6 +46,7 @@ function doGet() {
 function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    if (req.mode === "check") return json(checkMessage(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -65,6 +66,31 @@ function doPost(e) {
     return json({ error: "Mahi couldn't answer right now. Please try again." });
   }
 }
+
+// "Check something": the app sends the message details and gets back a scam verdict (JSON text).
+// Used so the app can get the smart AI check without keeping any key on the device.
+function checkMessage(req) {
+  const details = String(req.check || "").slice(0, 6000).trim();
+  if (!details) return { error: "Nothing to check." };
+  if (!takeOne()) return { error: "ScamSense has checked a lot today. Please try again tomorrow." };
+  const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
+  if (!key) return { error: "The Mahi server has no AI key yet." };
+  const lang = String(req.lang || "English").slice(0, 40);
+  const r = askAI(key, CHECK_RULES.replace("{LANG}", lang), [{ role: "user", content: details }]);
+  const text = (r.content || [])
+    .filter(c => c.type === "text")
+    .map(c => c.text)
+    .join("")
+    .trim();
+  return { text };
+}
+const CHECK_RULES = `You are ScamSense, a scam detector that protects people, especially older adults, from scams in email, text messages, and phone calls.
+Judge the message you are given. Consider who really sent it, what it asks the reader to do (click, call, pay, share a code, install software, keep a secret), pressure or threats, payment methods (gift cards, crypto, wire, Zelle), lookalike websites, and whether the story makes sense.
+Unpaid toll, package fee, or redelivery texts that link to a website that is not the real company's own website are SCAM.
+Normal newsletters, receipts, account notices and payment reminders from real companies (sent from their official domain, with passing sender checks, pointing to their own website) are SAFE. Do not call something a scam just because it is marketing.
+Reply with ONLY a JSON object, no other text:
+{"verdict":"safe"|"suspicious"|"scam","scam_type":"short name or empty","confidence":0-100,"explanation":"2 short sentences in plain, friendly language a 75-year-old can follow","red_flags":["up to 4 short items"],"what_to_do":["2-4 short steps"]}
+Keep the JSON keys and the verdict word in English, but write scam_type, explanation, red_flags and what_to_do in {LANG}.`;
 
 function json(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);

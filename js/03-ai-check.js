@@ -6,14 +6,41 @@
 
 const AI_SYSTEM = `You are ScamSense, a scam detector that protects people, especially older adults, from scams in email, text messages, and phone calls.
 Judge the message you are given. Consider who really sent it, what it asks the reader to do (click, call, pay, share a code, install software, keep a secret), pressure or threats, payment methods (gift cards, crypto, wire, Zelle), lookalike websites, and whether the story makes sense.
+Unpaid toll, package fee, or redelivery texts that link to a website that is not the real company's own website are SCAM.
 Normal newsletters, receipts, account notices and payment reminders from real companies (sent from their official domain, with passing sender checks, pointing to their own website) are SAFE. Do not call something a scam just because it is marketing.
 Reply with ONLY a JSON object, no other text:
 {"verdict":"safe"|"suspicious"|"scam","scam_type":"short name or empty","confidence":0-100,"explanation":"2 short sentences in plain, friendly language a 75-year-old can follow","red_flags":["up to 4 short items"],"what_to_do":["2-4 short steps"]}
 Keep the JSON keys and the verdict word in English, but write scam_type, explanation, red_flags and what_to_do in {LANG}.`;
 
+/* The smart AI check is on when there's a key in the app OR a Mahi server (which keeps the key hidden). */
+const aiViaServer = () => {
+  const c = cfg();
+  return !c.apiKey && !!c.mahiUrl;
+};
+const aiOn = () => {
+  const c = cfg();
+  return !!(c.apiKey || c.mahiUrl) && c.aiMode !== "off";
+};
+/* Asks the Mahi server to check a message. Any problem → quiet error, so the built-in result is used. */
+async function serverCheck(details) {
+  const quiet = msg => Object.assign(new Error(msg), { quiet: true });
+  let j;
+  try {
+    const r = await fetch(cfg().mahiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ mode: "check", check: details, lang: LANGS[langCode()].ai })
+    });
+    j = await r.json();
+  } catch (e) {
+    throw quiet("server unreachable");
+  }
+  if (!j || j.error || !j.text) throw quiet((j && j.error) || "no answer");
+  return j.text;
+}
 async function aiCheck(item) {
   const c = cfg();
-  if (!c.apiKey) throw new Error("no-key");
+  if (!c.apiKey && !c.mahiUrl) throw new Error("no-key");
   const parts = [];
   parts.push(`Channel: ${item.channel}`);
   if (item.fromName || item.fromEmail) parts.push(`From: ${item.fromName || ""} <${item.fromEmail || ""}>`);
@@ -35,8 +62,11 @@ async function aiCheck(item) {
     `Warning signs found by on-device checks: ${item.local.reasons.length ? item.local.reasons.join(" | ") : "none"}`
   );
   parts.push(`Message text:\n"""\n${(item.text || "").slice(0, 3500)}\n"""`);
-  const txt = await callClaude(AI_SYSTEM.replace("{LANG}", LANGS[langCode()].ai), parts.join("\n"), 700);
+  const txt = aiViaServer()
+    ? await serverCheck(parts.join("\n"))
+    : await callClaude(AI_SYSTEM.replace("{LANG}", LANGS[langCode()].ai), parts.join("\n"), 700);
   const m = txt.match(/\{[\s\S]*\}/);
+  if (!m && aiViaServer()) throw Object.assign(new Error("unreadable"), { quiet: true });
   if (!m)
     throw new Error(
       tr(

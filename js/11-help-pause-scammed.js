@@ -139,7 +139,7 @@ async function runPause() {
   const r = assessPayment(pauseState);
   let ai = null;
   const c = cfg();
-  if (c.apiKey && c.aiMode !== "off" && (pauseState.note || pauseState.who)) {
+  if (aiOn() && (pauseState.note || pauseState.who)) {
     btn.disabled = true;
     btn.textContent = t("checking");
     const story = `Someone is asking me to pay. Who: ${pauseState.who ? STR.en["who_" + pauseState.who] : "unknown"}. How: ${pauseState.how ? STR.en["how_" + pauseState.how] : "unknown"}. Amount: ${pauseState.amt || "unknown"}. What they said: ${pauseState.note || "(not given)"}`;
@@ -152,7 +152,7 @@ async function runPause() {
         local: { reasons: r.reasons }
       });
     } catch (e) {
-      if (e.message !== "no-key") toast(e.message);
+      if (e.message !== "no-key" && !e.quiet) toast(e.message);
     }
     btn.disabled = false;
     btn.textContent = t("p_go");
