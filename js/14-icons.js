@@ -43,8 +43,11 @@ const ic = (n, cls) =>
   `<svg class="ic ${cls || ""}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
 const backBtn = to =>
   `<button class="backlink" data-back="${to}">${ic("back")}<span>${t("back").replace(/^[←→]\s*|\s*[←→]$/g, "")}</span></button>`;
-const pageHead = (title, sub, back) =>
-  `<div class="pagehead">${back ? backBtn(back) : ""}<h1>${title}</h1>${sub ? `<p>${sub}</p>` : ""}</div>`;
+/* Every inner screen opens with a short navy panel: Back, the title, and one line about it. */
+const pageHead = (title, sub, back) => {
+  if (typeof useHero === "function") useHero(true);
+  return `<section class="nw-hero sub-hero">${back ? backBtn(back) : ""}<h1>${title}</h1>${sub ? `<p class="nw-sub">${sub}</p>` : ""}</section>`;
+};
 function bindBack() {
   view.querySelectorAll("[data-back]").forEach(b => (b.onclick = () => go(b.dataset.back)));
 }

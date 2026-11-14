@@ -61,9 +61,10 @@ function renderFamily() {
       .join("")}</div>
     <p class="footnote">${ic("bell")}${tr("Automatic alerts start when the ScamSense server is ready. For now, use Call or Invite.", "Las alertas automáticas empiezan cuando el servidor esté listo. Por ahora use Llamar o Invitar.")}</p></section>
   <section class="sect"><h2 class="sect-h">${tr("What your trusted person will see", "Lo que verá su persona de confianza")}</h2>
-    <div class="phone-preview">
-      <div class="alert"><span class="dot d-scam" aria-hidden="true">!</span><div><span class="small muted">${t("fam_t1")}</span><p>${tr("Your mom got a fake PayPal email. ScamSense marked it as a scam. She didn't click it.", "Su mamá recibió un correo falso de PayPal. ScamSense lo marcó como estafa. No hizo clic.")}</p></div></div>
-      <div class="alert"><span class="dot d-warn" aria-hidden="true">!</span><div><span class="small muted">${t("fam_t2")}</span><p>${tr("Your mom paused a $500 gift card payment. ScamSense explained it was a tech support scam. Give her a call.", "Su mamá pausó un pago de $500 en tarjetas de regalo. ScamSense explicó que era una estafa de soporte técnico. Llámela.")}</p></div></div>
+    <div class="lockscreen" aria-label="${esc(tr("Sample alerts on their phone", "Alertas de ejemplo en su teléfono"))}">
+      <p class="ls-time" aria-hidden="true">9:41</p>
+      <div class="fnotif n-scam"><img src="icon-192.png" alt=""><div><p class="n-top"><b>ScamSense</b><span>${t("fam_t1")}</span></p><p class="n-title">${tr("Scam stopped", "Estafa detenida")}</p><p>${tr("Your mom got a fake PayPal email. ScamSense marked it as a scam. She didn't click it.", "Su mamá recibió un correo falso de PayPal. ScamSense lo marcó como estafa. No hizo clic.")}</p></div></div>
+      <div class="fnotif n-warn"><img src="icon-192.png" alt=""><div><p class="n-top"><b>ScamSense</b><span>${t("fam_t2")}</span></p><p class="n-title">${tr("Payment paused. Give her a call", "Pago pausado. Llámela")}</p><p>${tr("Your mom paused a $500 gift card payment. ScamSense explained it was a tech support scam. Give her a call.", "Su mamá pausó un pago de $500 en tarjetas de regalo. ScamSense explicó que era una estafa de soporte técnico. Llámela.")}</p></div></div>
     </div><p class="footnote">${tr("Sample alerts.", "Alertas de ejemplo.")}</p></section>`;
   document.getElementById("addp").onclick = showAddForm;
   view.querySelectorAll("[data-rm]").forEach(

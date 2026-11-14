@@ -3987,3 +3987,117 @@ nav.tabs button[aria-current="page"] {
 :root[data-theme="dark"] {
   --backdrop: #000000;
 }
+
+/* Family: sample alerts shown as they'd appear on the trusted person's lock screen */
+.lockscreen {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 14px 18px;
+  border-radius: 28px;
+  background: radial-gradient(120% 80% at 80% 0%, #3a5287 0%, #14213d 50%, #0b1120 100%);
+  box-shadow:
+    0 0 0 6px var(--surface),
+    0 0 0 7px var(--line);
+}
+:root[data-theme="dark"] .lockscreen {
+  background: #000;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.ls-time {
+  margin: 2px 0 8px;
+  text-align: center;
+  color: #fff;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.fnotif {
+  display: flex;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #111827;
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+:root[data-theme="dark"] .fnotif {
+  background: #000;
+  box-shadow: inset 0 0 0 1px #333;
+  color: #f2f2f2;
+}
+:root[data-theme="dark"] .n-top b {
+  color: #f2f2f2;
+}
+:root[data-theme="dark"] .n-scam .n-title {
+  color: #ff8a7e;
+}
+:root[data-theme="dark"] .n-warn .n-title {
+  color: #f5b95a;
+}
+.fnotif img {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+}
+.fnotif > div {
+  min-width: 0;
+}
+.fnotif p {
+  margin: 0;
+  font-size: 0.93rem;
+  line-height: 1.38;
+}
+.n-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.8rem !important;
+  color: #5f6673;
+}
+.n-top b {
+  color: #111827;
+  font-weight: 700;
+}
+.n-title {
+  font-weight: 700;
+  margin: 1px 0 2px !important;
+}
+.n-scam .n-title {
+  color: #b42318;
+}
+.n-warn .n-title {
+  color: #8a5300;
+}
+
+/* Inner screens: a shorter navy panel with Back */
+.sub-hero {
+  padding-top: calc(var(--headh, 70px) + 18px);
+  padding-bottom: 24px;
+}
+.sub-hero h1 {
+  font-size: 1.75rem;
+}
+.sub-hero .nw-sub {
+  font-size: 1rem;
+  max-width: 44ch;
+}
+.sub-hero .backlink {
+  color: var(--hero-ink);
+  margin: 0 0 10px -4px;
+}
+.sub-hero .backlink .ic {
+  color: var(--hero-ink);
+}
+.nw-hero {
+  margin-bottom: 20px;
+}
+.home > .nw-hero {
+  margin-bottom: 0;
+}
