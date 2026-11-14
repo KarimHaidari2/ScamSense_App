@@ -27,6 +27,7 @@
      6. Users         the owner dashboard, sign-up, activity
      7. Alerts        danger emails to the owner and family
      8. Reports       the daily email to every user, and "email me"
+     9. Owner         weekly summary, welcome email, follow-up, blocking
    ======================================================================== */
 
 /* ========================================================================
@@ -56,6 +57,7 @@ function doGet() {
 function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
+    if (isBlocked(req.uid)) return json(BLOCKED);
     if (req.mode === "check") return json(checkMessage(req));
     if (req.mode === "register") return json(registerUser(req));
     if (req.mode === "events") return json(saveEvents(req));
@@ -267,7 +269,10 @@ const USER_COLS = [
   "Scams caught",
   "Checks",
   "Alerts",
-  "Devices"
+  "Devices",
+  "Follow-up", // "needs follow-up" after a danger alert; type "done" when you've reached them
+  "Blocked", // type "yes" to stop ScamSense for this person
+  "Status" // "active" or "quiet 7+ days", updated every morning
 ];
 const ACT_COLS = ["Time", "User ID", "Name", "What", "Channel", "Result", "Scam type", "Details"];
 const ALERT_COLS = ["Time", "Name", "Email", "What happened", "Emailed to"];
@@ -279,6 +284,14 @@ function setupServer() {
     if (t.getHandlerFunction() === "sendAllReports") ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger("sendAllReports").timeBased().everyDays(1).atHour(OWNER.REPORT_HOUR).create();
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === "sendOwnerWeekly") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("sendOwnerWeekly")
+    .timeBased()
+    .onWeekDay(ScriptApp.WeekDay.MONDAY)
+    .atHour(OWNER.REPORT_HOUR)
+    .create();
   console.log("Owner dashboard: " + db.getUrl());
 }
 
@@ -426,8 +439,10 @@ function registerUser(req) {
     if (cleanText(req.name, 40)) u["First name"] = cleanText(req.name, 40);
     if (cleanText(req.lastName, 40)) u["Last name"] = cleanText(req.lastName, 40);
     if (ve) {
+      const firstTime = u["Email verified"] !== "yes";
       u.Email = ve;
       u["Email verified"] = "yes";
+      if (firstTime) u._welcome = true;
     } else if (!u.Email && /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(req.email || "")) {
       u.Email = String(req.email).toLowerCase().slice(0, 80);
       u["Email verified"] = "no";
@@ -441,7 +456,11 @@ function registerUser(req) {
         .map(f => [cleanText(f.name, 40), cleanText(f.email, 80), cleanText(f.phone, 30)].filter(Boolean).join(" | "))
         .join("\n");
     u["Last active"] = now;
+    u.Status = "active";
+    const welcome = u._welcome;
+    delete u._welcome;
     writeUser(u);
+    if (welcome) sendWelcome(u);
     return { ok: true, verified: u["Email verified"] === "yes", email: u.Email || "" };
   } finally {
     lock.releaseLock();
@@ -520,6 +539,7 @@ function saveEvents(req) {
       }
     });
     u["Last active"] = new Date();
+    u.Status = "active";
     writeUser(u);
   } finally {
     lock.releaseLock();
@@ -561,7 +581,11 @@ function dangerAlert(u, what) {
   });
   sheet("Alerts").appendRow([new Date(), name, u.Email || "", `${name} ${what}`, to.join(", ")]);
   u.Alerts = (+u.Alerts || 0) + 1;
+  u["Follow-up"] = "needs follow-up";
   writeUser(u);
+  try {
+    if (u.row) sheet("Users").getRange(u.row, USER_COLS.indexOf("Follow-up") + 1).setBackground("#FDECEA");
+  } catch (e) {}
 }
 
 function alertHTML(name, what, u) {
@@ -618,6 +642,7 @@ function emailMe(req) {
 
 // Runs every morning: one report per user who has an email and reports turned on.
 function sendAllReports() {
+  markQuietUsers();
   const users = sheet("Users").getDataRange().getValues();
   const head = users.shift();
   const since = Date.now() - 864e5;
@@ -625,7 +650,7 @@ function sendAllReports() {
   users.forEach(v => {
     const u = {};
     head.forEach((c, i) => (u[c] = v[i]));
-    if (!u.Email || u["Email verified"] !== "yes" || u["Daily report"] === "off") return;
+    if (!u.Email || u["Email verified"] !== "yes" || u["Daily report"] === "off" || isYes(u.Blocked)) return;
     const mine = act.filter(r => r[1] === u["User ID"]);
     try {
       MailApp.sendEmail({
@@ -696,5 +721,117 @@ function mailShell(inner) {
 <tr><td>${inner}</td></tr></table>
 <div style="font-size:12px;color:#5F6673;margin-top:12px">You get this because you use ScamSense. Turn emails off in ScamSense › Settings › Your account.</div>
 </td></tr></table></body></html>`;
+}
+
+/* ========================================================================
+   9. OWNER — blocking, welcome email, quiet users, weekly summary
+   ======================================================================== */
+
+const isYes = v => /^\s*(yes|y|true|blocked)\s*$/i.test(String(v || ""));
+const BLOCKED = { blocked: true, error: "ScamSense is turned off for this account. Please contact the ScamSense team." };
+function isBlocked(uid) {
+  if (!okUid(uid)) return false;
+  try {
+    const u = findUser(uid);
+    return !!(u && isYes(u.Blocked));
+  } catch (e) {
+    return false;
+  }
+}
+
+// Sent once, when someone's email is first confirmed.
+function sendWelcome(u) {
+  try {
+    MailApp.sendEmail({
+      to: u.Email,
+      subject: "Welcome to ScamSense",
+      body: `Welcome to ScamSense${u["First name"] ? ", " + u["First name"] : ""}! Open the app: ${OWNER.APP_URL}`,
+      htmlBody: mailShell(`<div style="padding:22px">
+        <div style="font-size:24px;font-weight:800;color:#111827">Welcome${u["First name"] ? ", " + esc(u["First name"]) : ""}!</div>
+        <p style="font-size:16px;line-height:1.55;color:#111827">ScamSense is now watching out for you. Here's how it helps:</p>
+        <ol style="font-size:15px;line-height:1.6;color:#111827;padding-left:20px">
+          <li><b>Check something:</b> paste or say any text, email, call, or link, and ScamSense tells you if it's a scam.</li>
+          <li><b>Someone wants my money:</b> check before you pay anyone.</li>
+          <li><b>I was scammed:</b> step-by-step help, right away.</li>
+          <li><b>Every morning</b> you'll get a short report like this one.</li>
+        </ol>
+        <p style="font-size:15px;line-height:1.55;color:#111827">Add a family member in <b>Family</b>, so they can help if something goes wrong.</p>
+        <p style="font-size:15px;line-height:1.55;color:#111827">Questions? Just reply to this email.</p>
+        <div style="text-align:center;margin-top:18px"><a href="${OWNER.APP_URL}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open ScamSense</a></div>
+      </div>`),
+      name: "ScamSense"
+    });
+  } catch (e) {}
+}
+
+// Marks people who haven't used ScamSense for 7 days, so you can check on them.
+function markQuietUsers() {
+  const sh = sheet("Users");
+  const rows = sh.getDataRange().getValues();
+  const head = rows[0];
+  const la = head.indexOf("Last active"),
+    st = head.indexOf("Status");
+  if (la < 0 || st < 0 || rows.length < 2) return;
+  const cutoff = Date.now() - 7 * 864e5;
+  const out = rows.slice(1).map(r => {
+    const t = new Date(r[la]).getTime();
+    return [t && t < cutoff ? "quiet 7+ days" : "active"];
+  });
+  sh.getRange(2, st + 1, out.length, 1).setValues(out);
+}
+
+// Every Monday: one email to you with the week at a glance.
+function sendOwnerWeekly() {
+  markQuietUsers();
+  const owner = Session.getEffectiveUser().getEmail();
+  const since = Date.now() - 7 * 864e5;
+  const users = sheet("Users").getDataRange().getValues();
+  const head = users.shift();
+  const col = c => head.indexOf(c);
+  const act = sheet("Activity").getDataRange().getValues().slice(1).filter(r => new Date(r[0]).getTime() >= since);
+  const alerts = sheet("Alerts").getDataRange().getValues().slice(1).filter(r => new Date(r[0]).getTime() >= since);
+  const name = r => [r[col("First name")], r[col("Last name")]].filter(Boolean).join(" ") || r[col("Email")] || "(no name)";
+  const newUsers = users.filter(r => new Date(r[col("First seen")]).getTime() >= since);
+  const active = { size: users.filter(r => new Date(r[col("Last active")]).getTime() >= since).length };
+  const quiet = users.filter(r => r[col("Status")] === "quiet 7+ days");
+  const follow = users.filter(r => r[col("Follow-up")] === "needs follow-up");
+  const scams = act.reduce(
+    (n, r) =>
+      n +
+      (r[3] === "Scanned email"
+        ? +String(r[5]).split(",")[1].trim().split(" ")[0] || 0
+        : r[3] === "Checked something" && r[5] === "scam"
+          ? 1
+          : 0),
+    0
+  );
+  const tile = (label, val, color) =>
+    `<td width="25%" style="padding:4px"><div style="background:#fff;border:1px solid #E3E5EA;border-radius:12px;padding:10px"><div style="font-size:10px;font-weight:800;color:#5F6673;text-transform:uppercase">${label}</div><div style="font-size:24px;font-weight:800;color:${color || "#111827"}">${val}</div></div></td>`;
+  const list = (title, rows, f) =>
+    rows.length
+      ? `<div style="font-size:14px;font-weight:800;color:#111827;margin-top:18px">${title}</div><ul style="padding-left:18px;font-size:14px;line-height:1.5;color:#111827;margin:6px 0">${rows
+          .slice(0, 15)
+          .map(r => `<li>${esc(f(r))}</li>`)
+          .join("")}</ul>`
+      : "";
+  MailApp.sendEmail({
+    to: owner,
+    subject: `ScamSense weekly: ${users.length} users, ${active.size} active, ${scams} scams caught`,
+    body: `Users: ${users.length}. New this week: ${newUsers.length}. Active: ${active.size}. Scams caught: ${scams}. Alerts: ${alerts.length}. Dashboard: ${getDb().getUrl()}`,
+    htmlBody: mailShell(`<div style="padding:22px">
+      <div style="font-size:15px;color:#5F6673">Your week at a glance</div>
+      <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${active.size} of ${users.length} people used ScamSense this week</div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;table-layout:fixed"><tr>${tile("Users", users.length)}${tile("New", newUsers.length)}${tile("Scams caught", scams, scams ? "#B42318" : "")}${tile("Alerts", alerts.length, alerts.length ? "#B42318" : "")}</tr></table>
+      ${list("Needs follow-up", follow, r => `${name(r)} — ${r[col("Email")] || ""}`)}
+      ${list("New this week", newUsers, r => `${name(r)} — ${r[col("Email")] || "no email yet"}`)}
+      ${list("Quiet for 7+ days", quiet, r => `${name(r)} — last active ${Utilities.formatDate(new Date(r[col("Last active")]), Session.getScriptTimeZone(), "MMM d")}`)}
+      <div style="text-align:center;margin-top:20px"><a href="${getDb().getUrl()}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:12px 24px;border-radius:12px">Open the dashboard</a></div>
+    </div>`),
+    name: "ScamSense Owner"
+  });
+}
+// For testing: sends this week's summary to you now.
+function sendWeeklyNow() {
+  sendOwnerWeekly();
 }
 

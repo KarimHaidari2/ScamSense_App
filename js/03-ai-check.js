@@ -29,12 +29,18 @@ async function serverCheck(details) {
     const r = await fetch(cfg().mahiUrl, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ mode: "check", check: details, lang: LANGS[langCode()].ai })
+      body: JSON.stringify({
+        mode: "check",
+        uid: typeof myUid === "function" ? myUid() : undefined,
+        check: details,
+        lang: LANGS[langCode()].ai
+      })
     });
     j = await r.json();
   } catch (e) {
     throw quiet("server unreachable");
   }
+  if (j && j.blocked && typeof showBlocked === "function") showBlocked(j.error);
   if (!j || j.error || !j.text) throw quiet((j && j.error) || "no answer");
   return j.text;
 }

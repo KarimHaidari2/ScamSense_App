@@ -4145,3 +4145,13 @@ nav.tabs button svg {
   width: 23px;
   height: 23px;
 }
+#suspended {
+  position: relative;
+  z-index: 5;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--scam-bg);
+  color: var(--scam);
+  font-weight: 700;
+  border: 1.5px solid var(--scam);
+}

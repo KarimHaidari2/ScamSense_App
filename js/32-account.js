@@ -24,7 +24,34 @@ async function serverPost(body) {
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(Object.assign({ uid: myUid() }, body))
   });
-  return r.json();
+  const j = await r.json();
+  if (j && j.blocked) showBlocked(j.error);
+  else if (j && j.ok) hideBlocked();
+  return j;
+}
+
+/* If the ScamSense team turned this account off, say so plainly at the top of every screen. */
+function showBlocked(msg) {
+  S.set("suspended", true);
+  let b = document.getElementById("suspended");
+  if (!b) {
+    b = document.createElement("div");
+    b.id = "suspended";
+    b.setAttribute("role", "alert");
+    document.querySelector(".app").prepend(b);
+  }
+  b.textContent =
+    msg ||
+    tr(
+      "ScamSense is turned off for this account. Please contact the ScamSense team.",
+      "ScamSense está desactivado para esta cuenta. Comuníquese con el equipo de ScamSense."
+    );
+}
+function hideBlocked() {
+  if (!S.get("suspended", false)) return;
+  S.set("suspended", false);
+  const b = document.getElementById("suspended");
+  if (b) b.remove();
 }
 
 /* Signs up or updates this person. Uses Google's or Microsoft's sign-in, if there is one, to confirm the email. */

@@ -893,6 +893,7 @@ async function mahiAI(messages) {
     const res = await fetch(c.mahiUrl, {
       method: "POST",
       body: JSON.stringify({
+        uid: typeof myUid === "function" ? myUid() : undefined,
         messages,
         tools: MAHI_TOOLS,
         lang: LANGS[langCode()].ai,
@@ -900,6 +901,7 @@ async function mahiAI(messages) {
       })
     });
     const j = await res.json();
+    if (j.blocked && typeof showBlocked === "function") showBlocked(j.error);
     if (j.error) throw new Error(j.error);
     return j.content ? j : { content: [{ type: "text", text: j.text || "" }], stop_reason: "end_turn" };
   }
