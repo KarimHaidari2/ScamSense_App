@@ -25,7 +25,7 @@ function renderSettings() {
     ]
   ];
   const done = steps.filter(x => x[0]).length;
-  view.innerHTML = `${pageHead(t("tab_settings"), "")}
+  view.innerHTML = `${heroHead(t("tab_settings"), tr("Your email, your safety steps, and how the app looks.", "Su correo, sus pasos de seguridad y cómo se ve la app."))}
   <section class="protect" aria-label="${esc(tr("Your protection", "Su protección"))}">
     <div class="protect-top"><div class="ring" style="--p:${done / steps.length}"><b>${done}/${steps.length}</b></div>
       <div><h2>${done === steps.length ? tr("You're fully protected", "Está totalmente protegido") : tr("Your protection", "Su protección")}</h2>

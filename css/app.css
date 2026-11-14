@@ -3540,3 +3540,420 @@ details.fold > summary .gl span {
 :root[data-theme="dark"] .tile-ic {
   box-shadow: inset 0 0 0 1px var(--line);
 }
+
+/* =====================================================================
+   Night Watch design: a navy top panel on Home, Family and Settings,
+   the check box right on Home, and a floating tab bar.
+   ===================================================================== */
+:root {
+  --hero: radial-gradient(120% 95% at 88% 0%, #2e4675 0%, #14213d 48%, #0b1120 100%);
+  --hero-ink: #ffffff;
+  --hero-muted: #b9c3d8;
+  --hero-line: rgba(255, 255, 255, 0.16);
+  --hero-glass: rgba(255, 255, 255, 0.09);
+  --nav-bg: #14213d;
+  --nav-ink: #9aa4b8;
+  --nav-on-bg: rgba(255, 255, 255, 0.13);
+  --nav-on-ink: #ffffff;
+  --ask-shadow: 0 8px 0 #14213d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --hero: radial-gradient(120% 95% at 88% 0%, #263a63 0%, #141f38 50%, #0b1120 100%);
+    --nav-bg: #1d2843;
+    --ask-shadow: 0 8px 0 #2b3a5c;
+  }
+}
+:root[data-theme="dark"] {
+  --hero: #000000;
+  --hero-line: #333333;
+  --hero-glass: #000000;
+  --nav-bg: #000000;
+  --nav-ink: #a6a6a6;
+  --nav-on-bg: #ffffff;
+  --nav-on-ink: #000000;
+  --ask-shadow: none;
+}
+
+/* The navy panel reaches up behind the app header and out to the screen edges. */
+.nw-hero {
+  position: relative;
+  overflow: hidden;
+  margin: calc(-1 * (var(--headh, 70px) + 18px)) calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 0
+    calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+  padding: calc(var(--headh, 70px) + 30px) max(20px, env(safe-area-inset-right, 0px)) 30px
+    max(20px, env(safe-area-inset-left, 0px));
+  background: var(--hero);
+  color: var(--hero-ink);
+  border-radius: 0 0 32px 32px;
+}
+:root[data-theme="dark"] .nw-hero {
+  border-bottom: 1px solid var(--hero-line);
+}
+.nw-hero::after {
+  content: "";
+  position: absolute;
+  right: -70px;
+  bottom: -90px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(224, 169, 59, 0.22), transparent 65%);
+  pointer-events: none;
+}
+:root[data-theme="dark"] .nw-hero::after {
+  display: none;
+}
+.nw-owl {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right, 0px));
+  top: calc(var(--headh, 70px) + 22px);
+  width: 76px;
+  height: 82px;
+  filter: drop-shadow(0 10px 22px rgba(0, 0, 0, 0.45));
+}
+.nw-owl svg {
+  width: 100%;
+  height: 100%;
+}
+.nw-hero h1 {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 2rem;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.nw-sub {
+  position: relative;
+  z-index: 1;
+  margin: 10px 0 0;
+  max-width: 34ch;
+  color: var(--hero-muted);
+}
+.nw-greet {
+  margin: 0 0 6px;
+  color: var(--hero-muted);
+  font-size: 1.05rem;
+}
+.home-hero {
+  padding-bottom: 70px;
+}
+.home-hero .nw-owl {
+  width: 84px;
+  height: 91px;
+}
+.home-hero h1 {
+  font-size: 2.05rem;
+  max-width: calc(100% - 100px);
+}
+
+/* Header on top of the navy panel: white text and a light owl */
+body.tophero .app > header {
+  position: relative;
+  z-index: 2;
+  color: var(--hero-ink);
+}
+body.tophero .app > header svg [fill="#14213D"] {
+  fill: #f5f5f2;
+}
+body.tophero .app > header svg [fill="#2B3F6B"] {
+  fill: #dadde5;
+}
+body.tophero .app > header svg circle[fill="#FFFFFF"] {
+  fill: #14213d;
+}
+body.tophero .app > header svg circle[fill="#14213D"] {
+  fill: #14213d;
+}
+body.tophero .app > header svg polyline {
+  stroke: #14213d;
+}
+body.tophero .langpick {
+  background: transparent;
+  border-color: var(--hero-line);
+  color: var(--hero-ink);
+}
+body.tophero .langpick select {
+  color: var(--hero-ink);
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Today's email status in the panel */
+.nw-status {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 22px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--hero-glass);
+  border: 1px solid var(--hero-line);
+  cursor: pointer;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.nw-status:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+.nw-status i {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #2fa36b;
+  color: #fff;
+}
+.nw-status i .ic {
+  width: 19px;
+  height: 19px;
+}
+.nw-status.warn i {
+  background: #e0a93b;
+  color: #14213d;
+}
+.nw-status.scam i {
+  background: #e5484d;
+}
+.nw-status.off i {
+  background: rgba(255, 255, 255, 0.16);
+}
+.nw-status span {
+  flex: 1;
+  min-width: 0;
+}
+.nw-status b {
+  display: block;
+  font-size: 1.02rem;
+}
+.nw-status small {
+  display: block;
+  color: var(--hero-muted);
+  font-size: 0.88rem;
+}
+.nw-status .chev {
+  color: var(--hero-muted);
+}
+
+/* The check box on Home, resting on the bottom of the panel */
+.askcard {
+  position: relative;
+  z-index: 3;
+  margin-top: -52px;
+  padding: 16px;
+  border-radius: 24px;
+  background: var(--surface);
+  border: 2px solid var(--brand);
+  box-shadow: var(--ask-shadow);
+}
+.askcard:focus-within {
+  outline: 3px solid var(--amber);
+  outline-offset: 3px;
+}
+.askcard textarea {
+  display: block;
+  width: 100%;
+  min-height: 92px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  padding: 2px 2px 10px;
+  box-shadow: none;
+}
+.askcard textarea::placeholder {
+  color: var(--muted);
+}
+.askcard .btnrow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.askcard .btnrow .btn:only-child {
+  grid-column: 1 / -1;
+}
+.ask-ex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+/* The two "help now" tiles */
+.help2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.htile {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 158px;
+  padding: 16px;
+  border-radius: 22px;
+  cursor: pointer;
+  background: var(--tile-bg);
+  color: var(--ink);
+  border: 1.5px solid transparent;
+}
+.htile:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 2px;
+}
+.htile:active {
+  transform: scale(0.985);
+}
+.htile-ic {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  margin-bottom: auto;
+  background: var(--surface);
+  color: var(--tile-ink);
+}
+.htile-ic .ic {
+  width: 26px;
+  height: 26px;
+}
+.htile b {
+  margin-top: 14px;
+  font-family: var(--display);
+  font-size: 1.12rem;
+  line-height: 1.2;
+}
+.htile span:last-child {
+  font-size: 0.92rem;
+  color: var(--muted);
+}
+.h-pay {
+  --tile-bg: var(--warn-bg);
+  --tile-ink: var(--warn);
+}
+.h-sos {
+  --tile-bg: var(--scam-bg);
+  --tile-ink: var(--scam);
+}
+:root[data-theme="dark"] .htile {
+  background: #000;
+  border-color: var(--tile-ink);
+}
+:root[data-theme="dark"] .htile-ic {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+/* Section titles: quiet sentence-case headings instead of small capitals */
+.sect-h {
+  font-family: var(--display);
+  font-size: 1.12rem;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  color: var(--ink);
+}
+
+/* Floating tab bar */
+.app {
+  padding-bottom: calc(118px + env(safe-area-inset-bottom, 0px));
+}
+nav.tabs {
+  left: 12px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 7px;
+  border: 0;
+  border-radius: 24px;
+  background: var(--nav-bg);
+  box-shadow: 0 14px 34px rgba(11, 17, 32, 0.32);
+}
+:root[data-theme="dark"] nav.tabs {
+  border: 1px solid var(--line);
+  box-shadow: none;
+}
+nav.tabs .in {
+  gap: 4px;
+}
+nav.tabs button {
+  color: var(--nav-ink);
+  border-radius: 17px;
+  padding: 8px 4px 7px;
+  font-family: var(--display);
+}
+nav.tabs button svg {
+  width: 25px;
+  height: 25px;
+}
+nav.tabs button[aria-current="page"] {
+  color: var(--nav-on-ink);
+  background: var(--nav-on-bg);
+}
+/* Wide screens: the navy panel becomes a full-width band behind the app column. */
+@media (min-width: 660px) {
+  body.tophero {
+    overflow-x: clip;
+  }
+  .nw-hero {
+    overflow: visible;
+    z-index: 0;
+    background: none;
+    border-radius: 0;
+  }
+  .nw-hero::before {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 100vw;
+    transform: translateX(-50%);
+    background: var(--hero);
+  }
+  :root[data-theme="dark"] .nw-hero {
+    border-bottom: 0;
+  }
+  :root[data-theme="dark"] .nw-hero::before {
+    border-bottom: 1px solid var(--hero-line);
+  }
+  .nw-hero::after {
+    display: none;
+  }
+}
+.home {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.home > .nw-hero + .askcard {
+  margin-top: -72px;
+}
+[dir="rtl"] .nw-owl {
+  right: auto;
+  left: max(18px, env(safe-area-inset-left, 0px));
+}
+[dir="rtl"] .nw-hero h1,
+[dir="rtl"] .htile b {
+  font-family: "Vazirmatn", var(--display);
+}

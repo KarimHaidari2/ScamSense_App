@@ -23,58 +23,13 @@ function renderToday(opt) {
   const rep = S.get("report", null);
   let h = "";
   if (opt.progress) {
+    useHero(false);
     view.innerHTML = `<section class="card" aria-live="polite"><h2>${t("scanning")}</h2><p class="muted" style="margin:0">${esc(opt.progress.label)}</p><div class="progress"><i style="width:${Math.round(opt.progress.pct)}%"></i></div>
         <div class="privacy"><span aria-hidden="true">🔒</span><div>${t("scanning_note")}</div></div></section>`;
     return;
   }
-  if (!rep) {
-    h += `<div class="today"><section class="sc sv-new"><div class="sc-main"><span class="sc-badge">${ic("shield")}</span><p class="big">${t("welcome_big")}</p></div>
-      <p class="meta">${t("welcome_sub")}</p>
-      <div class="btnrow"><button class="btn primary" id="demo">${t("try_demo")}</button><button class="btn ghost" id="scan">${t("scan_my")}</button></div></section>
-      ${homeActionsHTML()}
-      <p class="footnote">${ic("lock")}<span><b>${t("private_title")}</b> ${t("private_body")}</span></p></div>`;
-    view.innerHTML = h;
-    document.getElementById("scan").onclick = scanEmail;
-    document.getElementById("demo").onclick = loadDemo;
-    bindGo();
-    return;
-  }
-  const n = { scam: 0, warn: 0, safe: 0 };
-  rep.items.forEach(i => n[i.level]++);
-  const headline = headlineOf(n);
-  const lv = n.scam ? "scam" : n.warn ? "warn" : "safe";
-  const dtxt = rep.days === 1 ? t("d24") : t("ddays", { n: rep.days });
-  const aiNote =
-    rep.source === "demo" && !rep.ai
-      ? t("ai_demo")
-      : rep.ai
-        ? t("ai_checked", { n: rep.aiChecked })
-        : t("ai_off");
-  h += `<div class="today"><section class="sc sv-${lv}">
-    <div class="sc-top"><p class="label">${rep.source === "demo" ? t("demo_label") : t("daily")} · ${esc(fmtTime(rep.at))}</p><button class="iconbtn" id="readsum" aria-label="${esc(t("read_aloud"))}" title="${esc(t("read_aloud"))}">${ic("speaker")}</button></div>
-    <div class="sc-main"><span class="sc-badge">${ic(lv === "safe" ? "shield" : "alert")}</span><p class="big">${esc(headline)}</p></div>
-    <div class="tally"><button class="ts" data-ef="scam"><b>${n.scam}</b>${t("scam")}</button><button class="tw" data-ef="warn"><b>${n.warn}</b>${t("warn")}</button><button class="tk" data-ef="safe"><b>${n.safe}</b>${t("safe")}</button></div>
-    <p class="meta">${t("checked", { n: rep.items.length, d: dtxt })}${folderSummary(rep.items)}.${accountSummary(rep.items) ? `<br><b>${accountSummary(rep.items)}</b>` : ""}</p>`;
-  h += `<div class="btnrow"><button class="btn primary" data-ef="all">${tr(`See all ${rep.items.length} emails`, `Ver los ${rep.items.length} correos`)}</button><button class="btn ghost" id="scan">${rep.source === "demo" ? t("scan_my") : rep.source === "gmail" ? t("scan_again") : tr("Scan email again", "Revisar el correo otra vez")}</button></div></section>
-    ${homeActionsHTML()}</div>`;
-  view.innerHTML = h;
-  document.getElementById("scan").onclick = scanEmail;
-  document.getElementById("readsum").onclick = () =>
-    speak(
-      `${headline} ` +
-        rep.items
-          .filter(i => i.level !== "safe")
-          .map(i => ` ${LV[i.level].word}: ${i.fromName || i.fromEmail}, ${i.subject}.`)
-          .join("")
-    );
-  view.querySelectorAll("[data-ef]").forEach(
-    b =>
-      (b.onclick = () => {
-        filter = b.dataset.ef;
-        go("emails");
-      })
-  );
-  bindGo();
+  view.innerHTML = homeHTML(rep);
+  bindHome();
 }
 function renderEmails() {
   const rep = S.get("report", null);

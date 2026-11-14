@@ -61,7 +61,7 @@ const Fab = (() => {
   function bounds() {
     const b = el();
     const nav = document.querySelector("nav.tabs");
-    const navH = nav ? nav.getBoundingClientRect().height : 70;
+    const navH = nav ? innerHeight - nav.getBoundingClientRect().top : 70; // the bar floats above the bottom edge
     return {
       minX: M,
       maxX: innerWidth - b.offsetWidth - M,
@@ -172,6 +172,7 @@ function go(tab) {
   clearInterval(stillTimer);
   if (typeof simClear === "function") simClear();
   tab = OLD_SCREENS[tab] || tab;
+  useHero(false); // Home, Family and Settings turn the navy top panel back on
   const top = TAB_OF[tab] || "today";
   document.querySelectorAll("nav.tabs button").forEach(b => {
     if (b.dataset.tab === top) b.setAttribute("aria-current", "page");

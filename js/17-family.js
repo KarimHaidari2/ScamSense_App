@@ -26,7 +26,7 @@ const famPrefs = () =>
 function renderFamily() {
   const helpers = S.get("helpers", []);
   const p = famPrefs();
-  view.innerHTML = `${pageHead(tr("Family & trusted people", "Familia y personas de confianza"), tr("Pick people you trust. They can help you decide before you pay or reply. They see alerts, never your messages.", "Elija personas de confianza. Pueden ayudarle antes de pagar o responder. Ven alertas, nunca sus mensajes."))}
+  view.innerHTML = `${heroHead(tr("Family & trusted people", "Familia y personas de confianza"), tr("Pick people you trust. They can help you decide before you pay or reply. They see alerts, never your messages.", "Elija personas de confianza. Pueden ayudarle antes de pagar o responder. Ven alertas, nunca sus mensajes."))}
   <section class="sect"><div class="sect-row"><h2 class="sect-h">${tr("Your trusted people", "Sus personas de confianza")}</h2><button class="btn sm primary" id="addp">${ic("plus")}<span>${tr("Add", "Agregar")}</span></button></div>
     <div id="addform" hidden></div>
     ${
