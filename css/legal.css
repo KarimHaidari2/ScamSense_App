@@ -1,6 +1,6 @@
 /* ScamSense · Privacy Policy and Terms pages (Midnight Navy) */
 :root {
-  --bg: #f5f5f2;
+  --bg: #ffffff;
   --surface: #ffffff;
   --ink: #111827;
   --muted: #5f6673;
@@ -160,7 +160,7 @@ h1 {
   gap: 12px;
   padding: 14px;
   border-radius: 14px;
-  background: var(--bg);
+  background: var(--surface);
   border: 1px solid var(--line);
   font-size: 16px;
   line-height: 1.5;
