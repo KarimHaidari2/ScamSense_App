@@ -48,9 +48,11 @@ async function registerUser() {
       body.mstoken = await msTokenNow();
     } catch (e) {}
   }
+  // Nothing to sign up with yet (no name, no connected email): wait.
+  if (!body.name && !body.gtoken && !body.mstoken && !S.get("acct", null)) return null;
   try {
     const j = await serverPost(body);
-    if (j && j.ok) {
+    if (j && j.ok && !j.waiting) {
       S.set("acct", { email: j.email, verified: j.verified, at: Date.now() });
       flushServerEvents();
     }
@@ -86,7 +88,9 @@ async function flushServerEvents() {
         "srvq",
         S.get("srvq", []).filter(e => !sent.has(e.id))
       );
-    } else if (j && j.register) {
+    } else if (j && j.register && !flushServerEvents.tried) {
+      // The server doesn't know this device yet: sign up once, then try again.
+      flushServerEvents.tried = true;
       srvSending = false;
       await registerUser();
       return;

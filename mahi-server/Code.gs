@@ -263,7 +263,8 @@ const USER_COLS = [
   "Emails scanned",
   "Scams caught",
   "Checks",
-  "Alerts"
+  "Alerts",
+  "Devices"
 ];
 const ACT_COLS = ["Time", "User ID", "Name", "What", "Channel", "Result", "Scam type", "Details"];
 const ALERT_COLS = ["Time", "Name", "Email", "What happened", "Emailed to"];
@@ -283,7 +284,17 @@ function getDb() {
   let id = p.getProperty("DB_ID");
   if (id) {
     try {
-      return SpreadsheetApp.openById(id);
+      const ss = SpreadsheetApp.openById(id);
+      const users = ss.getSheetByName("Users");
+      // Newer columns added after the Sheet was made
+      if (users && users.getRange(1, USER_COLS.length).getValue() !== USER_COLS[USER_COLS.length - 1])
+        users
+          .getRange(1, 1, 1, USER_COLS.length)
+          .setValues([USER_COLS])
+          .setFontWeight("bold")
+          .setBackground("#14213D")
+          .setFontColor("#FFFFFF");
+      return ss;
     } catch (e) {}
   }
   const ss = SpreadsheetApp.create(OWNER.DASHBOARD);
@@ -301,11 +312,25 @@ function getDb() {
 }
 const sheet = name => getDb().getSheetByName(name);
 
+// Finds a person by this device's ID (their first device in column A, other devices in "Devices").
 function findUser(uid) {
   const sh = sheet("Users");
-  const hit = sh.getRange("A:A").createTextFinder(uid).matchEntireCell(true).findNext();
+  let hit = sh.getRange("A:A").createTextFinder(uid).matchEntireCell(true).findNext();
+  if (!hit) {
+    const col = USER_COLS.indexOf("Devices") + 1;
+    hit = sh.getRange(1, col, Math.max(1, sh.getLastRow()), 1).createTextFinder(uid).findNext();
+  }
   if (!hit) return null;
-  const row = hit.getRow();
+  return userAt(hit.getRow());
+}
+function findUserByEmail(email) {
+  if (!email) return null;
+  const sh = sheet("Users");
+  const hit = sh.getRange("C:C").createTextFinder(email).matchEntireCell(true).findNext();
+  return hit && hit.getRow() > 1 ? userAt(hit.getRow()) : null;
+}
+function userAt(row) {
+  const sh = sheet("Users");
   const v = sh.getRange(row, 1, 1, USER_COLS.length).getValues()[0];
   const u = {};
   USER_COLS.forEach((c, i) => (u[c] = v[i]));
@@ -356,9 +381,26 @@ function registerUser(req) {
   lock.waitLock(10000);
   try {
     const now = new Date();
-    const u = findUser(req.uid) || { "User ID": req.uid, "First seen": now, "Emails scanned": 0, "Scams caught": 0, Checks: 0, Alerts: 0 };
-    if (req.name !== undefined) u.Name = cleanText(req.name, 40);
+    let u = findUser(req.uid);
     const ve = verifiedEmail(req);
+    // Same person on another device: use their existing row and remember this device too.
+    const same = ve && findUserByEmail(ve);
+    if (same && (!u || same.row !== u.row)) {
+      if (u && u.row) {
+        sheet("Users").deleteRow(u.row); // the extra row this device made earlier
+        if (u.row < same.row) same.row--;
+      }
+      const devs = String(same.Devices || "").split(/\s+/).filter(Boolean);
+      if (same["User ID"] !== req.uid && devs.indexOf(req.uid) < 0) devs.push(req.uid);
+      same.Devices = devs.join(" ");
+      u = same;
+    }
+    if (!u) {
+      // Don't list a device until it has a name or a confirmed email.
+      if (!ve && !cleanText(req.name, 40)) return { ok: true, waiting: true };
+      u = { "User ID": req.uid, "First seen": now, "Emails scanned": 0, "Scams caught": 0, Checks: 0, Alerts: 0 };
+    }
+    if (req.name !== undefined && cleanText(req.name, 40)) u.Name = cleanText(req.name, 40);
     if (ve) {
       u.Email = ve;
       u["Email verified"] = "yes";
