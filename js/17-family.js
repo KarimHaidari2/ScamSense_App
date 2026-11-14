@@ -74,6 +74,7 @@ function renderFamily() {
           const hs = S.get("helpers", []);
           const gone = hs.splice(+b.dataset.rm, 1)[0];
           S.set("helpers", hs);
+          if (typeof registerSoon === "function") registerSoon();
           toast(tr(`${gone.name} was removed.`, `Se quitó a ${gone.name}.`));
           renderFamily();
           return;
@@ -154,6 +155,7 @@ function showAddForm() {
     const hs = S.get("helpers", []);
     hs.push({ name: v("hn"), rel: v("hr"), phone: v("hp"), email: v("he") });
     S.set("helpers", hs);
+    if (typeof registerSoon === "function") registerSoon();
     toast(tr("Added.", "Agregado."));
     renderFamily();
   };

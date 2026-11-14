@@ -22,6 +22,13 @@ Open the **Copy the code** link, select all, copy, and paste it into that script
 
 Where to paste the code: https://script.google.com (open the script with the matching name).
 
+## ScamSense Server (the "Mahi Server" script): what to run
+
+| Run this | What it does |
+|---|---|
+| `setupServer` | Run once. Makes your **ScamSense Owner Dashboard** Google Sheet (Users, Activity, Alerts) and the 8 AM report timer for every user. The log shows the Sheet's link. |
+| `sendReportsNow` | Sends every user their daily report right now (for testing) |
+
 ## Daily Report: what to run
 
 Pick the function from the menu at the top of the script editor and click **Run**.

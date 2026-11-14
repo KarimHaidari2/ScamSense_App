@@ -94,6 +94,7 @@ async function finishScan(items, source) {
   items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
   const report = { at: Date.now(), source, days: c.days, ai: !!wantsAI, aiChecked: aiList.length, items };
   S.set("report", Object.assign({}, report, { items: report.items.map(slimItem) }));
+  if (source !== "demo" && typeof serverScanEvent === "function") serverScanEvent(items, source);
   const hist = S.get("history", []);
   const kinds = {};
   items

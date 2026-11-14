@@ -1,15 +1,22 @@
 /* ========================================================================
-   ScamSense · Mahi Server (Google Apps Script web app)
+   ScamSense · Server (Mahi + users + reports + alerts)
+   Google Apps Script web app, running in the owner's Google account.
 
    WHAT IT DOES
-   Lets Mahi answer ANY question with AI, without putting your AI key in the
-   app. The app sends the chat here; this script adds your hidden key, asks
-   Anthropic's AI, and sends back Mahi's answer.
+   - Mahi: answers ANY question with AI, with the AI key hidden here.
+   - Smart checks: tells the app if a message is a scam.
+   - Users: keeps a list of who uses ScamSense (name, email) in a private
+     Google Sheet, the "ScamSense Owner Dashboard", with their activity.
+   - Daily reports: emails every user a report each morning.
+   - Danger alerts: when someone says they were scammed or already paid,
+     emails the owner and the trusted people they added right away.
+   - "Email me": Mahi can email a draft or summary to the person's own inbox.
 
    SET UP (once) — see README.md in this folder
    1. Project Settings > Script Properties: ANTHROPIC_API_KEY = your sk-ant- key
-   2. Deploy > New deployment > Web app > Execute as: Me, Who has access: Anyone
-   3. Copy the Web app URL into ScamSense > Settings > Advanced > Mahi server
+   2. Run setupServer (makes the dashboard Sheet and the 8 AM report timer)
+   3. Deploy > New deployment > Web app > Execute as: Me, Who has access: Anyone
+   4. Copy the Web app URL into ScamSense > Settings > Advanced > Mahi server
 
    PARTS OF THIS FILE
      1. Settings      daily limit, model, answer length
@@ -17,6 +24,9 @@
      3. Safety        checks the request and counts today's answers
      4. AI call       asks Anthropic's AI (with web search)
      5. Mahi's rules  how Mahi talks
+     6. Users         the owner dashboard, sign-up, activity
+     7. Alerts        danger emails to the owner and family
+     8. Reports       the daily email to every user, and "email me"
    ======================================================================== */
 
 /* ========================================================================
@@ -47,6 +57,9 @@ function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     if (req.mode === "check") return json(checkMessage(req));
+    if (req.mode === "register") return json(registerUser(req));
+    if (req.mode === "events") return json(saveEvents(req));
+    if (req.mode === "email_me") return json(emailMe(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -224,3 +237,386 @@ If they want a real person: suggest a trusted family member, the AARP Fraud Watc
 You can search the web. Use it for anything current or that you don't know for sure: news, recent scams, scam alerts, statistics, prices, laws, company or agency phone numbers, and whether a website or business is real. Say briefly what you found; the app lists your sources.
 If someone is in danger, tell them to call 911. If you're not sure, say so.`;
 }
+
+/* ========================================================================
+   6. USERS — the owner dashboard (a private Google Sheet in your account)
+   ======================================================================== */
+
+const OWNER = {
+  DASHBOARD: "ScamSense Owner Dashboard",
+  REPORT_HOUR: 8, // daily reports go out around this hour (the script's time zone)
+  APP_URL: "https://karimhaidari2.github.io/ScamSense_App/",
+  MAX_EMAILS_PER_USER: 10, // "email me" emails per person per day
+  MAX_ALERTS_PER_USER: 3 // danger alerts per person per day
+};
+const USER_COLS = [
+  "User ID",
+  "Name",
+  "Email",
+  "Email verified",
+  "Language",
+  "Daily report",
+  "Danger alerts",
+  "Trusted people",
+  "First seen",
+  "Last active",
+  "Emails scanned",
+  "Scams caught",
+  "Checks",
+  "Alerts"
+];
+const ACT_COLS = ["Time", "User ID", "Name", "What", "Channel", "Result", "Scam type", "Details"];
+const ALERT_COLS = ["Time", "Name", "Email", "What happened", "Emailed to"];
+
+// Run ONCE: makes the dashboard Sheet and the daily report timer, and prints the Sheet's link.
+function setupServer() {
+  const db = getDb();
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === "sendAllReports") ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger("sendAllReports").timeBased().everyDays(1).atHour(OWNER.REPORT_HOUR).create();
+  console.log("Owner dashboard: " + db.getUrl());
+}
+
+function getDb() {
+  const p = PropertiesService.getScriptProperties();
+  let id = p.getProperty("DB_ID");
+  if (id) {
+    try {
+      return SpreadsheetApp.openById(id);
+    } catch (e) {}
+  }
+  const ss = SpreadsheetApp.create(OWNER.DASHBOARD);
+  const first = ss.getSheets()[0].setName("Users");
+  [
+    [first, USER_COLS],
+    [ss.insertSheet("Activity"), ACT_COLS],
+    [ss.insertSheet("Alerts"), ALERT_COLS]
+  ].forEach(([sh, cols]) => {
+    sh.getRange(1, 1, 1, cols.length).setValues([cols]).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh.setFrozenRows(1);
+  });
+  p.setProperty("DB_ID", ss.getId());
+  return ss;
+}
+const sheet = name => getDb().getSheetByName(name);
+
+function findUser(uid) {
+  const sh = sheet("Users");
+  const hit = sh.getRange("A:A").createTextFinder(uid).matchEntireCell(true).findNext();
+  if (!hit) return null;
+  const row = hit.getRow();
+  const v = sh.getRange(row, 1, 1, USER_COLS.length).getValues()[0];
+  const u = {};
+  USER_COLS.forEach((c, i) => (u[c] = v[i]));
+  u.row = row;
+  return u;
+}
+function writeUser(u) {
+  const sh = sheet("Users");
+  const vals = [USER_COLS.map(c => (u[c] === undefined ? "" : u[c]))];
+  if (u.row) sh.getRange(u.row, 1, 1, USER_COLS.length).setValues(vals);
+  else sh.appendRow(vals[0]);
+}
+const okUid = id => /^[A-Za-z0-9_-]{16,40}$/.test(String(id || ""));
+const cleanText = (s, n) =>
+  String(s || "")
+    .replace(/[\u0000-\u001f<>]/g, " ")
+    .trim()
+    .slice(0, n);
+
+// Asks Google or Microsoft whose email this is, using the sign-in the app already has (used once, never saved).
+function verifiedEmail(req) {
+  try {
+    if (req.gtoken) {
+      const r = UrlFetchApp.fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+        headers: { Authorization: "Bearer " + req.gtoken },
+        muteHttpExceptions: true
+      });
+      if (r.getResponseCode() === 200) return String(JSON.parse(r.getContentText()).emailAddress || "").toLowerCase();
+    }
+    if (req.mstoken) {
+      const r = UrlFetchApp.fetch("https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName", {
+        headers: { Authorization: "Bearer " + req.mstoken },
+        muteHttpExceptions: true
+      });
+      if (r.getResponseCode() === 200) {
+        const j = JSON.parse(r.getContentText());
+        return String(j.mail || j.userPrincipalName || "").toLowerCase();
+      }
+    }
+  } catch (e) {}
+  return "";
+}
+
+// The app signs a person up (or updates them). Their email is only trusted when Google or Microsoft confirm it.
+function registerUser(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  try {
+    const now = new Date();
+    const u = findUser(req.uid) || { "User ID": req.uid, "First seen": now, "Emails scanned": 0, "Scams caught": 0, Checks: 0, Alerts: 0 };
+    if (req.name !== undefined) u.Name = cleanText(req.name, 40);
+    const ve = verifiedEmail(req);
+    if (ve) {
+      u.Email = ve;
+      u["Email verified"] = "yes";
+    } else if (!u.Email && /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(req.email || "")) {
+      u.Email = String(req.email).toLowerCase().slice(0, 80);
+      u["Email verified"] = "no";
+    }
+    if (req.lang) u.Language = cleanText(req.lang, 20);
+    if (req.reports !== undefined) u["Daily report"] = req.reports ? "on" : "off";
+    if (req.alerts !== undefined) u["Danger alerts"] = req.alerts ? "on" : "off";
+    if (Array.isArray(req.family))
+      u["Trusted people"] = req.family
+        .slice(0, 5)
+        .map(f => [cleanText(f.name, 40), cleanText(f.email, 80), cleanText(f.phone, 30)].filter(Boolean).join(" | "))
+        .join("\n");
+    u["Last active"] = now;
+    writeUser(u);
+    return { ok: true, verified: u["Email verified"] === "yes", email: u.Email || "" };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// What the app tells the server: the kind of thing checked, the result, and the time. Never the message itself.
+function cleanEv(x) {
+  if (!x || typeof x !== "object") return null;
+  const t = { check: 1, pause: 1, scammed: 1, block: 1, scan: 1 }[x.t] ? x.t : null;
+  if (!t) return null;
+  const at = +x.at;
+  return {
+    t,
+    c: cleanText(x.c, 12),
+    l: ["scam", "warn", "safe"].includes(x.l) ? x.l : "",
+    k: cleanText(x.k, 40),
+    o: x.o === "paid" ? "paid" : "",
+    n: Math.max(0, Math.min(5000, +x.n || 0)),
+    s: Math.max(0, Math.min(5000, +x.s || 0)),
+    w: Math.max(0, Math.min(5000, +x.w || 0)),
+    src: cleanText(x.src, 12),
+    at: at > Date.now() - 7 * 864e5 && at <= Date.now() + 60000 ? at : Date.now()
+  };
+}
+const WHAT = {
+  check: "Checked something",
+  pause: "Pause before you pay",
+  scammed: "Opened \"I was scammed\"",
+  block: "Blocked a sender",
+  scan: "Scanned email"
+};
+
+function saveEvents(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const evs = [].concat(req.events || []).slice(0, 50).map(cleanEv).filter(Boolean);
+  if (!evs.length) return { ok: true, saved: 0 };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(10000);
+  let u;
+  try {
+    u = findUser(req.uid);
+    if (!u) return { error: "unknown user", register: true };
+    const rows = evs.map(e => [
+      new Date(e.at),
+      req.uid,
+      u.Name || "",
+      WHAT[e.t] + (e.o === "paid" ? " (already paid)" : ""),
+      e.t === "scan" ? e.src : e.c,
+      e.t === "scan" ? `${e.n} emails, ${e.s} scams, ${e.w} careful` : e.l,
+      e.k,
+      ""
+    ]);
+    const sh = sheet("Activity");
+    sh.getRange(sh.getLastRow() + 1, 1, rows.length, ACT_COLS.length).setValues(rows);
+    evs.forEach(e => {
+      if (e.t === "scan") {
+        u["Emails scanned"] = (+u["Emails scanned"] || 0) + e.n;
+        u["Scams caught"] = (+u["Scams caught"] || 0) + e.s;
+      }
+      if (e.t === "check") {
+        u.Checks = (+u.Checks || 0) + 1;
+        if (e.l === "scam") u["Scams caught"] = (+u["Scams caught"] || 0) + 1;
+      }
+    });
+    u["Last active"] = new Date();
+    writeUser(u);
+  } finally {
+    lock.releaseLock();
+  }
+  evs.forEach(e => {
+    const danger =
+      e.t === "scammed"
+        ? "said they were scammed and opened the recovery steps"
+        : e.t === "pause" && e.o === "paid"
+          ? "said they already paid someone who may be a scammer"
+          : e.t === "pause" && e.l === "scam"
+            ? "was about to pay a scammer. ScamSense told them to stop"
+            : "";
+    if (danger) dangerAlert(u, danger);
+  });
+  return { ok: true, saved: evs.length };
+}
+
+/* ========================================================================
+   7. ALERTS — emails the owner and the person's trusted people right away
+   ======================================================================== */
+
+function dangerAlert(u, what) {
+  if (!takeQuota("alert:" + u["User ID"], OWNER.MAX_ALERTS_PER_USER)) return;
+  const owner = Session.getEffectiveUser().getEmail();
+  const name = u.Name || "A ScamSense user";
+  const family = String(u["Trusted people"] || "")
+    .split("\n")
+    .map(l => (l.split(" | ").find(x => /@/.test(x)) || "").trim())
+    .filter(Boolean);
+  const familyOk = u["Danger alerts"] !== "off" && u["Email verified"] === "yes";
+  const to = [owner].concat(familyOk ? family : []);
+  const subject = `ScamSense alert: ${name} may need help`;
+  const html = alertHTML(name, what, u);
+  to.forEach(addr => {
+    try {
+      MailApp.sendEmail({ to: addr, subject, htmlBody: html, body: `${name} ${what}. Please call them now.`, name: "ScamSense Alerts" });
+    } catch (e) {}
+  });
+  sheet("Alerts").appendRow([new Date(), name, u.Email || "", `${name} ${what}`, to.join(", ")]);
+  u.Alerts = (+u.Alerts || 0) + 1;
+  writeUser(u);
+}
+
+function alertHTML(name, what, u) {
+  return mailShell(
+    `<div style="border-top:6px solid #B42318;padding:22px">
+      <div style="font-size:22px;font-weight:800;color:#111827">${esc(name)} may need help</div>
+      <p style="font-size:16px;line-height:1.5;color:#111827">${esc(name)} ${esc(what)}.</p>
+      <div style="background:#FDECEA;border-radius:12px;padding:14px 16px;font-size:15px;line-height:1.5;color:#7A1A12">
+        <b>What to do now</b><br>1. Call ${esc(name)} on the number you already have.<br>2. If money was sent, help them call their bank right away.<br>3. Open ScamSense together and follow the "I was scammed" steps.
+      </div>
+      ${u.Email ? `<p style="font-size:13px;color:#5F6673">Their email: ${esc(u.Email)}</p>` : ""}
+    </div>`
+  );
+}
+
+// Counts something per person per day; false once the limit is reached.
+function takeQuota(key, max) {
+  const c = CacheService.getScriptCache();
+  const k = key + ":" + Utilities.formatDate(new Date(), "UTC", "yyyyMMdd");
+  const n = +(c.get(k) || 0);
+  if (n >= max) return false;
+  c.put(k, String(n + 1), 21600);
+  return true;
+}
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+}
+
+/* ========================================================================
+   8. REPORTS — a daily email for every user, and "email me" from Mahi
+   ======================================================================== */
+
+// Mahi's "email me": sends a draft or summary to the person's own (verified) email.
+function emailMe(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const u = findUser(req.uid);
+  if (!u || !u.Email || u["Email verified"] !== "yes")
+    return { error: "Connect your Gmail or Outlook in ScamSense first, so we know where to send it." };
+  if (!takeQuota("mail:" + req.uid, OWNER.MAX_EMAILS_PER_USER))
+    return { error: "That's the most emails for today. Please try again tomorrow." };
+  const subject = cleanText(req.subject, 150) || "From Mahi";
+  const body = String(req.body || "").slice(0, 8000);
+  MailApp.sendEmail({
+    to: u.Email,
+    subject,
+    body,
+    htmlBody: mailShell(
+      `<div style="padding:22px"><div style="font-size:13px;color:#5F6673;margin-bottom:8px">Mahi sent this at your request.</div><div style="font-size:16px;line-height:1.55;color:#111827;white-space:pre-wrap">${esc(body)}</div></div>`
+    ),
+    name: "Mahi from ScamSense"
+  });
+  return { ok: true, sentTo: u.Email };
+}
+
+// Runs every morning: one report per user who has an email and reports turned on.
+function sendAllReports() {
+  const users = sheet("Users").getDataRange().getValues();
+  const head = users.shift();
+  const since = Date.now() - 864e5;
+  const act = sheet("Activity").getDataRange().getValues().slice(1).filter(r => new Date(r[0]).getTime() >= since);
+  users.forEach(v => {
+    const u = {};
+    head.forEach((c, i) => (u[c] = v[i]));
+    if (!u.Email || u["Email verified"] !== "yes" || u["Daily report"] === "off") return;
+    const mine = act.filter(r => r[1] === u["User ID"]);
+    try {
+      MailApp.sendEmail({
+        to: u.Email,
+        subject: reportSubject(mine),
+        htmlBody: userReportHTML(u, mine),
+        body: `Your ScamSense report: ${mine.length} things happened in the last day. Open ScamSense: ${OWNER.APP_URL}`,
+        name: "ScamSense Daily Report"
+      });
+    } catch (e) {}
+  });
+}
+// For testing: sends the report to every user now.
+function sendReportsNow() {
+  sendAllReports();
+}
+
+function reportSubject(rows) {
+  const scams = rows.reduce(
+    (n, r) =>
+      n +
+      (r[3] === "Scanned email"
+        ? +String(r[5]).split(",")[1].trim().split(" ")[0] || 0
+        : r[3] === "Checked something" && r[5] === "scam"
+          ? 1
+          : 0),
+    0
+  );
+  return scams ? `ScamSense: ${scams} scam${scams === 1 ? "" : "s"} caught — here's your report` : "ScamSense: all clear today";
+}
+
+function userReportHTML(u, rows) {
+  const scans = rows.filter(r => r[3] === "Scanned email");
+  const checks = rows.filter(r => r[3] === "Checked something");
+  const pauses = rows.filter(r => r[3] === "Pause before you pay");
+  const emails = scans.reduce((n, r) => n + (+String(r[5]).split(" ")[0] || 0), 0);
+  const scams = scans.reduce((n, r) => n + (+String(r[5]).split(",")[1].trim().split(" ")[0] || 0), 0) + checks.filter(r => r[5] === "scam").length;
+  const tile = (label, val) =>
+    `<td width="33%" style="padding:5px"><div style="background:#fff;border:1px solid #E3E5EA;border-radius:12px;padding:12px"><div style="font-size:11px;font-weight:800;color:#5F6673;text-transform:uppercase">${label}</div><div style="font-size:26px;font-weight:800;color:#111827">${val}</div></div></td>`;
+  const list = rows
+    .filter(r => r[3] !== "Scanned email")
+    .slice(-12)
+    .map(
+      r =>
+        `<tr><td style="padding:8px 0;border-top:1px solid #E3E5EA;font-size:14px;color:#111827">${esc(r[3])}${r[4] ? " · " + esc(r[4]) : ""}</td><td style="padding:8px 0;border-top:1px solid #E3E5EA;font-size:14px;text-align:right;color:${r[5] === "scam" ? "#B42318" : r[5] === "warn" ? "#8A5300" : "#1F7A3E"}">${esc(r[5] === "warn" ? "be careful" : r[5] || "")}</td></tr>`
+    )
+    .join("");
+  const head = scams ? `${scams} scam${scams === 1 ? "" : "s"} caught. Don't open ${scams === 1 ? "it" : "them"}.` : "All clear. No scams found.";
+  return mailShell(
+    `<div style="padding:22px">
+      <div style="font-size:15px;color:#5F6673">Good morning${u.Name ? ", " + esc(u.Name) : ""}</div>
+      <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${head}</div>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;table-layout:fixed"><tr>${tile("Emails checked", emails)}${tile("Scams caught", scams)}${tile("Payments paused", pauses.length)}</tr></table>
+      ${scams ? `<div style="background:#FDECEA;border-radius:12px;padding:12px 14px;margin-top:16px;font-size:15px;color:#7A1A12">Open ScamSense to see which emails and messages were scams, and what to do.</div>` : ""}
+      ${list ? `<div style="font-size:13px;font-weight:800;color:#5F6673;margin-top:18px">IN THE APP</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${list}</table>` : ""}
+      ${!rows.length ? `<p style="font-size:15px;color:#111827">ScamSense didn't see anything new yesterday. Open the app to scan your email.</p>` : ""}
+      <div style="text-align:center;margin-top:22px"><a href="${OWNER.APP_URL}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open ScamSense</a></div>
+    </div>`
+  );
+}
+
+// The shared look of every email: navy header with the owl, white card, small footer.
+function mailShell(inner) {
+  return `<!doctype html><html><body style="margin:0;background:#F5F5F2;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:18px 10px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #E3E5EA">
+<tr><td style="background:#14213D;padding:16px 22px;font-size:19px;font-weight:800;color:#fff">&#129417; ScamSense</td></tr>
+<tr><td>${inner}</td></tr></table>
+<div style="font-size:12px;color:#5F6673;margin-top:12px">You get this because you use ScamSense. Turn emails off in ScamSense › Settings › Your account.</div>
+</td></tr></table></body></html>`;
+}
+

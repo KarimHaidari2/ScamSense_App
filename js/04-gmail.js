@@ -34,6 +34,7 @@ function getToken(interactive) {
         tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
         S.set("connected", true);
         setStatus();
+        if (typeof registerSoon === "function") registerSoon(); // confirms their email on the ScamSense server
         resolve(token);
       },
       error_callback: e =>

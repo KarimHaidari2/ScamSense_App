@@ -24,6 +24,7 @@ const channelKey = c =>
 
 /* Adds one event to the queue and tries to send it. */
 function reportSync(ev) {
+  if (typeof serverEvent === "function") serverEvent(ev); // the ScamSense server (daily report for every user)
   if (!reportUrl()) return;
   const q = S.get("syncq", []);
   q.push(Object.assign({ id: randomText(9), at: Date.now() }, ev));

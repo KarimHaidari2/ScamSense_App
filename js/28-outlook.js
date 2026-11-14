@@ -114,6 +114,7 @@ async function finishOutlookSignIn() {
     const me = await msGet("me?$select=mail,userPrincipalName").catch(() => ({}));
     S.set("ms", Object.assign(S.get("ms", {}), { email: me.mail || me.userPrincipalName || "" }));
     setStatus();
+    if (typeof registerSoon === "function") registerSoon();
     toast(tr("Outlook connected.", "Outlook conectado."));
     go("today");
     if (typeof runOutlookPending === "function" && (await runOutlookPending())) return;
