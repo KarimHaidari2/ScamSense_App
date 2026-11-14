@@ -665,19 +665,19 @@ function sendBlockedNotice(me, blocked) {
     .map(
       b => `<div style="border-left:4px solid #B42318;background:#fff;border-radius:10px;padding:12px 14px;margin:0 0 10px">
       <div style="font-weight:700;font-size:16px">${esc(b.fromName || b.fromEmail)}</div>
-      <div style="color:#5B6B6E;font-size:13px">${esc(b.fromEmail)}</div>
+      <div style="color:#5F6673;font-size:13px">${esc(b.fromEmail)}</div>
       <div style="font-size:15px;margin-top:4px">"${esc(b.subject)}"</div>
       <div style="font-size:15px;margin-top:8px"><b style="color:#B42318">Why:</b> ${esc(b.why)}</div></div>`
     )
     .join("");
-  const html = `<!doctype html><html><body style="margin:0;background:#F3F6F5;font-family:Arial,Helvetica,sans-serif;color:#0E3B43">
+  const html = `<!doctype html><html><body style="margin:0;background:#F5F5F2;font-family:Arial,Helvetica,sans-serif;color:#111827">
     <div style="max-width:560px;margin:0 auto;padding:20px 14px">
       <div style="font-size:20px;font-weight:800;margin:0 0 12px">&#129417; ScamSense</div>
       <div style="background:#fff;border-radius:16px;border-top:6px solid #B42318;padding:16px 18px;margin-bottom:14px">
         <div style="font-size:22px;font-weight:800;line-height:1.25">&#128737; Blocked ${n} scam email${n > 1 ? "s" : ""}</div>
         <p style="font-size:15px;margin:8px 0 0">${n > 1 ? "They were" : "It was"} moved to Spam. You don't need to do anything. Don't open ${n > 1 ? "them" : "it"}.</p></div>
       ${rows}
-      <p style="color:#5B6B6E;font-size:13px;margin:12px 4px 0">If one was a real email, open <b>Spam</b> in Gmail and tap <b>Not spam</b>.</p>
+      <p style="color:#5F6673;font-size:13px;margin:12px 4px 0">If one was a real email, open <b>Spam</b> in Gmail and tap <b>Not spam</b>.</p>
     </div></body></html>`;
   GmailApp.sendEmail(me, subject, plain, { htmlBody: html, name: "ScamSense" });
 }
@@ -870,13 +870,13 @@ const WORD = { scam: "Scam", warn: "Be careful", safe: "Safe" };
 const INBOX = {
   gmail: { name: "Gmail", fg: "#B3261E", bg: "#FCE8E6" },
   outlook: { name: "Outlook", fg: "#0F5CB5", bg: "#E3EEFB" },
-  app: { name: "ScamSense app", fg: "#0B6E6D", bg: "#E0F2F1" }
+  app: { name: "ScamSense app", fg: "#14213D", bg: "#ECEEF3" }
 };
 const CHANNEL = { email: "Email", text: "Text message", call: "Phone call", web: "Website", other: "Message" };
-const INK = "#0E2A30",
-  MUTED = "#5B6B6E",
-  LINE = "#E3EAE8",
-  BRAND = "#0E7C7B";
+const INK = "#111827",
+  MUTED = "#5F6673",
+  LINE = "#E5E4DF",
+  BRAND = "#14213D";
 
 // Picks the clearest reason to show first.
 // The AI's words are used only when the AI agrees with the final result.
@@ -1148,17 +1148,17 @@ function htmlReport(d) {
     notes.push("Want your checked texts and calls here too? Link the app: run showAppLink in the ScamSense script.");
 
   return `<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
-<body style="margin:0;padding:0;background:#EEF3F2;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${INK}">
+<body style="margin:0;padding:0;background:#F5F5F2;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${INK}">
 <div style="display:none;max-height:0;overflow:hidden">${esc(h.head)} ${esc(coverage(d))}</div>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#EEF3F2"><tr><td align="center" style="padding:18px 10px 28px">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#F5F5F2"><tr><td align="center" style="padding:18px 10px 28px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:620px">
 
-  <tr><td style="background:#0B2A30;border-radius:18px 18px 0 0;padding:18px 22px">
+  <tr><td style="background:linear-gradient(150deg,#24375F,#0B1120);background-color:#14213D;border-radius:18px 18px 0 0;padding:18px 22px">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
       <td style="font-size:20px;font-weight:800;color:#ffffff">&#129417; ScamSense</td>
-      <td align="right" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#9CC9C6">Daily Safety Report</td>
+      <td align="right" style="font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#E8B85A">Daily Safety Report</td>
     </tr></table>
-    <div style="font-size:14px;color:#CFE3E1;margin-top:4px">${esc(day)}</div>
+    <div style="font-size:14px;color:#B9C3D8;margin-top:4px">${esc(day)}</div>
   </td></tr>
 
   <tr><td style="background:#ffffff;border-radius:0 0 18px 18px;border-top:6px solid ${COL[h.tone]};padding:22px 22px 20px">
@@ -1178,7 +1178,7 @@ function htmlReport(d) {
     ${appSection}
     ${safe.length ? sectionTitle("Looked safe", plural(safe.length, "email")) + box(`<table role="presentation" width="100%" cellspacing="0" cellpadding="0">${safeRows}</table>${safe.length > 30 ? `<div style="padding:4px 16px 12px;font-size:13px;color:${MUTED}">…and ${safe.length - 30} more.</div>` : ""}`) : ""}
     ${sectionTitle("Tip of the day")}
-    ${box(`<div style="padding:16px 18px;font-size:16px;line-height:1.5;color:${INK}"><span style="color:${BRAND};font-weight:800">&#128161;</span> ${esc(tipOfDay())}</div>`, `background:#E6F2F1;border-color:#CFE5E3`)}
+    ${box(`<div style="padding:16px 18px;font-size:16px;line-height:1.5;color:${INK}"><span style="color:${BRAND};font-weight:800">&#128161;</span> ${esc(tipOfDay())}</div>`, `background:#ECEEF3;border-color:#DCE0EA`)}
     ${notes.length ? `<tr><td style="padding:4px 6px 0;font-size:13px;line-height:1.5;color:${MUTED}">${notes.map(esc).join("<br>")}</td></tr>` : ""}
   </table></td></tr>
 

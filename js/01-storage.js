@@ -84,7 +84,7 @@ function applyTheme() {
   else delete root.dataset.theme;
   const dark = t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = t === "dark" ? "#000000" : dark ? "#0B1F23" : "#0E7C7B";
+  if (meta) meta.content = t === "dark" ? "#000000" : dark ? "#0B1120" : "#14213D";
 }
 applyTheme();
 try {

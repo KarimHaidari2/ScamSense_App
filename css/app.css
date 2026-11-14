@@ -4,35 +4,38 @@
  */
 /* Layout: one phone-width column, app header on top, tab bar fixed at the bottom. */
 :root {
-  --bg: #f3f7f6;
+  /* Midnight Navy: navy on warm white, with a gold accent */
+  --bg: #f5f5f2;
   --surface: #ffffff;
-  --ink: #0e3b43;
-  --muted: #4f6b70;
-  --line: #d5e2e0;
-  --brand: #0e7c7b;
+  --ink: #111827;
+  --muted: #5f6673;
+  --line: #e5e4df;
+  --brand: #14213d;
   --brand-ink: #ffffff;
-  --brand-soft: #e2f1f0;
-  --amber: #f2a541;
+  --brand-soft: #eceef3;
+  --gold: #c8932a;
+  --amber: #e0a93b;
   --safe: #1f7a3e;
   --safe-bg: #e4f4e9;
   --warn: #9a5b00;
   --warn-bg: #fff2dc;
   --scam: #b42318;
   --scam-bg: #fde7e4;
-  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --display: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
   --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0b1f23;
-    --surface: #11292e;
-    --ink: #e6f2f0;
-    --muted: #9db8b9;
-    --line: #24444a;
-    --brand: #3fbfbc;
-    --brand-ink: #0b1f23;
-    --brand-soft: #15393c;
+    --bg: #0b1120;
+    --surface: #141c2f;
+    --ink: #e8ecf4;
+    --muted: #9aa4b8;
+    --line: #263149;
+    --brand: #e6ebf5;
+    --brand-ink: #0b1120;
+    --brand-soft: #1d2843;
+    --gold: #e8b85a;
     --safe: #6fd394;
     --safe-bg: #12321f;
     --warn: #f5b95a;
@@ -43,7 +46,7 @@
   }
 }
 /*
-  Dark mode chosen in Settings: true black (Automatic keeps the dark teal above when the phone is dark).
+  Dark mode chosen in Settings: true black (Automatic keeps the dark navy above when the phone is dark).
  */
 :root[data-theme="dark"] {
   --bg: #000000;
@@ -120,7 +123,7 @@ body {
   background: var(--surface);
   box-shadow:
     0 0 0 1px var(--line),
-    0 1px 3px rgba(14, 59, 67, 0.05);
+    0 1px 3px rgba(17, 24, 39, 0.05);
   min-height: 104px;
 }
 .qa b {
@@ -835,7 +838,7 @@ input[type="file"] {
 .modal-bg {
   position: fixed;
   inset: 0;
-  background: rgba(5, 20, 24, 0.55);
+  background: rgba(8, 12, 24, 0.55);
   z-index: 20;
   display: flex;
   align-items: flex-end;
@@ -967,7 +970,7 @@ input[type="file"] {
   line-height: 1.35;
 }
 .screen.home {
-  background: linear-gradient(160deg, #0e7c7b, #0e3b43);
+  background: linear-gradient(160deg, #24375f, #0b1120);
   color: #fff;
 }
 .screen.app {
@@ -2022,7 +2025,7 @@ header h1 {
   border: 0;
   box-shadow:
     0 0 0 1px var(--line),
-    0 1px 3px rgba(14, 59, 67, 0.05);
+    0 1px 3px rgba(17, 24, 39, 0.05);
   border-radius: 18px;
 }
 .pagehead {
@@ -2116,7 +2119,7 @@ details.sect[open] > summary::before {
   background: var(--surface);
   box-shadow:
     0 0 0 1px var(--line),
-    0 1px 3px rgba(14, 59, 67, 0.05);
+    0 1px 3px rgba(17, 24, 39, 0.05);
 }
 .tile:hover {
   box-shadow: 0 0 0 2px var(--brand);
@@ -2242,7 +2245,7 @@ details.sect[open] > summary::before {
   background: var(--surface);
   box-shadow:
     0 0 0 1px var(--line),
-    0 1px 3px rgba(14, 59, 67, 0.05);
+    0 1px 3px rgba(17, 24, 39, 0.05);
   position: relative;
   overflow: hidden;
 }
@@ -2412,12 +2415,12 @@ details.sect[open] > summary::before {
   padding: 0 16px 0 12px;
   border-radius: 999px;
   background: var(--brand);
-  color: #fff;
+  color: var(--brand-ink);
   font-weight: 700;
   font-size: 0.92rem;
   cursor: grab;
   box-shadow:
-    0 6px 18px rgba(14, 59, 67, 0.28),
+    0 6px 18px rgba(17, 24, 39, 0.28),
     0 0 0 3px var(--surface);
   touch-action: none;
   user-select: none;
@@ -2457,15 +2460,20 @@ details.sect[open] > summary::before {
   margin-top: 2px;
 }
 .footnote.center {
-  justify-content: center;
+  display: block;
   text-align: center;
+  line-height: 1.7;
+}
+.footnote a {
+  color: var(--muted);
+  font-weight: 700;
 }
 .group {
   background: var(--surface);
   border-radius: 18px;
   box-shadow:
     0 0 0 1px var(--line),
-    0 1px 3px rgba(14, 59, 67, 0.05);
+    0 1px 3px rgba(17, 24, 39, 0.05);
   overflow: hidden;
 }
 .grow {
@@ -2590,6 +2598,7 @@ select.inline {
 }
 .switch input:checked + span::after {
   transform: translateX(20px);
+  background: var(--brand-ink);
 }
 .switch input:focus-visible + span {
   outline: 3px solid var(--amber);
@@ -2763,7 +2772,7 @@ select.inline {
   border-width: 0;
   box-shadow:
     0 0 0 1px var(--line),
-    0 1px 3px rgba(14, 59, 67, 0.05);
+    0 1px 3px rgba(17, 24, 39, 0.05);
   border-radius: 18px;
 }
 .hc-icon .ic {
@@ -2832,7 +2841,7 @@ select optgroup {
   background: var(--surface);
   box-shadow:
     0 0 0 1px var(--line),
-    0 2px 6px rgba(14, 59, 67, 0.06);
+    0 2px 6px rgba(17, 24, 39, 0.06);
   border-inline-start: 6px solid var(--act, var(--brand));
   color: var(--ink);
   font: inherit;
