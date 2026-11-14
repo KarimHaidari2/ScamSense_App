@@ -14,7 +14,10 @@ function useHero(on) {
   document.body.classList.toggle("tophero", !!on);
   const head = document.querySelector(".app > header");
   if (on && head)
-    document.documentElement.style.setProperty("--headh", head.offsetTop + head.offsetHeight + "px");
+    document.documentElement.style.setProperty(
+      "--headh",
+      Math.round(head.getBoundingClientRect().bottom - head.parentElement.getBoundingClientRect().top) + "px"
+    );
 }
 addEventListener("resize", () => {
   if (document.body.classList.contains("tophero")) useHero(true);
@@ -35,6 +38,34 @@ function greeting() {
       : tr("Good evening", "Buenas noches");
 }
 
+/* Which inboxes were checked, in words: "Gmail", "Gmail and Outlook", "the demo inbox". */
+function inboxWords(rep) {
+  return rep.source === "demo"
+    ? tr("The demo inbox", "La bandeja de prueba")
+    : rep.source === "outlook"
+      ? "Outlook"
+      : rep.source === "mixed"
+        ? tr("Gmail and Outlook", "Gmail y Outlook")
+        : "Gmail";
+}
+function isNight() {
+  const h = new Date().getHours();
+  return h >= 18 || h < 5;
+}
+/* The big line in the navy panel: how protected you are right now. */
+function homeHeadline(rep) {
+  if (!rep) return tr("Let's keep you safe.", "Vamos a protegerle.");
+  const n = { scam: 0, warn: 0, safe: 0 };
+  rep.items.forEach(i => n[i.level]++);
+  if (n.scam)
+    return n.scam === 1
+      ? tr("1 scam caught today.", "1 estafa detectada hoy.")
+      : tr(`${n.scam} scams caught today.`, `${n.scam} estafas detectadas hoy.`);
+  if (n.warn) return tr("A few emails need a look.", "Algunos correos necesitan revisión.");
+  return isNight()
+    ? tr("You're protected tonight.", "Está protegido esta noche.")
+    : tr("You're protected today.", "Está protegido hoy.");
+}
 /* Today's email status, shown as one tappable line in the navy panel. */
 function homeStatus(rep) {
   if (!rep)
@@ -45,10 +76,17 @@ function homeStatus(rep) {
   const title =
     lv === "safe"
       ? rep.source === "demo"
-        ? tr("Demo inbox: no scams", "Bandeja de prueba: sin estafas")
-        : tr("Your email is clear", "Su correo está limpio")
-      : headlineOf(n);
-  const sub = `${rep.source === "demo" ? t("demo_label") + " · " : ""}${tr(`${rep.items.length} emails checked`, `${rep.items.length} correos revisados`)} · ${fmtTime(rep.at)}`;
+        ? tr("No scams in the demo inbox", "No hay estafas en la bandeja de prueba")
+        : tr("No scams in your email today", "No hay estafas en su correo hoy")
+      : lv === "scam"
+        ? n.scam === 1
+          ? tr("Don't open it. Tap to see which one.", "No lo abra. Toque para ver cuál.")
+          : tr("Don't open them. Tap to see which ones.", "No los abra. Toque para ver cuáles.")
+        : tr("Tap to see which ones.", "Toque para ver cuáles.");
+  const sub = tr(
+    `${inboxWords(rep)} checked ${fmtTime(rep.at)}`,
+    `${inboxWords(rep)} revisado ${fmtTime(rep.at)}`
+  );
   return `<button class="nw-status ${lv}" data-home="emails"><i>${ic(lv === "safe" ? "check" : "alert")}</i><span><b>${esc(title)}</b><small>${esc(sub)}</small></span>${ic("chev", "chev")}</button>`;
 }
 
@@ -87,12 +125,14 @@ function homeHTML(rep) {
   return `<div class="home">
   <section class="nw-hero home-hero">
     <div class="nw-owl">${OWL_LIGHT}</div>
-    <p class="nw-greet">${greeting()}</p>
-    <h1>${tr("Got something strange?", "¿Recibió algo extraño?")}</h1>
+    <p class="nw-greet">${esc(greeting() + (cfg().name ? ", " + cfg().name : ""))}</p>
+    <h1>${esc(homeHeadline(rep))}</h1>
     ${homeStatus(rep)}
   </section>
 
+  <h2 class="home-q">${tr("What's happening?", "¿Qué está pasando?")}</h2>
   <section class="askcard" aria-label="${esc(tr("Check something", "Revisar algo"))}">
+    <p class="ask-h">${ic("scan")}<b>${tr("Check something", "Revisar algo")}</b></p>
     <label class="sr" for="hbox">${tr("Paste or type what you got", "Pegue o escriba lo que recibió")}</label>
     <textarea id="hbox" rows="3" placeholder="${esc(tr("Paste a text, email, link, or phone number…", "Pegue un texto, correo, enlace o número…"))}"></textarea>
     <div class="btnrow"><button class="btn primary" id="hgo">${tr("Check it", "Revisar")}</button>${canListen ? `<button class="btn ghost" id="hmic" aria-pressed="false">${ic("mic")}<span>${tr("Say it", "Dígalo")}</span></button>` : ""}</div>
@@ -102,8 +142,8 @@ function homeHTML(rep) {
   </section>
 
   <div class="help2">
-    <button class="htile h-pay" data-go="pause"><span class="htile-ic">${ic("hand")}</span><b>${tr("Someone wants my money", "Alguien quiere mi dinero")}</b><span>${tr("Check before you pay", "Revise antes de pagar")}</span></button>
-    <button class="htile h-sos" data-go="scammed"><span class="htile-ic">${ic("sos")}</span><b>${t("scammed_card")}</b><span>${tr("Get help right now", "Reciba ayuda ahora")}</span></button>
+    <button class="htile h-pay" data-go="pause">${ic("hand")}<b>${tr("Someone wants my money", "Alguien quiere mi dinero")}</b><span>${tr("Check before you pay", "Revise antes de pagar")}</span></button>
+    <button class="htile h-sos" data-go="scammed">${ic("sos")}<b>${t("scammed_card")}</b><span>${tr("Get help right now", "Reciba ayuda ahora")}</span></button>
   </div>
 
   <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">${email}</div></section>

@@ -46,7 +46,8 @@ function renderSettings() {
     <button class="grow linkrow" data-go="preview">${lead("phone", "l-green")}<span class="gl"><b>${tr("Automatic blocking", "Bloqueo automático")}</b><span>${tr("Coming with the iPhone app.", "Llega con la app de iPhone.")}</span></span>${ic("chev", "chev")}</button></div></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Look", "Apariencia")}</h2><div class="group">
-    <div class="grow">${lead("sun", "l-amber")}<label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic follows your phone: light, or dark teal at night.", "Automático sigue su teléfono: claro, o verde oscuro de noche.")}</span></label><select id="theme" class="inline">${[
+    <div class="grow col"><label for="uname" class="gl"><b>${tr("Your first name", "Su nombre")}</b><span>${tr("Optional. Home says hello to you by name.", "Opcional. Inicio le saluda por su nombre.")}</span></label><input id="uname" type="text" autocomplete="given-name" maxlength="30" value="${esc(c.name || "")}"></div>
+    <div class="grow">${lead("sun", "l-amber")}<label for="theme" class="gl"><b>${tr("Light or dark", "Claro u oscuro")}</b><span>${tr("Automatic follows your phone: light, or dark navy at night.", "Automático sigue su teléfono: claro, o azul oscuro de noche.")}</span></label><select id="theme" class="inline">${[
       ["auto", tr("Automatic", "Automático")],
       ["light", tr("Light", "Claro")],
       ["dark", tr("Dark (black)", "Oscuro (negro)")]
@@ -92,6 +93,7 @@ function renderSettings() {
     saveCfg(
       Object.assign(cfg(), {
         theme: document.getElementById("theme").value,
+        name: document.getElementById("uname").value.trim().slice(0, 30),
         rememberKey: document.getElementById("remk").checked,
         clientId: document.getElementById("cid").value.trim() || DEFAULT_CLIENT_ID,
         apiKey: document.getElementById("key").value.trim(),

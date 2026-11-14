@@ -3640,7 +3640,7 @@ details.fold > summary .gl span {
   font-size: 1.05rem;
 }
 .home-hero {
-  padding-bottom: 70px;
+  padding-bottom: 26px;
 }
 .home-hero .nw-owl {
   width: 84px;
@@ -3750,8 +3750,6 @@ body.tophero .langpick select {
 /* The check box on Home, resting on the bottom of the panel */
 .askcard {
   position: relative;
-  z-index: 3;
-  margin-top: -52px;
   padding: 16px;
   border-radius: 24px;
   background: var(--surface);
@@ -3806,13 +3804,12 @@ body.tophero .langpick select {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-height: 158px;
-  padding: 16px;
-  border-radius: 22px;
+  min-height: 168px;
+  padding: 18px 16px;
+  border-radius: 24px;
   cursor: pointer;
   background: var(--tile-bg);
-  color: var(--ink);
+  color: var(--tile-deep);
   border: 1.5px solid transparent;
 }
 .htile:focus-visible {
@@ -3822,44 +3819,70 @@ body.tophero .langpick select {
 .htile:active {
   transform: scale(0.985);
 }
-.htile-ic {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  display: grid;
-  place-items: center;
-  margin-bottom: auto;
-  background: var(--surface);
+.htile > .ic {
+  width: 34px;
+  height: 34px;
+  stroke-width: 2;
   color: var(--tile-ink);
-}
-.htile-ic .ic {
-  width: 26px;
-  height: 26px;
+  margin-bottom: auto;
 }
 .htile b {
-  margin-top: 14px;
+  margin-top: 18px;
   font-family: var(--display);
-  font-size: 1.12rem;
-  line-height: 1.2;
+  font-weight: 800;
+  font-size: 1.3rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
-.htile span:last-child {
-  font-size: 0.92rem;
-  color: var(--muted);
+.htile span {
+  margin-top: 4px;
+  font-size: 0.95rem;
+  opacity: 0.85;
 }
 .h-pay {
-  --tile-bg: var(--warn-bg);
-  --tile-ink: var(--warn);
+  --tile-bg: #fff3dc;
+  --tile-ink: #b26b00;
+  --tile-deep: #5a3a00;
 }
 .h-sos {
-  --tile-bg: var(--scam-bg);
-  --tile-ink: var(--scam);
+  --tile-bg: #fdecea;
+  --tile-ink: #c0352a;
+  --tile-deep: #7a1a12;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .h-pay {
+    --tile-bg: #33270f;
+    --tile-ink: #f5b95a;
+    --tile-deep: #ffe2ad;
+  }
+  :root:not([data-theme="light"]) .h-sos {
+    --tile-bg: #3d1714;
+    --tile-ink: #ff8a7e;
+    --tile-deep: #ffd2cc;
+  }
+}
+:root[data-theme="dark"] .h-pay {
+  --tile-ink: #f5b95a;
+  --tile-deep: #ffe2ad;
+}
+:root[data-theme="dark"] .h-sos {
+  --tile-ink: #ff8a7e;
+  --tile-deep: #ffd2cc;
 }
 :root[data-theme="dark"] .htile {
   background: #000;
   border-color: var(--tile-ink);
 }
-:root[data-theme="dark"] .htile-ic {
-  box-shadow: inset 0 0 0 1px var(--line);
+.ask-h {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  font-family: var(--display);
+  font-size: 1.1rem;
+}
+.ask-h .ic {
+  color: var(--brand);
 }
 
 /* Section titles: quiet sentence-case headings instead of small capitals */
@@ -3909,45 +3932,17 @@ nav.tabs button[aria-current="page"] {
   color: var(--nav-on-ink);
   background: var(--nav-on-bg);
 }
-/* Wide screens: the navy panel becomes a full-width band behind the app column. */
-@media (min-width: 660px) {
-  body.tophero {
-    overflow-x: clip;
-  }
-  .nw-hero {
-    overflow: visible;
-    z-index: 0;
-    background: none;
-    border-radius: 0;
-  }
-  .nw-hero::before {
-    content: "";
-    position: absolute;
-    z-index: -1;
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: 100vw;
-    transform: translateX(-50%);
-    background: var(--hero);
-  }
-  :root[data-theme="dark"] .nw-hero {
-    border-bottom: 0;
-  }
-  :root[data-theme="dark"] .nw-hero::before {
-    border-bottom: 1px solid var(--hero-line);
-  }
-  .nw-hero::after {
-    display: none;
-  }
-}
 .home {
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.home > .nw-hero + .askcard {
-  margin-top: -72px;
+.home-q {
+  margin: 6px 2px -4px;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 [dir="rtl"] .nw-owl {
   right: auto;
@@ -3956,4 +3951,39 @@ nav.tabs button[aria-current="page"] {
 [dir="rtl"] .nw-hero h1,
 [dir="rtl"] .htile b {
   font-family: "Vazirmatn", var(--display);
+}
+
+/* Wide screens: the app sits on a soft backdrop as one rounded panel, like a phone. */
+@media (min-width: 700px) {
+  html {
+    background: var(--backdrop);
+  }
+  body {
+    background: var(--backdrop);
+  }
+  .app {
+    margin: 24px auto 0;
+    min-height: calc(100vh - 24px);
+    background: var(--bg);
+    border-radius: 32px 32px 0 0;
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 30px 60px rgba(17, 24, 39, 0.08);
+    overflow: hidden;
+  }
+  .nw-hero {
+    margin-left: -16px;
+    margin-right: -16px;
+  }
+}
+:root {
+  --backdrop: #eef0f4;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --backdrop: #070b16;
+  }
+}
+:root[data-theme="dark"] {
+  --backdrop: #000000;
 }
