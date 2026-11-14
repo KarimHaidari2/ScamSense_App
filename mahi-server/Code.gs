@@ -85,7 +85,9 @@ function doPost(e) {
 // "Check something": the app sends the message details and gets back a scam verdict (JSON text).
 // Used so the app can get the smart AI check without keeping any key on the device.
 function checkMessage(req) {
-  const details = String(req.check || "").slice(0, 6000).trim();
+  const details = String(req.check || "")
+    .slice(0, 6000)
+    .trim();
   if (!details) return { error: "Nothing to check." };
   if (!takeOne()) return { error: "ScamSense has checked a lot today. Please try again tomorrow." };
   const key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
@@ -189,7 +191,12 @@ function askAI(key, system, messages, tools) {
 // simple answer: text and app actions only, with the web sources listed at the end.
 function askWithSearch(key, system, messages, tools) {
   const all = (tools || []).concat([
-    { type: "web_search_20250305", name: "web_search", max_uses: MAHI.WEB_SEARCHES, user_location: { type: "approximate", country: "US" } }
+    {
+      type: "web_search_20250305",
+      name: "web_search",
+      max_uses: MAHI.WEB_SEARCHES,
+      user_location: { type: "approximate", country: "US" }
+    }
   ]);
   let convo = messages.slice(),
     blocks = [],
@@ -200,7 +207,10 @@ function askWithSearch(key, system, messages, tools) {
     if (r.stop_reason !== "pause_turn") break;
     convo = convo.concat([{ role: "assistant", content: r.content }]);
   }
-  return { content: simplify(blocks, r.stop_reason), stop_reason: r.stop_reason === "pause_turn" ? "end_turn" : r.stop_reason };
+  return {
+    content: simplify(blocks, r.stop_reason),
+    stop_reason: r.stop_reason === "pause_turn" ? "end_turn" : r.stop_reason
+  };
 }
 // Joins the answer's text pieces, keeps app actions (tool_use), drops raw search data,
 // and adds "Sources" with the web pages the answer used.
@@ -210,7 +220,8 @@ function simplify(blocks, stop) {
   blocks.forEach(b => {
     if (b.type === "text") {
       (b.citations || []).forEach(c => {
-        if (c.url && !sources.some(s => s.url === c.url)) sources.push({ url: c.url, title: c.title || c.url });
+        if (c.url && !sources.some(s => s.url === c.url))
+          sources.push({ url: c.url, title: c.title || c.url });
       });
       const last = out[out.length - 1];
       if (last && last.type === "text") last.text += b.text;
@@ -218,7 +229,10 @@ function simplify(blocks, stop) {
     } else if (b.type === "tool_use") out.push({ type: "tool_use", id: b.id, name: b.name, input: b.input });
   });
   if (sources.length && stop !== "tool_use") {
-    const list = sources.slice(0, 4).map(s => "• " + s.title + " — " + s.url).join("\n");
+    const list = sources
+      .slice(0, 4)
+      .map(s => "• " + s.title + " — " + s.url)
+      .join("\n");
     const last = out.filter(b => b.type === "text").pop();
     if (last) last.text = last.text.trim() + "\n\nSources:\n" + list;
   }
@@ -245,6 +259,7 @@ If someone is in danger, tell them to call 911. If you're not sure, say so.`;
    ======================================================================== */
 
 const OWNER = {
+  EMAIL: "scamsense.karim@outlook.com", // the ScamSense owner: gets alerts and the weekly summary; replies go here
   DASHBOARD: "ScamSense Owner Dashboard",
   REPORT_HOUR: 8, // daily reports go out around this hour (the script's time zone)
   APP_URL: "https://karimhaidari2.github.io/ScamSense_App/",
@@ -313,7 +328,11 @@ function getDb() {
     [ss.insertSheet("Activity"), ACT_COLS],
     [ss.insertSheet("Alerts"), ALERT_COLS]
   ].forEach(([sh, cols]) => {
-    sh.getRange(1, 1, 1, cols.length).setValues([cols]).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh.getRange(1, 1, 1, cols.length)
+      .setValues([cols])
+      .setFontWeight("bold")
+      .setBackground("#14213D")
+      .setFontColor("#FFFFFF");
     sh.setFrozenRows(1);
   });
   p.setProperty("DB_ID", ss.getId());
@@ -394,7 +413,8 @@ function verifiedEmail(req) {
         headers: { Authorization: "Bearer " + req.gtoken },
         muteHttpExceptions: true
       });
-      if (r.getResponseCode() === 200) return String(JSON.parse(r.getContentText()).emailAddress || "").toLowerCase();
+      if (r.getResponseCode() === 200)
+        return String(JSON.parse(r.getContentText()).emailAddress || "").toLowerCase();
     }
     if (req.mstoken) {
       const r = UrlFetchApp.fetch("https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName", {
@@ -426,7 +446,9 @@ function registerUser(req) {
         sheet("Users").deleteRow(u.row); // the extra row this device made earlier
         if (u.row < same.row) same.row--;
       }
-      const devs = String(same.Devices || "").split(/\s+/).filter(Boolean);
+      const devs = String(same.Devices || "")
+        .split(/\s+/)
+        .filter(Boolean);
       if (same["User ID"] !== req.uid && devs.indexOf(req.uid) < 0) devs.push(req.uid);
       same.Devices = devs.join(" ");
       u = same;
@@ -434,7 +456,14 @@ function registerUser(req) {
     if (!u) {
       // Don't list a device until it has a name or a confirmed email.
       if (!ve && !cleanText(req.name, 40) && !cleanText(req.lastName, 40)) return { ok: true, waiting: true };
-      u = { "User ID": req.uid, "First seen": now, "Emails scanned": 0, "Scams caught": 0, Checks: 0, Alerts: 0 };
+      u = {
+        "User ID": req.uid,
+        "First seen": now,
+        "Emails scanned": 0,
+        "Scams caught": 0,
+        Checks: 0,
+        Alerts: 0
+      };
     }
     if (cleanText(req.name, 40)) u["First name"] = cleanText(req.name, 40);
     if (cleanText(req.lastName, 40)) u["Last name"] = cleanText(req.lastName, 40);
@@ -453,7 +482,9 @@ function registerUser(req) {
     if (Array.isArray(req.family))
       u["Trusted people"] = req.family
         .slice(0, 5)
-        .map(f => [cleanText(f.name, 40), cleanText(f.email, 80), cleanText(f.phone, 30)].filter(Boolean).join(" | "))
+        .map(f =>
+          [cleanText(f.name, 40), cleanText(f.email, 80), cleanText(f.phone, 30)].filter(Boolean).join(" | ")
+        )
         .join("\n");
     u["Last active"] = now;
     u.Status = "active";
@@ -489,7 +520,7 @@ function cleanEv(x) {
 const WHAT = {
   check: "Checked something",
   pause: "Pause before you pay",
-  scammed: "Opened \"I was scammed\"",
+  scammed: 'Opened "I was scammed"',
   block: "Blocked a sender",
   scan: "Scanned email",
   account: ""
@@ -503,7 +534,11 @@ const ACCOUNT = {
 
 function saveEvents(req) {
   if (!okUid(req.uid)) return { error: "bad id" };
-  const evs = [].concat(req.events || []).slice(0, 50).map(cleanEv).filter(Boolean);
+  const evs = []
+    .concat(req.events || [])
+    .slice(0, 50)
+    .map(cleanEv)
+    .filter(Boolean);
   if (!evs.length) return { ok: true, saved: 0 };
   const lock = LockService.getScriptLock();
   lock.waitLock(10000);
@@ -564,7 +599,7 @@ function saveEvents(req) {
 
 function dangerAlert(u, what) {
   if (!takeQuota("alert:" + u["User ID"], OWNER.MAX_ALERTS_PER_USER)) return;
-  const owner = Session.getEffectiveUser().getEmail();
+  const owner = OWNER.EMAIL || Session.getEffectiveUser().getEmail();
   const name = fullName(u) || "A ScamSense user";
   const family = String(u["Trusted people"] || "")
     .split("\n")
@@ -576,7 +611,14 @@ function dangerAlert(u, what) {
   const html = alertHTML(name, what, u);
   to.forEach(addr => {
     try {
-      MailApp.sendEmail({ to: addr, subject, htmlBody: html, body: `${name} ${what}. Please call them now.`, name: "ScamSense Alerts" });
+      MailApp.sendEmail({
+        replyTo: OWNER.EMAIL,
+        to: addr,
+        subject,
+        htmlBody: html,
+        body: `${name} ${what}. Please call them now.`,
+        name: "ScamSense Alerts"
+      });
     } catch (e) {}
   });
   sheet("Alerts").appendRow([new Date(), name, u.Email || "", `${name} ${what}`, to.join(", ")]);
@@ -584,7 +626,10 @@ function dangerAlert(u, what) {
   u["Follow-up"] = "needs follow-up";
   writeUser(u);
   try {
-    if (u.row) sheet("Users").getRange(u.row, USER_COLS.indexOf("Follow-up") + 1).setBackground("#FDECEA");
+    if (u.row)
+      sheet("Users")
+        .getRange(u.row, USER_COLS.indexOf("Follow-up") + 1)
+        .setBackground("#FDECEA");
   } catch (e) {}
 }
 
@@ -611,7 +656,10 @@ function takeQuota(key, max) {
   return true;
 }
 function esc(s) {
-  return String(s == null ? "" : s).replace(/[&<>"]/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
+  return String(s == null ? "" : s).replace(
+    /[&<>"]/g,
+    ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]
+  );
 }
 
 /* ========================================================================
@@ -629,6 +677,7 @@ function emailMe(req) {
   const subject = cleanText(req.subject, 150) || "From Mahi";
   const body = String(req.body || "").slice(0, 8000);
   MailApp.sendEmail({
+    replyTo: OWNER.EMAIL,
     to: u.Email,
     subject,
     body,
@@ -646,7 +695,11 @@ function sendAllReports() {
   const users = sheet("Users").getDataRange().getValues();
   const head = users.shift();
   const since = Date.now() - 864e5;
-  const act = sheet("Activity").getDataRange().getValues().slice(1).filter(r => new Date(r[0]).getTime() >= since);
+  const act = sheet("Activity")
+    .getDataRange()
+    .getValues()
+    .slice(1)
+    .filter(r => new Date(r[0]).getTime() >= since);
   users.forEach(v => {
     const u = {};
     head.forEach((c, i) => (u[c] = v[i]));
@@ -654,6 +707,7 @@ function sendAllReports() {
     const mine = act.filter(r => r[1] === u["User ID"]);
     try {
       MailApp.sendEmail({
+        replyTo: OWNER.EMAIL,
         to: u.Email,
         subject: reportSubject(mine),
         htmlBody: userReportHTML(u, mine),
@@ -679,7 +733,9 @@ function reportSubject(rows) {
           : 0),
     0
   );
-  return scams ? `ScamSense: ${scams} scam${scams === 1 ? "" : "s"} caught — here's your report` : "ScamSense: all clear today";
+  return scams
+    ? `ScamSense: ${scams} scam${scams === 1 ? "" : "s"} caught — here's your report`
+    : "ScamSense: all clear today";
 }
 
 function userReportHTML(u, rows) {
@@ -687,7 +743,9 @@ function userReportHTML(u, rows) {
   const checks = rows.filter(r => r[3] === "Checked something");
   const pauses = rows.filter(r => r[3] === "Pause before you pay");
   const emails = scans.reduce((n, r) => n + (+String(r[5]).split(" ")[0] || 0), 0);
-  const scams = scans.reduce((n, r) => n + (+String(r[5]).split(",")[1].trim().split(" ")[0] || 0), 0) + checks.filter(r => r[5] === "scam").length;
+  const scams =
+    scans.reduce((n, r) => n + (+String(r[5]).split(",")[1].trim().split(" ")[0] || 0), 0) +
+    checks.filter(r => r[5] === "scam").length;
   const tile = (label, val) =>
     `<td width="33%" style="padding:5px"><div style="background:#fff;border:1px solid #E3E5EA;border-radius:12px;padding:12px"><div style="font-size:11px;font-weight:800;color:#5F6673;text-transform:uppercase">${label}</div><div style="font-size:26px;font-weight:800;color:#111827">${val}</div></div></td>`;
   const list = rows
@@ -698,7 +756,9 @@ function userReportHTML(u, rows) {
         `<tr><td style="padding:8px 0;border-top:1px solid #E3E5EA;font-size:14px;color:#111827">${esc(r[3])}${r[4] ? " · " + esc(r[4]) : ""}</td><td style="padding:8px 0;border-top:1px solid #E3E5EA;font-size:14px;text-align:right;color:${r[5] === "scam" ? "#B42318" : r[5] === "warn" ? "#8A5300" : "#1F7A3E"}">${esc(r[5] === "warn" ? "be careful" : r[5] || "")}</td></tr>`
     )
     .join("");
-  const head = scams ? `${scams} scam${scams === 1 ? "" : "s"} caught. Don't open ${scams === 1 ? "it" : "them"}.` : "All clear. No scams found.";
+  const head = scams
+    ? `${scams} scam${scams === 1 ? "" : "s"} caught. Don't open ${scams === 1 ? "it" : "them"}.`
+    : "All clear. No scams found.";
   return mailShell(
     `<div style="padding:22px">
       <div style="font-size:15px;color:#5F6673">Good morning${u["First name"] ? ", " + esc(u["First name"]) : ""}</div>
@@ -728,7 +788,10 @@ function mailShell(inner, footer) {
    ======================================================================== */
 
 const isYes = v => /^\s*(yes|y|true|blocked)\s*$/i.test(String(v || ""));
-const BLOCKED = { blocked: true, error: "ScamSense is turned off for this account. Please contact the ScamSense team." };
+const BLOCKED = {
+  blocked: true,
+  error: "ScamSense is turned off for this account. Please contact the ScamSense team."
+};
 function isBlocked(uid) {
   if (!okUid(uid)) return false;
   try {
@@ -743,6 +806,7 @@ function isBlocked(uid) {
 function sendWelcome(u) {
   try {
     MailApp.sendEmail({
+      replyTo: OWNER.EMAIL,
       to: u.Email,
       subject: "Welcome to ScamSense",
       body: `Welcome to ScamSense${u["First name"] ? ", " + u["First name"] : ""}! Open the app: ${OWNER.APP_URL}`,
@@ -783,14 +847,23 @@ function markQuietUsers() {
 // Every Monday: one email to you with the week at a glance.
 function sendOwnerWeekly() {
   markQuietUsers();
-  const owner = Session.getEffectiveUser().getEmail();
+  const owner = OWNER.EMAIL || Session.getEffectiveUser().getEmail();
   const since = Date.now() - 7 * 864e5;
   const users = sheet("Users").getDataRange().getValues();
   const head = users.shift();
   const col = c => head.indexOf(c);
-  const act = sheet("Activity").getDataRange().getValues().slice(1).filter(r => new Date(r[0]).getTime() >= since);
-  const alerts = sheet("Alerts").getDataRange().getValues().slice(1).filter(r => new Date(r[0]).getTime() >= since);
-  const name = r => [r[col("First name")], r[col("Last name")]].filter(Boolean).join(" ") || r[col("Email")] || "(no name)";
+  const act = sheet("Activity")
+    .getDataRange()
+    .getValues()
+    .slice(1)
+    .filter(r => new Date(r[0]).getTime() >= since);
+  const alerts = sheet("Alerts")
+    .getDataRange()
+    .getValues()
+    .slice(1)
+    .filter(r => new Date(r[0]).getTime() >= since);
+  const name = r =>
+    [r[col("First name")], r[col("Last name")]].filter(Boolean).join(" ") || r[col("Email")] || "(no name)";
   const newUsers = users.filter(r => new Date(r[col("First seen")]).getTime() >= since);
   const active = { size: users.filter(r => new Date(r[col("Last active")]).getTime() >= since).length };
   const quiet = users.filter(r => r[col("Status")] === "quiet 7+ days");
@@ -815,10 +888,12 @@ function sendOwnerWeekly() {
           .join("")}</ul>`
       : "";
   MailApp.sendEmail({
+    replyTo: OWNER.EMAIL,
     to: owner,
     subject: `ScamSense weekly: ${users.length} ${users.length === 1 ? "user" : "users"}, ${active.size} active, ${scams} ${scams === 1 ? "scam" : "scams"} caught`,
     body: `Users: ${users.length}. New this week: ${newUsers.length}. Active: ${active.size}. Scams caught: ${scams}. Alerts: ${alerts.length}. Dashboard: ${getDb().getUrl()}`,
-    htmlBody: mailShell(`<div style="padding:22px">
+    htmlBody: mailShell(
+      `<div style="padding:22px">
       <div style="font-size:15px;color:#5F6673">Your week at a glance</div>
       <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${active.size} of ${users.length} ${users.length === 1 ? "person" : "people"} used ScamSense this week</div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;table-layout:fixed"><tr>${tile("Users", users.length)}${tile("New", newUsers.length)}${tile("Scams caught", scams, scams ? "#B42318" : "")}${tile("Alerts", alerts.length, alerts.length ? "#B42318" : "")}</tr></table>
@@ -826,7 +901,9 @@ function sendOwnerWeekly() {
       ${list("New this week", newUsers, r => `${name(r)} — ${r[col("Email")] || "no email yet"}`)}
       ${list("Quiet for 7+ days", quiet, r => `${name(r)} — last active ${Utilities.formatDate(new Date(r[col("Last active")]), Session.getScriptTimeZone(), "MMM d")}`)}
       <div style="text-align:center;margin-top:20px"><a href="${getDb().getUrl()}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:12px 24px;border-radius:12px">Open the dashboard</a></div>
-    </div>`, "Only you get this summary, because you run ScamSense. It comes every Monday."),
+    </div>`,
+      "Only you get this summary, because you run ScamSense. It comes every Monday."
+    ),
     name: "ScamSense Owner"
   });
 }
@@ -834,4 +911,3 @@ function sendOwnerWeekly() {
 function sendWeeklyNow() {
   sendOwnerWeekly();
 }
-
