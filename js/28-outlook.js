@@ -13,6 +13,9 @@ const DEFAULT_MS_CLIENT_ID = "1187ff8b-fa16-43d4-acb6-788bb696c627";
 const MS_LOGIN = "https://login.microsoftonline.com/common/oauth2/v2.0";
 const MS_GRAPH = "https://graph.microsoft.com/v1.0/";
 const MS_SCOPES = "openid offline_access User.Read Mail.Read";
+/* Asked for only when someone first moves or blocks an Outlook email. */
+const MS_WRITE_SCOPES = "openid offline_access User.Read Mail.ReadWrite MailboxSettings.ReadWrite";
+const msScopes = () => ((S.get("ms", null) || {}).write ? MS_WRITE_SCOPES : MS_SCOPES);
 
 const msClientId = () => String(cfg().msClientId || DEFAULT_MS_CLIENT_ID).trim();
 const outlookReady = () => !!msClientId();
@@ -34,7 +37,7 @@ function randomText(n) {
 const sha256 = txt => crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
 
 /* ----- 1. Send the person to Microsoft's sign-in page ----- */
-async function connectOutlook() {
+async function connectOutlook(write) {
   if (!outlookReady()) {
     toast(
       tr(
@@ -46,13 +49,14 @@ async function connectOutlook() {
   }
   const verifier = randomText(48),
     state = randomText(16);
-  sessionStorage.setItem("ss_ms_pkce", JSON.stringify({ verifier, state }));
+  const scope = write || (S.get("ms", null) || {}).write ? MS_WRITE_SCOPES : MS_SCOPES;
+  sessionStorage.setItem("ss_ms_pkce", JSON.stringify({ verifier, state, write: scope === MS_WRITE_SCOPES }));
   const q = new URLSearchParams({
     client_id: msClientId(),
     response_type: "code",
     redirect_uri: msRedirect(),
     response_mode: "query",
-    scope: MS_SCOPES,
+    scope,
     state,
     code_challenge: b64url(await sha256(verifier)),
     code_challenge_method: "S256",
@@ -67,7 +71,7 @@ async function msTokenRequest(params) {
   const r = await fetch(`${MS_LOGIN}/token`, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams(Object.assign({ client_id: msClientId(), scope: MS_SCOPES }, params))
+    body: new URLSearchParams(Object.assign({ client_id: msClientId(), scope: msScopes() }, params))
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.access_token)
@@ -100,6 +104,7 @@ async function finishOutlookSignIn() {
     return;
   }
   try {
+    if (saved.write) S.set("ms", Object.assign(S.get("ms", {}) || {}, { write: true }));
     await msTokenRequest({
       grant_type: "authorization_code",
       code: q.get("code"),
@@ -111,6 +116,7 @@ async function finishOutlookSignIn() {
     setStatus();
     toast(tr("Outlook connected.", "Outlook conectado."));
     go("today");
+    if (typeof runOutlookPending === "function" && (await runOutlookPending())) return;
     scanEmail();
   } catch (e) {
     S.del("ms");
@@ -146,10 +152,15 @@ async function msTokenNow() {
     );
   }
 }
-async function msGet(path) {
+async function msGet(path, method, body) {
   const tok = await msTokenNow();
   const r = await fetch(MS_GRAPH + path, {
-    headers: { Authorization: "Bearer " + tok, Prefer: 'outlook.body-content-type="html"' }
+    method: method || "GET",
+    headers: Object.assign(
+      { Authorization: "Bearer " + tok, Prefer: 'outlook.body-content-type="html"' },
+      body ? { "Content-Type": "application/json" } : {}
+    ),
+    body: body ? JSON.stringify(body) : undefined
   });
   if (!r.ok) {
     const j = await r.json().catch(() => ({}));
@@ -157,7 +168,7 @@ async function msGet(path) {
     err.status = r.status;
     throw err;
   }
-  return r.json();
+  return r.status === 204 ? {} : r.json();
 }
 /* Outlook folder names → the names ScamSense shows (and translates). */
 const MS_FOLDER = {

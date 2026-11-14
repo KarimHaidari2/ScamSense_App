@@ -51,5 +51,6 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | 28-outlook.js | Outlook / Hotmail / Microsoft 365 email (read-only, Microsoft sign-in). Setup: docs/outlook-setup.md |
 | 29-send-to-scamsense.js | Send a text to ScamSense: ?check= links, Android Share, iPhone Shortcut steps |
 | 30-report-sync.js | Daily report link: sends check/pause results (never the message) to the daily report script |
+| 31-email-actions.js | Move to Spam and Block sender for Gmail and Outlook, plus the blocked senders list |
 
 Run it on your Mac: `python3 -m http.server 8000`, then open http://localhost:8000

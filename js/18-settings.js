@@ -38,7 +38,8 @@ function renderSettings() {
       .join("")}</ul></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">
-    ${emailAccountsHTML()}</div></section>
+    ${emailAccountsHTML()}
+    <details class="grow col fold" id="blockedfold"><summary>${lead("shield", "l-red")}<span class="gl"><b>${tr("Blocked senders", "Remitentes bloqueados")} (${S.get("blockedSenders", []).length})</b><span>${tr("Emails from these addresses skip your inbox.", "Los correos de estas direcciones no llegan a su bandeja.")}</span></span>${ic("chev", "chev")}</summary><div class="fold-body">${blockedSendersHTML()}</div></details></div></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Texts and calls", "Textos y llamadas")}</h2><div class="group">
     <button class="grow linkrow" data-go="share">${lead("msg", "l-green")}<span class="gl"><b>${tr("Send a text to ScamSense", "Enviar un texto a ScamSense")}</b><span>${tr("Check a suspicious text in 2 taps, on iPhone or Android.", "Revise un texto sospechoso en 2 toques, en iPhone o Android.")}</span></span>${ic("chev", "chev")}</button>
@@ -138,6 +139,11 @@ function renderSettings() {
       })
   );
   bindEmailAccounts(renderSettings);
+  bindBlockedSenders(view, () => {
+    renderSettings();
+    const f = document.getElementById("blockedfold");
+    if (f) f.open = true;
+  });
   document.getElementById("msid").onchange = () => {
     save();
     renderSettings();

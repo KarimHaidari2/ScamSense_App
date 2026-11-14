@@ -3474,3 +3474,36 @@ details.fold > ol {
 .seg.acct {
   margin-bottom: 8px;
 }
+
+/* Move to Spam / Block sender */
+.btn.danger {
+  background: var(--scam-bg);
+  color: var(--scam);
+  border: 1.5px solid currentColor;
+}
+.confirm-block {
+  margin-top: 10px;
+  border-color: var(--scam);
+}
+.blocked-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.blocked-list li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.blocked-list li:first-child {
+  border-top: 0;
+}
+details.fold > .fold-body {
+  margin: 0 16px 14px;
+}
+details.fold > summary .gl span {
+  font-weight: 400;
+}

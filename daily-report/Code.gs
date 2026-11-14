@@ -225,7 +225,7 @@ function summarize(items, gmail, outlook, app, out, aiUsed) {
     paused: ev.filter(e => e.t === "pause" && e.o !== "paid").length,
     paid: ev.filter(e => e.t === "pause" && e.o === "paid").length,
     scammed: ev.some(e => e.t === "scammed"),
-    blocked: items.filter(i => i.blocked).length,
+    blocked: items.filter(i => i.blocked).length + ev.filter(e => e.t === "block").length,
     caught: n.scam + n.warn + risky.length,
     scams: n.scam + checks.filter(e => e.l === "scam").length,
     aiUsed
@@ -563,7 +563,7 @@ function doPost(e) {
 // Keeps only the few safe fields we expect.
 function cleanEvent(x) {
   if (!x || typeof x !== "object") return null;
-  const t = { check: "check", pause: "pause", scammed: "scammed" }[x.t];
+  const t = { check: "check", pause: "pause", scammed: "scammed", block: "block" }[x.t];
   if (!t) return null;
   const at = +x.at;
   return {
@@ -995,6 +995,8 @@ function tipOfDay() {
 // Rows for "Checked in the app".
 function appRowsData(d) {
   return d.app.events.map(e => {
+    if (e.t === "block")
+      return { at: e.at, lv: "safe", what: "Blocked a sender", result: "Blocked", detail: "from the app" };
     if (e.t === "scammed")
       return { at: e.at, lv: "scam", what: "Opened “I was scammed”", result: "Recovery plan", detail: "" };
     if (e.t === "pause")
@@ -1108,7 +1110,7 @@ function htmlReport(d) {
     ) +
     tile("In the app", d.checks.length, d.app.linked ? "texts, calls & more" : "not linked yet") +
     `</tr><tr>${tile("Scams caught", d.scams, d.caught > d.scams ? `+${d.caught - d.scams} be careful` : "today", d.scams ? COL.scam : COL.safe)}` +
-    tile("Blocked", d.blocked, "moved to Spam for you", d.blocked ? BRAND : INK) +
+    tile("Blocked", d.blocked, "scams moved or blocked", d.blocked ? BRAND : INK) +
     tile("Paused", d.paused, d.paused === 1 ? "payment stopped" : "payments stopped", d.paused ? BRAND : INK) +
     "</tr>";
 

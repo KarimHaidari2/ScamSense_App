@@ -459,6 +459,19 @@ const MAHI_TOOLS = [
     }
   },
   {
+    name: "move_or_block_email",
+    description:
+      "Move a scam email from the person's report to Spam/Junk, or block its sender so future emails from that address skip the inbox. Works for Gmail and Outlook. Shows a button the person taps to confirm (you can't do it without their tap). Use the id from get_email_report. Only block senders of scams, never a real company or a person they know.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        action: { type: "string", enum: ["spam", "block"] }
+      },
+      required: ["id", "action"]
+    }
+  },
+  {
     name: "connect_gmail",
     description:
       "Show a button that connects the person's Gmail (read-only) and scans every folder. Use when they want to connect or scan their email. They must tap the button themselves (Google requires it).",
@@ -739,6 +752,30 @@ async function runMahiTool(name, input, ui) {
       ui.actions.push({ label: tr("See your emails", "Ver sus correos"), run: () => go("emails") });
       return { updated: true, verdict: i.verdict };
     }
+    case "move_or_block_email": {
+      const rep = S.get("report", null);
+      const it = rep && rep.items.find(x => x.id === i.id);
+      if (!it) return { error: "Couldn't find that email in the report." };
+      if (!["gmail", "outlook"].includes(it.source))
+        return { error: "That email isn't from a connected inbox." };
+      const block = i.action === "block";
+      ui.actions.push({
+        label: block
+          ? tr(`Block ${it.fromEmail}`, `Bloquear ${it.fromEmail}`)
+          : tr("Move it to Spam", "Moverlo a Spam"),
+        primary: true,
+        run: async () => {
+          try {
+            await (block ? blockSender(it) : moveToSpam(it));
+          } catch (e) {
+            toast(e.message);
+          }
+        }
+      });
+      return {
+        shown: `A button is shown. When the person taps it, the email is ${block ? "moved to Spam/Junk and the sender " + it.fromEmail + " is blocked (future emails go to Trash/Junk; they can unblock in Settings > Email)" : "moved to Spam/Junk"}.`
+      };
+    }
     case "connect_gmail":
       ui.actions.push({
         label: S.get("connected", false)
@@ -916,7 +953,7 @@ function simplifyAI(blocks, stop) {
 }
 
 const MAHI_ACTION_RULES =
-  "When the person asks about an email in their report, read it yourself with read_email (never ask them to paste it). Judge it from the sender's real domain, Gmail's SPF/DKIM/DMARC results, the links, and the text, then update its label with set_email_verdict and tell them clearly: real or scam, and why. Official senders include toll agencies like getipass.com (Illinois Tollway I-PASS), pikepass.com, txtag.org, E-ZPass sites, and sunpass.com. You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. You can also search the web for news, recent scam alerts, statistics, laws, and real phone numbers or websites of companies and agencies; use it whenever the answer could have changed or you aren't sure. After using a tool, explain the result simply and say what you did. Never invent tool results.";
+  "When the person asks about an email in their report, read it yourself with read_email (never ask them to paste it). Judge it from the sender's real domain, Gmail's SPF/DKIM/DMARC results, the links, and the text, then update its label with set_email_verdict and tell them clearly: real or scam, and why. Official senders include toll agencies like getipass.com (Illinois Tollway I-PASS), pikepass.com, txtag.org, E-ZPass sites, and sunpass.com. You can take actions with your tools. Use them instead of just explaining: check any message, number, email, website, or wallet the person shares; look at their email report; move scam emails to Spam or block their senders (a button they tap); connect Gmail; fill in and build their scam report and recovery plan; run Pause before you pay; add trusted people; open lessons and screens. You can also search the web for news, recent scam alerts, statistics, laws, and real phone numbers or websites of companies and agencies; use it whenever the answer could have changed or you aren't sure. After using a tool, explain the result simply and say what you did. Never invent tool results.";
 
 /* The full agent loop: ask the AI, run any tools it picks, repeat (up to 6 steps). */
 let mahiHistory = [];

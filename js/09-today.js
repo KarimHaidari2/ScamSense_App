@@ -194,9 +194,15 @@ function detailHTML(it) {
   if (it.fromEmail)
     h += `<p class="small muted" style="margin:0">${t("from")} <b>${esc(it.fromEmail)}</b>${it.date ? ` · ${esc(fmtTime(it.date))}` : ""}</p>`;
   h += `<div class="ai-box"><p class="label">${ai ? t("ai_expl") : t("ss_says")}</p><p dir="auto">${esc(explanation(it))}</p>${ai ? `<p class="small muted">${t("ai_conf", { n: esc(ai.confidence) })}</p>` : ""}</div>`;
+  // AI warning signs first, then built-in ones the AI didn't already mention (same link or address).
+  const quoted = r => ((r.match(/"([^"]+)"|\(([^)]+)\)/) || [])[1] || "").toLowerCase();
+  const aiText = ((ai && ai.red_flags) || []).join(" ").toLowerCase();
   const flags =
     ai && ai.red_flags && ai.red_flags.length
-      ? [...ai.red_flags, ...it.local.reasons.slice(0, 2)]
+      ? [
+          ...ai.red_flags,
+          ...it.local.reasons.filter(r => !(quoted(r) && aiText.includes(quoted(r)))).slice(0, 2)
+        ]
       : it.local.reasons;
   if (ai && ai.verdict === "safe" && it.level !== "safe")
     h += `<p class="small" style="margin:0">${t("ai_overruled")}</p>`;
@@ -214,6 +220,7 @@ function detailHTML(it) {
   if (it.source === "outlook" && /^https:\/\/outlook\./.test(it.link || ""))
     h += `<a class="btn ghost" href="${esc(it.link)}" target="_blank" rel="noopener">${tr("Open in Outlook", "Abrir en Outlook")}</a>`;
   h += `<button class="btn ghost" data-speak>${t("read_aloud")}</button></div>`;
+  h += emailActionsHTML(it);
   if (it.level !== "safe" && it.source !== "paste")
     h += `<div class="row"><button class="btn ghost" data-real>${tr("This email is real", "Este correo es real")}</button><button class="btn ghost" data-askmahi>${tr("Ask Mahi about it", "Preguntarle a Mahi")}</button></div>`;
   return h;
@@ -236,6 +243,13 @@ function bindItems(list) {
           const it = list[i];
           d.innerHTML = detailHTML(it);
           d.querySelector("[data-speak]").onclick = () => speakItem(it);
+          bindEmailActions(d, it, () => {
+            // Show where the email went, then redraw this email's details.
+            const x = ((S.get("report", null) || {}).items || []).find(y => y.id === it.id);
+            if (x) Object.assign(it, { folder: x.folder, inSpam: x.inSpam });
+            b.click();
+            b.click();
+          });
           const real = d.querySelector("[data-real]");
           if (real)
             real.onclick = () => {
