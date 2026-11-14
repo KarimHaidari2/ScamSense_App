@@ -898,11 +898,13 @@ function bestWhy(i) {
 }
 
 // Makes text safe to put inside the email's HTML.
+// Emojis are written as codes (&#...;) because Gmail's sender breaks them otherwise.
 function esc(s) {
-  return String(s == null ? "" : s).replace(
-    /[&<>"]/g,
-    c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]
-  );
+  return String(s == null ? "" : s)
+    .replace(/\uFFFD+/g, "")
+    .replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c])
+    .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, c => "&#" + c.codePointAt(0) + ";")
+    .replace(/[\uD800-\uDFFF]/g, "");
 }
 
 // Date like "Tue Nov 10, 8:00 AM".
