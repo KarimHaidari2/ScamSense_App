@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScamSense Privacy Policy</title>
+<meta name="description" content="How ScamSense handles your email, messages, and personal information.">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&display=swap">
+<link rel="stylesheet" href="css/legal.css">
+</head>
+<body>
+<header><div class="wrap">
+  <a class="brand" href="./"><img src="icon-192.png" alt="">ScamSense</a>
+  <h1>Privacy Policy</h1>
+  <p>Effective November 13, 2026</p>
+</div></header>
+
+<main><div class="wrap">
+
+<section class="short">
+  <h2>The short version</h2>
+  <ul>
+    <li><b>We don't sell your information.</b> No ads, no data brokers, ever.</li>
+    <li><b>No ScamSense account.</b> Your settings and results stay on your own device.</li>
+    <li><b>Email is read to look for scams, nothing else.</b> ScamSense only changes your mailbox when you tap <b>Move to Spam</b> or <b>Block sender</b>.</li>
+    <li><b>AI checks:</b> to explain whether something is a scam, the message is sent to Anthropic's AI. It is not used to train their AI.</li>
+    <li><b>You're in control.</b> Disconnect your email, unblock senders, or erase everything at any time.</li>
+  </ul>
+</section>
+
+<nav class="toc" aria-label="Contents"><b>Contents</b>
+  <ol>
+    <li><a href="#who">Who we are</a></li>
+    <li><a href="#device">What stays on your device</a></li>
+    <li><a href="#email">Your email</a></li>
+    <li><a href="#ai">AI checks and Mahi</a></li>
+    <li><a href="#report">The daily report</a></li>
+    <li><a href="#others">Other services the app uses</a></li>
+    <li><a href="#google">Google user data</a></li>
+    <li><a href="#never">What we never do</a></li>
+    <li><a href="#choices">Your choices</a></li>
+    <li><a href="#security">Security</a></li>
+    <li><a href="#children">Children</a></li>
+    <li><a href="#changes">Changes and contact</a></li>
+  </ol>
+</nav>
+
+<h2 id="who">1. Who we are</h2>
+<p>ScamSense is a free scam-protection app built by Karim Haidari, a cybersecurity student at the University of Tulsa. It helps people, especially older adults, spot scams in email, text messages, phone calls, websites, and payment requests. ScamSense is a prototype in testing.</p>
+<p>In this policy, "ScamSense," "we," and "us" mean the app and its maker. "You" means the person using it.</p>
+
+<h2 id="device">2. What stays on your device</h2>
+<p>ScamSense has no user accounts and no database of users. The app saves these things <b>only in your browser on your device</b>:</p>
+<ul>
+  <li>Your settings: language, look (light or dark), and options you choose.</li>
+  <li>Your latest email scan results and your check history (what was checked and the result).</li>
+  <li>Your "Pause before you pay" and "I was scammed" answers, and any report documents you create.</li>
+  <li>Trusted family members you add (names and phone numbers or emails you type in).</li>
+  <li>Senders you blocked and senders you marked as real.</li>
+  <li>Your app PIN, if you set one. It is stored scrambled (hashed), not as plain numbers.</li>
+  <li>Your Outlook sign-in (a Microsoft "refresh token"), if you connect Outlook.</li>
+</ul>
+<p>We cannot see any of this. If you clear your browser data or tap <b>Settings → Delete all ScamSense data on this device</b>, it is gone.</p>
+
+<h2 id="email">3. Your email</h2>
+<p>Connecting email is optional. You sign in on Google's or Microsoft's own page. ScamSense never sees your password.</p>
+
+<h3>What ScamSense asks permission for</h3>
+<div class="table-wrap"><table>
+  <thead><tr><th>Permission</th><th>When it's asked</th><th>What it lets ScamSense do</th></tr></thead>
+  <tbody>
+    <tr><td>Gmail: <code>gmail.readonly</code></td><td>When you connect Gmail</td><td>Read your recent emails to check them for scams.</td></tr>
+    <tr><td>Gmail: <code>gmail.modify</code> and <code>gmail.settings.basic</code></td><td>Only the first time you tap <b>Move to Spam</b> or <b>Block sender</b></td><td>Move that email to Spam, and create a Gmail filter that sends future emails from a blocked address to Trash.</td></tr>
+    <tr><td>Outlook: <code>Mail.Read</code>, <code>User.Read</code>, <code>offline_access</code></td><td>When you connect Outlook</td><td>Read your recent emails and your email address, and stay connected without signing in every time.</td></tr>
+    <tr><td>Outlook: <code>Mail.ReadWrite</code> and <code>MailboxSettings.ReadWrite</code></td><td>Only the first time you tap <b>Move to Spam</b> or <b>Block sender</b> on an Outlook email</td><td>Move that email to Junk, and create an Outlook rule that sends future emails from a blocked address to Junk.</td></tr>
+  </tbody>
+</table></div>
+
+<h3>What ScamSense does with your email</h3>
+<ul>
+  <li>Looks at the sender, subject, text, links, attachment names, and the email's security checks (SPF, DKIM, DMARC) to decide if it is safe, suspicious, or a scam.</li>
+  <li>Shows you the result and what to do.</li>
+  <li>Sends risky emails to the AI for a second opinion (see section 4).</li>
+  <li>Moves or blocks an email <b>only when you tap the button</b>. ScamSense never sends, deletes, or edits emails, and never reads your sent mail or drafts.</li>
+</ul>
+<p>Your email is read directly from Google or Microsoft into the app on your device. It is not copied to any ScamSense server.</p>
+
+<h2 id="ai">4. AI checks and Mahi</h2>
+<p>To give a clear, plain-language answer, ScamSense uses AI from <a href="https://www.anthropic.com/" target="_blank" rel="noopener">Anthropic</a> (the maker of Claude).</p>
+<h3>What is sent</h3>
+<ul>
+  <li><b>When you check something</b>, or when a scan finds a risky email: the message text, sender, subject, link addresses, attachment names, the email's security check results, and the warning signs ScamSense found.</li>
+  <li><b>When you talk to Mahi</b>: your recent chat messages, and anything Mahi looks up for you (for example, an email you asked about). Mahi may search the web to answer you.</li>
+  <li><b>When you use "Pause before you pay"</b>: your answers about the payment.</li>
+</ul>
+<h3>How it is sent</h3>
+<p>Normally, the request goes through the <b>Mahi server</b>, a small Google Apps Script program run by ScamSense. The server adds our AI key, passes the request to Anthropic, and sends the answer back. <b>The server does not save your messages.</b> It keeps only a count of how many answers it gave today, so it can stop at a daily limit.</p>
+<p>If you add your own AI key under Settings → Advanced, the app sends requests straight to Anthropic with your key instead. Your key is stored only on your device, and only if you choose to remember it.</p>
+<h3>What Anthropic does with it</h3>
+<p>Anthropic processes these requests under its <a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noopener">Commercial Terms</a>, which say it may not train its AI models on the content sent through its API. See <a href="https://www.anthropic.com/legal/privacy" target="_blank" rel="noopener">Anthropic's Privacy Policy</a> for how long they keep it.</p>
+<p>You can turn AI checks off at any time: Settings → Advanced → What the AI checks → Off. ScamSense will then use only its built-in rules, which run entirely on your device.</p>
+
+<h2 id="report">5. The daily report (optional)</h2>
+<p>The daily safety report is an optional Google Apps Script that runs <b>inside your own Google account</b>. Once set up, it:</p>
+<ul>
+  <li>Reads your recent Gmail and, if you connect it, Outlook mail, and emails you one report each morning.</li>
+  <li>Can move clear scams in Gmail to Spam and email you a note saying what it moved and why.</li>
+  <li>Saves its Outlook sign-in and its settings in your own script's storage, which only your Google account can see.</li>
+</ul>
+<p>If you link the app to the report, the app sends only <b>the kind of check, the result, and the time</b> (for example, "text message, scam, 3:22 PM"). It never sends the message itself. The report keeps these notes for three days.</p>
+
+<h2 id="others">6. Other services the app uses</h2>
+<ul>
+  <li><b>GitHub Pages</b> hosts the app. Like any website host, it may log basic connection information such as your IP address. See <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub's privacy statement</a>.</li>
+  <li><b>Google Fonts</b> provides the app's easy-to-read fonts.</li>
+  <li><b>Google Identity Services</b> shows the "Sign in with Google" window when you connect Gmail.</li>
+  <li><b>Microsoft identity platform</b> shows the Microsoft sign-in page when you connect Outlook.</li>
+  <li><b>Google Apps Script</b> runs the Mahi server and the daily report.</li>
+</ul>
+<p>Phone numbers, websites, and crypto wallet addresses you check are judged by ScamSense's built-in rules on your device, plus the AI when it is on. ScamSense does not use analytics, trackers, or advertising tools.</p>
+
+<h2 id="google">7. Google user data</h2>
+<p>ScamSense's use and transfer to any other app of information received from Google APIs will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+<p>Specifically:</p>
+<ul>
+  <li>We use Gmail data only to show you scam warnings and to act on emails when you ask.</li>
+  <li>We do not transfer Gmail data to others, except to Anthropic's AI to check for scams (section 4), as needed to provide this feature, or if required by law.</li>
+  <li>We do not use Gmail data for advertising.</li>
+  <li>No person reads your Gmail data, unless you ask us for help with a specific email, or it is needed for security or to follow the law.</li>
+</ul>
+
+<h2 id="never">8. What we never do</h2>
+<ul>
+  <li>Sell or rent your information.</li>
+  <li>Show ads or share your information with advertisers or data brokers.</li>
+  <li>Use your email or messages to train AI.</li>
+  <li>Send, delete, or change emails without you tapping a button.</li>
+  <li>Keep a copy of your email on a ScamSense server.</li>
+</ul>
+
+<h2 id="choices">9. Your choices</h2>
+<ul>
+  <li><b>Disconnect email:</b> Settings → Email → Disconnect.</li>
+  <li><b>Remove access completely:</b> Google: <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a>. Microsoft: <a href="https://account.live.com/consent/Manage" target="_blank" rel="noopener">account.live.com/consent/Manage</a>.</li>
+  <li><b>Unblock a sender:</b> Settings → Email → Blocked senders → Unblock.</li>
+  <li><b>Turn off AI:</b> Settings → Advanced → What the AI checks → Off.</li>
+  <li><b>Erase everything on this device:</b> Settings → Delete all ScamSense data on this device.</li>
+  <li><b>Stop the daily report:</b> in your ScamSense script, run <code>stopDailyReport</code> and <code>stopBlocking</code>, or delete the script.</li>
+</ul>
+
+<h2 id="security">10. Security</h2>
+<p>ScamSense uses secure connections (HTTPS) everywhere, signs in only through Google's and Microsoft's own pages, asks for the least permission it needs, keeps AI keys off your device by default, and uses a strict security policy that blocks outside code from running in the app. No system is perfect. If you think something is wrong, please contact us.</p>
+
+<h2 id="children">11. Children</h2>
+<p>ScamSense is made for adults. It is not meant for children under 13, and we do not knowingly collect information from them.</p>
+
+<h2 id="changes">12. Changes and contact</h2>
+<p>If this policy changes, we will update the date at the top and explain big changes in the app.</p>
+<p>Questions or requests: <a href="mailto:scamsense.karim@outlook.com">scamsense.karim@outlook.com</a></p>
+
+<footer>
+  <a href="./">Open ScamSense</a><a href="terms.html">Terms of Use</a>
+  <p>© 2026 Karim Haidari · ScamSense</p>
+</footer>
+</div></main>
+</body>
+</html>

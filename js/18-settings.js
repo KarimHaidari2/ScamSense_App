@@ -63,6 +63,8 @@ function renderSettings() {
   <section class="sect"><h2 class="sect-h">${t("set_priv")}</h2><div class="group">
     <details class="grow col fold"><summary>${lead("info", "l-gray")}<span class="gl"><b>${tr("How ScamSense keeps you private", "Cómo ScamSense protege su privacidad")}</b></span>${ic("chev", "chev")}</summary><p>${t("priv1")}</p><p>${t("priv2")}</p></details>
     <div class="grow">${lead("user", "l-gray")}<a class="gl" href="https://myaccount.google.com/permissions" target="_blank" rel="noopener"><b>${tr("Remove Gmail access in Google", "Quitar el acceso de Gmail en Google")}</b><span>myaccount.google.com/permissions</span></a>${ic("chev", "chev")}</div>
+    <div class="grow">${lead("info", "l-gray")}<a class="gl" href="privacy.html" target="_blank" rel="noopener"><b>${tr("Privacy Policy", "Política de privacidad")}</b><span>${tr("What ScamSense reads, what it sends, and what it never does", "Qué lee ScamSense, qué envía y qué nunca hace")}</span></a>${ic("chev", "chev")}</div>
+    <div class="grow">${lead("info", "l-gray")}<a class="gl" href="terms.html" target="_blank" rel="noopener"><b>${tr("Terms of Use", "Términos de uso")}</b><span>${tr("Warnings, not guarantees", "Avisos, no garantías")}</span></a>${ic("chev", "chev")}</div>
     <button class="grow linkrow danger" id="wipe">${lead("trash", "l-red")}<span class="gl"><b>${t("wipe")}</b></span></button></div></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Help", "Ayuda")}</h2><div class="group">
@@ -85,7 +87,7 @@ function renderSettings() {
     <div class="grow col"><label for="mdl" class="gl"><b>${t("set_model")}</b></label><input id="mdl" autocomplete="off" spellcheck="false" value="${esc(c.model)}"></div>
     <div class="grow col"><label for="murl" class="gl"><b>${tr("Mahi server", "Servidor de Mahi")}</b><span>${tr("Web app URL from the Mahi Server script. Lets Mahi answer anything with no key in the app.", "URL de la app web del script Mahi Server. Permite que Mahi responda todo sin clave en la app.")}</span></label><input id="murl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec" value="${esc(c.mahiUrl)}"></div>
     <div class="grow col"><label for="rurl" class="gl"><b>${tr("Daily report link", "Enlace del reporte diario")}</b><span>${tr("From the Daily Report script (run showAppLink). Adds the texts, calls, and payments you check here to your morning report. Only the result is sent, never the message.", "Del script del Reporte diario (ejecute showAppLink). Agrega a su reporte de la mañana los textos, llamadas y pagos que revise aquí. Solo se envía el resultado, nunca el mensaje.")}</span></label><input id="rurl" type="url" autocomplete="off" spellcheck="false" placeholder="https://script.google.com/macros/s/…/exec?key=…" value="${esc(c.reportUrl || "")}"></div></div></details>
-  <p class="footnote center">${t("footer")}</p>`;
+  <p class="footnote center">${t("footer")}<br><a href="privacy.html" target="_blank" rel="noopener">${tr("Privacy Policy", "Política de privacidad")}</a> · <a href="terms.html" target="_blank" rel="noopener">${tr("Terms of Use", "Términos de uso")}</a></p>`;
   const save = () => {
     saveCfg(
       Object.assign(cfg(), {

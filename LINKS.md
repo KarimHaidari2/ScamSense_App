@@ -8,6 +8,8 @@ Everything you need, on one page. Passwords and keys are **not** here. They stay
 |---|---|
 | ScamSense app (live) | https://karimhaidari2.github.io/ScamSense_App/ |
 | GitHub project | https://github.com/KarimHaidari2/ScamSense_App |
+| Privacy Policy | https://karimhaidari2.github.io/ScamSense_App/privacy.html |
+| Terms of Use | https://karimhaidari2.github.io/ScamSense_App/terms.html |
 
 ## The two Google scripts
 
