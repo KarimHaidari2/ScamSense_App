@@ -173,6 +173,7 @@ function go(tab) {
   if (typeof simClear === "function") simClear();
   tab = OLD_SCREENS[tab] || tab;
   useHero(false); // Home, Family and Settings turn the navy top panel back on
+  document.body.classList.remove("navhide"); // a new screen always shows the tab bar
   const top = TAB_OF[tab] || "today";
   document.querySelectorAll("nav.tabs button").forEach(b => {
     if (b.dataset.tab === top) b.setAttribute("aria-current", "page");
@@ -217,3 +218,26 @@ function startApp() {
 }
 if (document.readyState === "loading") addEventListener("DOMContentLoaded", startApp);
 else startApp();
+
+/* The tab bar and Ask Mahi slide away while you scroll down to read, and come back when you scroll up
+   (like Safari and most phone apps), or when you reach the bottom. */
+(function () {
+  let lastY = scrollY,
+    ticking = false;
+  addEventListener(
+    "scroll",
+    () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const y = scrollY,
+          atEnd = innerHeight + y >= document.documentElement.scrollHeight - 40;
+        if (y > lastY + 6 && y > 120 && !atEnd) document.body.classList.add("navhide");
+        else if (y < lastY - 6 || y < 120 || atEnd) document.body.classList.remove("navhide");
+        lastY = y;
+        ticking = false;
+      });
+    },
+    { passive: true }
+  );
+})();

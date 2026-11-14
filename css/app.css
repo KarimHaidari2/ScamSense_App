@@ -4101,3 +4101,47 @@ nav.tabs button[aria-current="page"] {
 .home > .nw-hero {
   margin-bottom: 0;
 }
+.namerow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Tab bar hides while scrolling down */
+nav.tabs {
+  transition: transform 0.28s ease;
+}
+.fab {
+  transition:
+    left 0.22s ease,
+    top 0.22s ease,
+    transform 0.15s ease,
+    opacity 0.2s ease;
+}
+body.navhide nav.tabs {
+  transform: translateY(calc(100% + 30px));
+}
+body.navhide .fab {
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  nav.tabs,
+  .fab {
+    transition: none;
+  }
+}
+/* A slimmer tab bar */
+nav.tabs {
+  padding: 5px;
+  border-radius: 22px;
+}
+nav.tabs button {
+  padding: 6px 4px 5px;
+  font-size: 0.82rem;
+  gap: 1px;
+}
+nav.tabs button svg {
+  width: 23px;
+  height: 23px;
+}

@@ -115,6 +115,7 @@ async function finishOutlookSignIn() {
     S.set("ms", Object.assign(S.get("ms", {}), { email: me.mail || me.userPrincipalName || "" }));
     setStatus();
     if (typeof registerSoon === "function") registerSoon();
+    if (!saved.write && typeof serverEvent === "function") serverEvent({ t: "account", o: "outlook_on" });
     toast(tr("Outlook connected.", "Outlook conectado."));
     go("today");
     if (typeof runOutlookPending === "function" && (await runOutlookPending())) return;
@@ -125,6 +126,7 @@ async function finishOutlookSignIn() {
   }
 }
 function disconnectOutlook() {
+  if (S.get("ms", null) && typeof serverEvent === "function") serverEvent({ t: "account", o: "outlook_off" });
   S.del("ms");
   msAccess = null;
   setStatus();

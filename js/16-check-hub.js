@@ -68,6 +68,7 @@ function bindEmailAccounts(rerender) {
     } catch (e) {}
     token = null;
     S.set("connected", false);
+    if (typeof serverEvent === "function") serverEvent({ t: "account", o: "gmail_off" });
     setStatus();
     toast(t("gmail_off"));
     rerender();

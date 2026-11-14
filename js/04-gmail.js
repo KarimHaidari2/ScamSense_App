@@ -32,7 +32,9 @@ function getToken(interactive) {
         if (r.error) return reject(new Error("Google sign-in was cancelled or failed: " + r.error));
         token = r.access_token;
         tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
+        const firstTime = !S.get("connected", false);
         S.set("connected", true);
+        if (firstTime && typeof serverEvent === "function") serverEvent({ t: "account", o: "gmail_on" });
         setStatus();
         if (typeof registerSoon === "function") registerSoon(); // confirms their email on the ScamSense server
         resolve(token);

@@ -34,6 +34,7 @@ async function registerUser() {
   const body = {
     mode: "register",
     name: c.name || "",
+    lastName: c.lastName || "",
     email: c.email || "",
     lang: langCode(),
     reports: c.dailyReport !== false,
@@ -49,7 +50,7 @@ async function registerUser() {
     } catch (e) {}
   }
   // Nothing to sign up with yet (no name, no connected email): wait.
-  if (!body.name && !body.gtoken && !body.mstoken && !S.get("acct", null)) return null;
+  if (!body.name && !body.lastName && !body.gtoken && !body.mstoken && !S.get("acct", null)) return null;
   try {
     const j = await serverPost(body);
     if (j && j.ok && !j.waiting) {
@@ -135,7 +136,7 @@ function accountHTML() {
           "Conecte Gmail u Outlook arriba para confirmar su correo."
         );
   return `<section class="sect"><h2 class="sect-h">${tr("Your account", "Su cuenta")}</h2><div class="group">
-    <div class="grow col"><label for="uname" class="gl"><b>${tr("Your first name", "Su nombre")}</b><span>${tr("Home says hello to you by name, and your trusted people see it in alerts.", "Inicio le saluda por su nombre, y sus personas de confianza lo ven en las alertas.")}</span></label><input id="uname" type="text" autocomplete="given-name" maxlength="30" value="${esc(c.name || "")}"></div>
+    <div class="grow col"><label for="uname" class="gl"><b>${tr("Your name", "Su nombre")}</b><span>${tr("Home says hello to you by first name. Your full name is shown to your trusted people in alerts.", "Inicio le saluda por su nombre. Su nombre completo aparece en las alertas a sus personas de confianza.")}</span></label><div class="namerow"><input id="uname" type="text" autocomplete="given-name" maxlength="30" placeholder="${esc(tr("First name", "Nombre"))}" aria-label="${esc(tr("First name", "Nombre"))}" value="${esc(c.name || "")}"><input id="ulname" type="text" autocomplete="family-name" maxlength="30" placeholder="${esc(tr("Last name", "Apellido"))}" aria-label="${esc(tr("Last name", "Apellido"))}" value="${esc(c.lastName || "")}"></div></div>
     <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>${tr("Your email", "Su correo")}</b><span>${emailLine}</span></span></div>
     <div class="grow">${lead("bell", "l-amber")}<span class="gl"><b>${tr("Daily report email", "Reporte diario por correo")}</b><span>${tr("Every morning: what ScamSense caught for you.", "Cada mañana: lo que ScamSense detectó para usted.")}</span></span>${switchHTML("drep", c.dailyReport !== false, "")}</div>
     <div class="grow">${lead("alert", "l-red")}<span class="gl"><b>${tr("Danger alerts", "Alertas de peligro")}</b><span>${tr("If you say you were scammed or already paid, your trusted people get an email right away.", "Si dice que le estafaron o que ya pagó, sus personas de confianza reciben un correo enseguida.")}</span></span>${switchHTML("dalert", c.dangerAlerts !== false, "")}</div>
@@ -147,6 +148,10 @@ function bindAccount() {
     if (el) el.addEventListener("change", fn);
   };
   on("uname", registerSoon);
+  on("ulname", e => {
+    saveCfg(Object.assign(cfg(), { lastName: e.target.value.trim().slice(0, 30) }));
+    registerSoon();
+  });
   on("drep", e => {
     saveCfg(Object.assign(cfg(), { dailyReport: e.target.checked }));
     registerSoon();

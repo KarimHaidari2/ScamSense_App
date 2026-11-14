@@ -251,9 +251,12 @@ const OWNER = {
 };
 const USER_COLS = [
   "User ID",
-  "Name",
+  "First name",
+  "Last name",
   "Email",
   "Email verified",
+  "Gmail",
+  "Outlook",
   "Language",
   "Daily report",
   "Danger alerts",
@@ -286,14 +289,7 @@ function getDb() {
     try {
       const ss = SpreadsheetApp.openById(id);
       const users = ss.getSheetByName("Users");
-      // Newer columns added after the Sheet was made
-      if (users && users.getRange(1, USER_COLS.length).getValue() !== USER_COLS[USER_COLS.length - 1])
-        users
-          .getRange(1, 1, 1, USER_COLS.length)
-          .setValues([USER_COLS])
-          .setFontWeight("bold")
-          .setBackground("#14213D")
-          .setFontColor("#FFFFFF");
+      if (users) addNewColumns(users);
       return ss;
     } catch (e) {}
   }
@@ -312,6 +308,28 @@ function getDb() {
 }
 const sheet = name => getDb().getSheetByName(name);
 
+// When a newer version adds columns, they're inserted in the right place and old rows keep their data.
+function addNewColumns(sh) {
+  const head = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0].map(String);
+  const nameAt = head.indexOf("Name");
+  if (nameAt >= 0 && head.indexOf("First name") < 0) head[nameAt] = "First name";
+  let changed = nameAt >= 0;
+  USER_COLS.forEach((c, i) => {
+    if (head.indexOf(c) < 0) {
+      if (i < head.length && head[i] !== "") sh.insertColumnBefore(i + 1);
+      head.splice(i, 0, c);
+      changed = true;
+    }
+  });
+  if (changed)
+    sh.getRange(1, 1, 1, USER_COLS.length)
+      .setValues([USER_COLS])
+      .setFontWeight("bold")
+      .setBackground("#14213D")
+      .setFontColor("#FFFFFF");
+}
+const fullName = u => [u["First name"], u["Last name"]].filter(Boolean).join(" ");
+
 // Finds a person by this device's ID (their first device in column A, other devices in "Devices").
 function findUser(uid) {
   const sh = sheet("Users");
@@ -326,7 +344,12 @@ function findUser(uid) {
 function findUserByEmail(email) {
   if (!email) return null;
   const sh = sheet("Users");
-  const hit = sh.getRange("C:C").createTextFinder(email).matchEntireCell(true).findNext();
+  const col = USER_COLS.indexOf("Email") + 1;
+  const hit = sh
+    .getRange(1, col, Math.max(1, sh.getLastRow()), 1)
+    .createTextFinder(email)
+    .matchEntireCell(true)
+    .findNext();
   return hit && hit.getRow() > 1 ? userAt(hit.getRow()) : null;
 }
 function userAt(row) {
@@ -397,10 +420,11 @@ function registerUser(req) {
     }
     if (!u) {
       // Don't list a device until it has a name or a confirmed email.
-      if (!ve && !cleanText(req.name, 40)) return { ok: true, waiting: true };
+      if (!ve && !cleanText(req.name, 40) && !cleanText(req.lastName, 40)) return { ok: true, waiting: true };
       u = { "User ID": req.uid, "First seen": now, "Emails scanned": 0, "Scams caught": 0, Checks: 0, Alerts: 0 };
     }
-    if (req.name !== undefined && cleanText(req.name, 40)) u.Name = cleanText(req.name, 40);
+    if (cleanText(req.name, 40)) u["First name"] = cleanText(req.name, 40);
+    if (cleanText(req.lastName, 40)) u["Last name"] = cleanText(req.lastName, 40);
     if (ve) {
       u.Email = ve;
       u["Email verified"] = "yes";
@@ -427,7 +451,7 @@ function registerUser(req) {
 // What the app tells the server: the kind of thing checked, the result, and the time. Never the message itself.
 function cleanEv(x) {
   if (!x || typeof x !== "object") return null;
-  const t = { check: 1, pause: 1, scammed: 1, block: 1, scan: 1 }[x.t] ? x.t : null;
+  const t = { check: 1, pause: 1, scammed: 1, block: 1, scan: 1, account: 1 }[x.t] ? x.t : null;
   if (!t) return null;
   const at = +x.at;
   return {
@@ -435,7 +459,7 @@ function cleanEv(x) {
     c: cleanText(x.c, 12),
     l: ["scam", "warn", "safe"].includes(x.l) ? x.l : "",
     k: cleanText(x.k, 40),
-    o: x.o === "paid" ? "paid" : "",
+    o: ["paid", "gmail_on", "gmail_off", "outlook_on", "outlook_off"].indexOf(x.o) >= 0 ? x.o : "",
     n: Math.max(0, Math.min(5000, +x.n || 0)),
     s: Math.max(0, Math.min(5000, +x.s || 0)),
     w: Math.max(0, Math.min(5000, +x.w || 0)),
@@ -448,7 +472,14 @@ const WHAT = {
   pause: "Pause before you pay",
   scammed: "Opened \"I was scammed\"",
   block: "Blocked a sender",
-  scan: "Scanned email"
+  scan: "Scanned email",
+  account: ""
+};
+const ACCOUNT = {
+  gmail_on: "Connected Gmail",
+  gmail_off: "Disconnected Gmail",
+  outlook_on: "Connected Outlook",
+  outlook_off: "Disconnected Outlook"
 };
 
 function saveEvents(req) {
@@ -464,8 +495,8 @@ function saveEvents(req) {
     const rows = evs.map(e => [
       new Date(e.at),
       req.uid,
-      u.Name || "",
-      WHAT[e.t] + (e.o === "paid" ? " (already paid)" : ""),
+      fullName(u),
+      e.t === "account" ? ACCOUNT[e.o] || "Account" : WHAT[e.t] + (e.o === "paid" ? " (already paid)" : ""),
       e.t === "scan" ? e.src : e.c,
       e.t === "scan" ? `${e.n} emails, ${e.s} scams, ${e.w} careful` : e.l,
       e.k,
@@ -473,7 +504,12 @@ function saveEvents(req) {
     ]);
     const sh = sheet("Activity");
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, ACT_COLS.length).setValues(rows);
+    const when = d => Utilities.formatDate(new Date(d), Session.getScriptTimeZone(), "MMM d, h:mm a");
     evs.forEach(e => {
+      if (e.t === "account" && ACCOUNT[e.o]) {
+        const which = e.o.indexOf("gmail") === 0 ? "Gmail" : "Outlook";
+        u[which] = (e.o.slice(-2) === "on" ? "connected " : "disconnected ") + when(e.at);
+      }
       if (e.t === "scan") {
         u["Emails scanned"] = (+u["Emails scanned"] || 0) + e.n;
         u["Scams caught"] = (+u["Scams caught"] || 0) + e.s;
@@ -509,7 +545,7 @@ function saveEvents(req) {
 function dangerAlert(u, what) {
   if (!takeQuota("alert:" + u["User ID"], OWNER.MAX_ALERTS_PER_USER)) return;
   const owner = Session.getEffectiveUser().getEmail();
-  const name = u.Name || "A ScamSense user";
+  const name = fullName(u) || "A ScamSense user";
   const family = String(u["Trusted people"] || "")
     .split("\n")
     .map(l => (l.split(" | ").find(x => /@/.test(x)) || "").trim())
@@ -640,7 +676,7 @@ function userReportHTML(u, rows) {
   const head = scams ? `${scams} scam${scams === 1 ? "" : "s"} caught. Don't open ${scams === 1 ? "it" : "them"}.` : "All clear. No scams found.";
   return mailShell(
     `<div style="padding:22px">
-      <div style="font-size:15px;color:#5F6673">Good morning${u.Name ? ", " + esc(u.Name) : ""}</div>
+      <div style="font-size:15px;color:#5F6673">Good morning${u["First name"] ? ", " + esc(u["First name"]) : ""}</div>
       <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${head}</div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;table-layout:fixed"><tr>${tile("Emails checked", emails)}${tile("Scams caught", scams)}${tile("Payments paused", pauses.length)}</tr></table>
       ${scams ? `<div style="background:#FDECEA;border-radius:12px;padding:12px 14px;margin-top:16px;font-size:15px;color:#7A1A12">Open ScamSense to see which emails and messages were scams, and what to do.</div>` : ""}
