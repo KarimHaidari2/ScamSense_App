@@ -713,13 +713,13 @@ function userReportHTML(u, rows) {
 }
 
 // The shared look of every email: navy header with the owl, white card, small footer.
-function mailShell(inner) {
+function mailShell(inner, footer) {
   return `<!doctype html><html><body style="margin:0;background:#F5F5F2;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:18px 10px">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#fff;border-radius:18px;overflow:hidden;border:1px solid #E3E5EA">
 <tr><td style="background:#14213D;padding:16px 22px;font-size:19px;font-weight:800;color:#fff">&#129417; ScamSense</td></tr>
 <tr><td>${inner}</td></tr></table>
-<div style="font-size:12px;color:#5F6673;margin-top:12px">You get this because you use ScamSense. Turn emails off in ScamSense › Settings › Your account.</div>
+<div style="font-size:12px;color:#5F6673;margin-top:12px">${footer || "You get this because you use ScamSense. Turn emails off in ScamSense › Settings › Your account."}</div>
 </td></tr></table></body></html>`;
 }
 
@@ -816,17 +816,17 @@ function sendOwnerWeekly() {
       : "";
   MailApp.sendEmail({
     to: owner,
-    subject: `ScamSense weekly: ${users.length} users, ${active.size} active, ${scams} scams caught`,
+    subject: `ScamSense weekly: ${users.length} ${users.length === 1 ? "user" : "users"}, ${active.size} active, ${scams} ${scams === 1 ? "scam" : "scams"} caught`,
     body: `Users: ${users.length}. New this week: ${newUsers.length}. Active: ${active.size}. Scams caught: ${scams}. Alerts: ${alerts.length}. Dashboard: ${getDb().getUrl()}`,
     htmlBody: mailShell(`<div style="padding:22px">
       <div style="font-size:15px;color:#5F6673">Your week at a glance</div>
-      <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${active.size} of ${users.length} people used ScamSense this week</div>
+      <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${active.size} of ${users.length} ${users.length === 1 ? "person" : "people"} used ScamSense this week</div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;table-layout:fixed"><tr>${tile("Users", users.length)}${tile("New", newUsers.length)}${tile("Scams caught", scams, scams ? "#B42318" : "")}${tile("Alerts", alerts.length, alerts.length ? "#B42318" : "")}</tr></table>
       ${list("Needs follow-up", follow, r => `${name(r)} — ${r[col("Email")] || ""}`)}
       ${list("New this week", newUsers, r => `${name(r)} — ${r[col("Email")] || "no email yet"}`)}
       ${list("Quiet for 7+ days", quiet, r => `${name(r)} — last active ${Utilities.formatDate(new Date(r[col("Last active")]), Session.getScriptTimeZone(), "MMM d")}`)}
       <div style="text-align:center;margin-top:20px"><a href="${getDb().getUrl()}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:12px 24px;border-radius:12px">Open the dashboard</a></div>
-    </div>`),
+    </div>`, "Only you get this summary, because you run ScamSense. It comes every Monday."),
     name: "ScamSense Owner"
   });
 }
