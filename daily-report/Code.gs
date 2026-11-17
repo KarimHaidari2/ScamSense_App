@@ -598,6 +598,7 @@ function json(o) {
 
 // Runs every few minutes. Moves clear scams to Spam and labels them ScamSense/Blocked.
 function blockScams() {
+  learnRescued();
   const me = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
   const props = PropertiesService.getScriptProperties();
   let seen = [];
@@ -621,7 +622,23 @@ function blockScams() {
       const msg = toMsg(m, from);
       const r = analyze(msg);
       if (r.level !== "scam" || r.trusted) return;
-      if (knownContact(from.email)) return;
+      if (knownContact(from.email) || isSafeSender(from.email)) return;
+      // Real, signed mail from the company's own domain is never moved automatically.
+      // (It can still show up as "be careful" in the daily report.)
+      if (passesSenderCheck(msg) && !fakeLookingSender(r)) return;
+      // A second opinion: only move it if the AI also says it's a scam, and is sure.
+      if (
+        !aiConfirmsScam({
+          msg,
+          fromName: from.name,
+          fromEmail: from.email,
+          subject: msg.subject,
+          reasons: r.reasons,
+          kind: r.kind,
+          level: r.level
+        })
+      )
+        return;
       th.moveToSpam();
       th.addLabel(label);
       blocked.push({
@@ -635,6 +652,49 @@ function blockScams() {
   });
   props.setProperty("SEEN_IDS", JSON.stringify(seen.slice(-800)));
   if (blocked.length) sendBlockedNotice(me, blocked);
+}
+
+// The email really came from the domain in the From address (Gmail's DMARC check passed).
+function passesSenderCheck(msg) {
+  return /dmarc=pass/i.test(msg.auth || "");
+}
+// Scammers can sign mail from their own fake domain. These signs mean the domain itself is the trick.
+function fakeLookingSender(r) {
+  return r.reasons.some(x => /looks like .* fake copy|temporary \(throwaway\)/i.test(x));
+}
+// Blocking needs the AI to agree it's a scam and be at least 85% sure. If the AI can't be reached, nothing is moved.
+function aiConfirmsScam(it) {
+  try {
+    const a = aiExplain(PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY"), it);
+    return !!(a && a.verdict === "scam" && (+a.confidence || 0) >= 85);
+  } catch (e) {
+    return false;
+  }
+}
+
+// Senders you rescued: if you move a blocked email back out of Spam, ScamSense remembers and never blocks them again.
+function isSafeSender(email) {
+  return safeSenders().indexOf(String(email || "").toLowerCase()) >= 0;
+}
+function safeSenders() {
+  try {
+    return JSON.parse(PropertiesService.getScriptProperties().getProperty("SAFE_SENDERS") || "[]");
+  } catch (e) {
+    return [];
+  }
+}
+function learnRescued() {
+  const label = GmailApp.getUserLabelByName(CONFIG.BLOCK_LABEL);
+  if (!label) return;
+  const list = safeSenders();
+  GmailApp.search(`label:${CONFIG.BLOCK_LABEL.replace("/", "-")} -in:spam`, 0, 50).forEach(th => {
+    th.getMessages().forEach(m => {
+      const e = parseFrom(m.getFrom()).email.toLowerCase();
+      if (e && list.indexOf(e) < 0) list.push(e);
+    });
+    th.removeLabel(label);
+  });
+  PropertiesService.getScriptProperties().setProperty("SAFE_SENDERS", JSON.stringify(list.slice(-300)));
 }
 
 // True if you have ever emailed this person (we never block them).
@@ -658,7 +718,7 @@ function sendBlockedNotice(me, blocked) {
     .concat([
       "",
       `You don't need to do anything. Don't open ${n > 1 ? "them" : "it"}.`,
-      'If one was a real email, open Spam in Gmail and tap "Not spam".'
+      'If one was a real email, open Spam in Gmail and tap "Not spam". ScamSense will remember that sender and never block them again.'
     ])
     .join("\n");
   const rows = blocked
@@ -677,7 +737,7 @@ function sendBlockedNotice(me, blocked) {
         <div style="font-size:22px;font-weight:800;line-height:1.25">&#128737; Blocked ${n} scam email${n > 1 ? "s" : ""}</div>
         <p style="font-size:15px;margin:8px 0 0">${n > 1 ? "They were" : "It was"} moved to Spam. You don't need to do anything. Don't open ${n > 1 ? "them" : "it"}.</p></div>
       ${rows}
-      <p style="color:#5F6673;font-size:13px;margin:12px 4px 0">If one was a real email, open <b>Spam</b> in Gmail and tap <b>Not spam</b>.</p>
+      <p style="color:#5F6673;font-size:13px;margin:12px 4px 0">If one was a real email, open <b>Spam</b> in Gmail and tap <b>Not spam</b>. ScamSense will remember that sender and never block them again.</p>
     </div></body></html>`;
   GmailApp.sendEmail(me, subject, plain, { htmlBody: html, name: "ScamSense" });
 }
@@ -780,7 +840,7 @@ function aiLevel(it, verdict) {
 // Asks Anthropic's AI to explain one risky email in plain words.
 function aiExplain(key, it) {
   const sys =
-    'You are ScamSense, protecting older adults from scams. Judge the email. Reply with ONLY JSON: {"verdict":"safe"|"suspicious"|"scam","explanation":"2 short, plain sentences a 75-year-old can follow","what_to_do":["2-3 short steps"]}';
+    'You are ScamSense, protecting older adults from scams. Judge the email. Real, signed company mail (sender checks pass, sent from the company\'s own domain, like a pay or account notice from a gig app) is NOT a scam just because it mentions accounts, payments, or deadlines. Reply with ONLY JSON: {"verdict":"safe"|"suspicious"|"scam","confidence":0-100,"explanation":"2 short, plain sentences a 75-year-old can follow","what_to_do":["2-3 short steps"]}';
   const user = [
     `From: ${it.fromName} <${it.fromEmail}>`,
     `Subject: ${it.subject}`,
@@ -1373,7 +1433,8 @@ const BRANDS = {
   mcafee: ["mcafee.com"],
   coinbase: ["coinbase.com"],
   venmo: ["venmo.com"],
-  walmart: ["walmart.com"],
+  walmart: ["walmart.com", "sparkdriverapp.com", "ddiwork.com", "branchapp.com", "walmartspark.com"],
+  "spark driver": ["walmart.com", "sparkdriverapp.com", "ddiwork.com", "branchapp.com", "walmartspark.com"],
   costco: ["costco.com"],
   docusign: ["docusign.com", "docusign.net"],
   facebook: ["facebook.com", "facebookmail.com", "meta.com"],
