@@ -6,7 +6,8 @@
 
 const RULES = [
   {
-    re: /gift ?cards?|itunes card|google play card|steam card|apple card balance/i,
+    // Only when it asks you to PAY with gift cards (winning one in a contest is a different sign)
+    re: /\b(pay|paying|payment|buy|buying|purchase|send|sending|pick up|go (to|get)[^.]{0,20}(store|walmart|target|cvs))\b[^.]{0,50}\bgift ?cards?|\bgift ?cards?\b[^.]{0,50}\b(codes?|numbers?|pin|back of|scratch|read (me|us|them))\b|\b(in|with) (\$?\d[\d,]* (in|of) )?gift ?cards\b|itunes card|google play card|steam card|apple card balance/i,
     pts: 5,
     why: "Asks for payment by gift card. Real companies, police, and the government never ask for gift cards.",
     es: "Pide pago con tarjetas de regalo. Las empresas reales, la policía y el gobierno nunca piden tarjetas de regalo.",
