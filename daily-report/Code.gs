@@ -140,7 +140,7 @@ function sendDailyReport() {
             it.level = aiLevel(it, a.verdict);
           }
         } catch (e) {
-          /* keep the built-in result */
+          console.log("AI check failed, keeping the built-in result: " + e.message);
         }
       });
     items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
@@ -833,7 +833,7 @@ function aiLevel(it, verdict) {
   let v = { safe: "safe", suspicious: "warn", scam: "scam" }[verdict] || "warn";
   if (v === "safe" && it.score >= 12) v = "warn"; // very strong warning signs: still be careful
   if (it.trusted && it.score < 8 && v === "scam") v = "warn";
-  if (it.score >= 14 && v === "warn") v = "scam";
+  if (it.score >= 20 && v === "warn") v = "scam"; // only overwhelming signs override the AI
   return v;
 }
 
@@ -866,6 +866,7 @@ function aiExplain(key, it) {
       })
     });
     const out = JSON.parse(r.getContentText() || "{}");
+    if (out.error) console.log("AI check (Mahi server) said: " + out.error);
     const m = String(out.text || "").match(/\{[\s\S]*\}/);
     return m ? JSON.parse(m[0]) : null;
   }
@@ -1457,6 +1458,9 @@ const BRANDS = {
   "e-zpass pa": ["paturnpike.com"]
 };
 
+// Mailing services that real companies use to send their emails.
+const EMAIL_SERVICES =
+  /(^|\.)(helloworlddemail|helloworld|sendgrid|mcsv|mcdlv|rsgsv|mailchimpapp|exacttarget|marketingcloudapps|braze|iterable|klaviyomail|klaviyo|customeriomail|mandrillapp|sparkpostmail|amazonses|mktomail|constantcontact|ccsend|hubspotemail|hs-email|pardot|createsend|cmail\d+|mailgun|postmarkapp|salesforce|attentivemobile|bluecore|cheetahmail|epsilon|responsys|emarsys)\.[a-z.]+$/;
 // Free personal email services (real companies don't send from these).
 const FREE_MAIL =
   /^(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|aol|icloud|me|proton|protonmail|gmx|mail|zoho)\.(com|net|me|org)$/;
@@ -1631,8 +1635,13 @@ function analyze(msg) {
     for (const b of Object.keys(BRANDS)) {
       const re = new RegExp("\\b" + b.replace(/[-]/g, "[- ]?") + "\\b", "i");
       if (re.test(name) && !legitFor(b, dom)) {
+        // Real companies often send through a mailing service (HelloWorld, SendGrid, Mailchimp...).
+        // If the mail is signed and its links go to the company's real site, the name is fine.
+        const signed = /dmarc=pass/.test(auth);
+        const realLinks = links.some(l => l.host && legitFor(b, l.host));
+        if (signed && !FREE_MAIL.test(dom) && (realLinks || EMAIL_SERVICES.test(dom))) break;
         add(
-          5,
+          signed && msg.listUnsub && !FREE_MAIL.test(dom) ? 2 : 5,
           FREE_MAIL.test(dom)
             ? tr(
                 `Says it's from ${cap(b)}, but it was sent from a personal ${dom} address.`,
@@ -1700,6 +1709,18 @@ function analyze(msg) {
     if (legitBrand && /dmarc=pass|dkim=pass/.test(auth)) trusted = true;
     if (trusted) score = Math.max(0, score - 5);
     else if (msg.listUnsub && /dmarc=pass/.test(auth) && score < 8) score = Math.max(0, score - 2);
+  }
+  // A real sweepstakes from a signed company email (official rules, no purchase necessary) isn't a prize scam.
+  if (
+    types.prize &&
+    !types.payment &&
+    /dmarc=pass/i.test(msg.auth || "") &&
+    /official rules|no purchase necessary|sweepstakes rules|terms apply/i.test(text)
+  ) {
+    score = Math.max(0, score - types.prize);
+    const i = reasons.findIndex(r => /won something|ganó algo/.test(r));
+    if (i >= 0) reasons.splice(i, 1);
+    delete types.prize;
   }
   (msg.attachments || []).forEach(f => {
     if (RISKY_FILE.test(f))
