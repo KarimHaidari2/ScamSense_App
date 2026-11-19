@@ -381,6 +381,8 @@ const MAHI_SCREENS = {
   pause: "Pause before you pay",
   scammed: "I was scammed: recovery plan and reports",
   learn: "Short scam lessons",
+  cleanup:
+    "Clean up my info: find and remove your name, address, and phone from people-search sites, check your own email for data leaks, and free steps that stop scam calls and mail (Do Not Call, carrier blocking, credit freeze)",
   monthly: "Monthly report",
   family: "Family and trusted people",
   settings: "Settings",

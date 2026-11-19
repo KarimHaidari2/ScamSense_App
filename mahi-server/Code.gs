@@ -63,6 +63,8 @@ function doPost(e) {
     if (req.mode === "register") return json(registerUser(req));
     if (req.mode === "events") return json(saveEvents(req));
     if (req.mode === "email_me") return json(emailMe(req));
+    if (req.mode === "breach") return json(breachCheck(req));
+    if (req.mode === "exposure") return json(exposureScan(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -688,6 +690,77 @@ function emailMe(req) {
     name: "Mahi from ScamSense"
   });
   return { ok: true, sentTo: u.Email };
+}
+
+/* ========================================================================
+   8b. CLEAN UP MY INFO — data leak check and (later) automatic removal
+   ======================================================================== */
+
+// "Was my email in a data leak?" Only for the person's OWN confirmed email, never someone else's.
+// Uses Have I Been Pwned if you add a HIBP_API_KEY (paid, made for apps like this), otherwise the
+// free XposedOrNot service (meant for low use). Results are kept for a day so we don't ask twice.
+function breachCheck(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const u = findUser(req.uid);
+  if (!u || !u.Email || u["Email verified"] !== "yes")
+    return { error: "Connect your Gmail or Outlook in ScamSense first, so we can check your own email." };
+  const email = String(u.Email).toLowerCase();
+  const cache = CacheService.getScriptCache();
+  const ck = "breach:" + Utilities.base64EncodeWebSafe(email).slice(0, 200);
+  const hit = cache.get(ck);
+  if (hit) return JSON.parse(hit);
+  if (!takeQuota("breach:" + req.uid, 5)) return { error: "Please try again tomorrow." };
+  const hibp = PropertiesService.getScriptProperties().getProperty("HIBP_API_KEY");
+  let out;
+  try {
+    out = hibp ? breachesHIBP(email, hibp) : breachesXON(email);
+  } catch (err) {
+    return { error: "The leak check isn't answering right now. Please try again later." };
+  }
+  out.ok = true;
+  out.email = email;
+  out.checked = new Date().toISOString();
+  cache.put(ck, JSON.stringify(out), 86400);
+  return out;
+}
+function breachesHIBP(email, key) {
+  const r = UrlFetchApp.fetch(
+    "https://haveibeenpwned.com/api/v3/breachedaccount/" + encodeURIComponent(email) + "?truncateResponse=false",
+    { headers: { "hibp-api-key": key, "user-agent": "ScamSense" }, muteHttpExceptions: true }
+  );
+  if (r.getResponseCode() === 404) return { source: "Have I Been Pwned", breaches: [] };
+  if (r.getResponseCode() !== 200) throw new Error("hibp " + r.getResponseCode());
+  const list = JSON.parse(r.getContentText()) || [];
+  return {
+    source: "Have I Been Pwned",
+    breaches: list.slice(0, 40).map(b => ({
+      name: String(b.Title || b.Name || ""),
+      domain: String(b.Domain || ""),
+      date: String(b.BreachDate || ""),
+      data: (b.DataClasses || []).slice(0, 8).map(String)
+    }))
+  };
+}
+function breachesXON(email) {
+  const r = UrlFetchApp.fetch("https://api.xposedornot.com/v1/check-email/" + encodeURIComponent(email), {
+    muteHttpExceptions: true
+  });
+  const code = r.getResponseCode();
+  if (code === 404) return { source: "XposedOrNot", breaches: [] };
+  if (code !== 200) throw new Error("xon " + code);
+  const j = JSON.parse(r.getContentText() || "{}");
+  if (j.Error && /not found/i.test(j.Error)) return { source: "XposedOrNot", breaches: [] };
+  const names = [].concat.apply([], j.breaches || []).map(String);
+  return { source: "XposedOrNot", breaches: names.slice(0, 40).map(n => ({ name: n })) };
+}
+
+// Automatic removal from data broker sites. This needs a removal partner (for example Optery's
+// partner API). Until a partner key is added in Script Properties, the app shows "coming soon".
+function exposureScan(req) {
+  const key = PropertiesService.getScriptProperties().getProperty("REMOVAL_PARTNER_KEY");
+  if (!key) return { ok: true, available: false };
+  // A partner is set up but not wired in yet: the partner's API details go here.
+  return { ok: true, available: false, note: "partner key saved, connection not built yet" };
 }
 
 // Runs every morning: one report per user who has an email and reports turned on.

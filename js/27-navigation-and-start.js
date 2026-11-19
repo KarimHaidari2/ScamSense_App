@@ -16,6 +16,7 @@ const TAB_OF = {
   lesson: "today",
   monthly: "today",
   helper: "today",
+  cleanup: "today",
   family: "family",
   settings: "settings",
   plans: "settings",
@@ -194,7 +195,8 @@ function go(tab) {
       scammed: renderScammed,
       family: renderFamily,
       settings: renderSettings,
-      share: renderShare
+      share: renderShare,
+      cleanup: renderCleanup
     })[tab] || renderToday
   )();
   window.scrollTo(0, 0);

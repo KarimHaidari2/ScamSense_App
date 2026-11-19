@@ -4155,3 +4155,228 @@ nav.tabs button svg {
   font-weight: 700;
   border: 1.5px solid var(--scam);
 }
+
+/* ===== Clean up my info ===== */
+.ci-prog {
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 0 0 1px var(--line);
+  padding: 16px;
+  margin-top: 4px;
+}
+.ci-prog-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+.ci-prog-top b {
+  font-family: var(--display);
+  font-size: 1.15rem;
+}
+.ci-prog-top span {
+  color: var(--muted);
+  font-weight: 700;
+}
+.ci-bar {
+  height: 10px;
+  border-radius: 99px;
+  background: var(--brand-soft);
+  overflow: hidden;
+}
+.ci-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold);
+  transition: width 0.4s ease;
+}
+.ci-how {
+  list-style: none;
+  counter-reset: ci;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.ci-how li {
+  counter-increment: ci;
+  display: grid;
+  grid-template-columns: 32px 1fr;
+  column-gap: 12px;
+  align-items: start;
+}
+.ci-how li::before {
+  content: counter(ci);
+  grid-row: span 2;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+}
+.ci-how b {
+  font-weight: 700;
+}
+.ci-how span {
+  color: var(--muted);
+}
+.ci-site + .ci-site {
+  border-top: 1px solid var(--line);
+}
+.ci-site > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.ci-site > summary::-webkit-details-marker {
+  display: none;
+}
+.ci-site > summary .chev {
+  transition: transform 0.2s ease;
+}
+.ci-site[open] > summary .chev {
+  transform: rotate(90deg);
+}
+[dir="rtl"] .ci-site > summary .chev {
+  transform: scaleX(-1);
+}
+[dir="rtl"] .ci-site[open] > summary .chev {
+  transform: rotate(90deg);
+}
+.ci-site > summary:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: -3px;
+}
+.ci-body {
+  padding: 0 16px 16px 64px;
+  display: grid;
+  gap: 10px;
+}
+[dir="rtl"] .ci-body {
+  padding: 0 64px 16px 16px;
+}
+.ci-body p {
+  margin: 0;
+}
+.ci-body .btnrow,
+.ci-leak .btnrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ci-step {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-weight: 700;
+}
+.ci-step span {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--brand-soft);
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+}
+.ci-stepitem {
+  align-items: flex-start;
+}
+.ci-tick {
+  all: unset;
+  flex: none;
+  box-sizing: border-box;
+  width: 30px;
+  height: 30px;
+  margin-top: 2px;
+  border-radius: 9px;
+  border: 2px solid var(--line);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  color: transparent;
+}
+.ci-tick .ic {
+  width: 18px;
+  height: 18px;
+}
+.ci-tick:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+.ci-stepitem.done .ci-tick {
+  background: var(--safe);
+  border-color: var(--safe);
+  color: #fff;
+}
+.ci-stepitem.done .gl b {
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+}
+.ci-links {
+  display: block;
+  margin-top: 4px;
+}
+.ci-links a,
+.ci-auto a {
+  color: var(--ink);
+  font-weight: 700;
+}
+.ci-leak,
+.ci-auto {
+  gap: 10px;
+}
+.ci-leak p,
+.ci-auto p {
+  margin: 0;
+}
+.ci-ok,
+.ci-bad,
+.ci-soon {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.ci-ok .ic {
+  color: var(--safe);
+  flex: none;
+}
+.ci-bad .ic {
+  color: var(--scam);
+  flex: none;
+}
+.ci-soon .ic {
+  color: var(--gold);
+}
+.ci-breaches {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+}
+.ci-breaches li {
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--scam-bg);
+}
+.ci-breaches li .small {
+  display: block;
+}
+.ci-todo {
+  margin: 0;
+  padding-inline-start: 22px;
+  display: grid;
+  gap: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ci-bar i,
+  .ci-site > summary .chev {
+    transition: none;
+  }
+}
