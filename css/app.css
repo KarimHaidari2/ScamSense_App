@@ -4380,3 +4380,204 @@ nav.tabs button svg {
     transition: none;
   }
 }
+
+/* "Is my info out there?" checker and pop-up */
+.ci-check input {
+  font: inherit;
+  font-size: 1.1rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  margin: 4px 0 12px;
+}
+.ci-check input:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.ci-check .btn {
+  width: 100%;
+}
+.ci-last {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.ci-last .ic {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.ci-last:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+.ci-fold + .ci-fold {
+  border-top: 1px solid var(--line);
+}
+.ci-fold > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.ci-fold > summary::-webkit-details-marker {
+  display: none;
+}
+.ci-fold > summary .chev {
+  transition: transform 0.2s ease;
+}
+.ci-fold[open] > summary .chev {
+  transform: rotate(90deg);
+}
+.ci-foldbody {
+  padding: 0 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+.ci-foldbody > p {
+  margin: 0 4px;
+}
+.ci-foldbody .group {
+  box-shadow: 0 0 0 1px var(--line);
+}
+.ci-foldbody .ci-body {
+  padding-inline-start: 16px;
+}
+.ci-pop {
+  border: 0;
+  padding: 0 0 18px;
+  width: min(440px, calc(100vw - 24px));
+  max-height: calc(100vh - 48px);
+  border-radius: 22px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+.ci-pop::backdrop {
+  background: rgba(11, 17, 32, 0.6);
+}
+.ci-pop > *:not(.ci-pop-head) {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+.ci-pop h3 {
+  font-family: var(--display);
+  font-size: 1rem;
+  margin-top: 18px;
+  margin-bottom: 8px;
+}
+.ci-pop-head {
+  background: var(--hero);
+  color: var(--hero-ink);
+  padding: 22px 20px 18px;
+  margin-bottom: 14px;
+}
+.ci-pop-head h2 {
+  font-family: var(--display);
+  font-size: 1.4rem;
+  line-height: 1.2;
+  margin: 10px 0 4px;
+}
+.ci-level {
+  margin: 0 0 8px;
+  color: var(--hero-muted);
+}
+.ci-pop-head.high .ci-level b {
+  color: #ff8a7e;
+}
+.ci-pop-head.mid .ci-level b {
+  color: #f5b95a;
+}
+.ci-pop-head.low .ci-level b {
+  color: #6fd394;
+}
+.ci-meter {
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #3fb36b, #e8c547 50%, #e2553f);
+  position: relative;
+}
+.ci-meter i {
+  position: absolute;
+  top: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3);
+  transform: translateX(-50%);
+}
+.ci-pop-head.low .ci-meter i {
+  left: 12%;
+}
+.ci-pop-head.mid .ci-meter i {
+  left: 55%;
+}
+.ci-pop-head.high .ci-meter i {
+  left: 90%;
+}
+.ci-email {
+  margin: 0;
+  color: var(--hero-muted);
+  word-break: break-all;
+}
+.ci-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ci-chips span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 99px;
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+.ci-chips span.hot {
+  background: var(--scam-bg);
+  color: var(--scam);
+}
+.ci-chips.big span {
+  font-size: 0.9rem;
+  padding: 6px 12px;
+}
+.ci-blist {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ci-bcard {
+  padding: 12px 14px;
+  border-radius: 14px;
+  box-shadow: 0 0 0 1px var(--line);
+}
+.ci-bline {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ci-bline span {
+  color: var(--muted);
+  font-weight: 700;
+}
+.ci-pop-end .btn {
+  width: 100%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ci-fold > summary .chev {
+    transition: none;
+  }
+}
+:root[data-theme="dark"] .ci-chips span:not(.hot) {
+  box-shadow: inset 0 0 0 1px var(--line);
+}

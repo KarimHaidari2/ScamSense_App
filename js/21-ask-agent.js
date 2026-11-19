@@ -382,7 +382,7 @@ const MAHI_SCREENS = {
   scammed: "I was scammed: recovery plan and reports",
   learn: "Short scam lessons",
   cleanup:
-    "Clean up my info: find and remove your name, address, and phone from people-search sites, check your own email for data leaks, and free steps that stop scam calls and mail (Do Not Call, carrier blocking, credit freeze)",
+    "Is my info out there?: type an email to see if it was in data leaks (what leaked, where, what to do), remove your name, address, and phone from people-search sites, and free steps that stop scam calls and mail (Do Not Call, carrier blocking, credit freeze)",
   monthly: "Monthly report",
   family: "Family and trusted people",
   settings: "Settings",

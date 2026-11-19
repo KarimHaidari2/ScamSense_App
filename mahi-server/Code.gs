@@ -696,20 +696,20 @@ function emailMe(req) {
    8b. CLEAN UP MY INFO — data leak check and (later) automatic removal
    ======================================================================== */
 
-// "Was my email in a data leak?" Only for the person's OWN confirmed email, never someone else's.
-// Uses Have I Been Pwned if you add a HIBP_API_KEY (paid, made for apps like this), otherwise the
-// free XposedOrNot service (meant for low use). Results are kept for a day so we don't ask twice.
+// "Was my email in a data leak?" The person types an email; we look it up in public breach lists
+// (the same lists anyone can search on haveibeenpwned.com). Uses Have I Been Pwned if you add a
+// HIBP_API_KEY (paid, made for apps like this), otherwise the free XposedOrNot service (low use only).
+// Results are kept for a day so we don't ask twice. Limited to 10 checks per device per day.
 function breachCheck(req) {
   if (!okUid(req.uid)) return { error: "bad id" };
-  const u = findUser(req.uid);
-  if (!u || !u.Email || u["Email verified"] !== "yes")
-    return { error: "Connect your Gmail or Outlook in ScamSense first, so we can check your own email." };
-  const email = String(u.Email).toLowerCase();
+  const email = String(req.email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email) || email.length > 120)
+    return { error: "That doesn't look like an email address." };
   const cache = CacheService.getScriptCache();
   const ck = "breach:" + Utilities.base64EncodeWebSafe(email).slice(0, 200);
   const hit = cache.get(ck);
   if (hit) return JSON.parse(hit);
-  if (!takeQuota("breach:" + req.uid, 5)) return { error: "Please try again tomorrow." };
+  if (!takeQuota("breach:" + req.uid, 10)) return { error: "That's the most checks for today. Please try again tomorrow." };
   const hibp = PropertiesService.getScriptProperties().getProperty("HIBP_API_KEY");
   let out;
   try {
@@ -742,16 +742,30 @@ function breachesHIBP(email, key) {
   };
 }
 function breachesXON(email) {
-  const r = UrlFetchApp.fetch("https://api.xposedornot.com/v1/check-email/" + encodeURIComponent(email), {
-    muteHttpExceptions: true
-  });
+  const r = UrlFetchApp.fetch(
+    "https://api.xposedornot.com/v1/breach-analytics?email=" + encodeURIComponent(email),
+    { muteHttpExceptions: true }
+  );
   const code = r.getResponseCode();
   if (code === 404) return { source: "XposedOrNot", breaches: [] };
   if (code !== 200) throw new Error("xon " + code);
   const j = JSON.parse(r.getContentText() || "{}");
-  if (j.Error && /not found/i.test(j.Error)) return { source: "XposedOrNot", breaches: [] };
-  const names = [].concat.apply([], j.breaches || []).map(String);
-  return { source: "XposedOrNot", breaches: names.slice(0, 40).map(n => ({ name: n })) };
+  const list = (j.ExposedBreaches && j.ExposedBreaches.breaches_details) || [];
+  const risk = j.BreachMetrics && j.BreachMetrics.risk && j.BreachMetrics.risk[0];
+  return {
+    source: "XposedOrNot",
+    risk: (risk && risk.risk_label) || "",
+    breaches: list.slice(0, 40).map(b => ({
+      name: String(b.breach || ""),
+      domain: String(b.domain || ""),
+      date: String(b.xposed_date || ""),
+      data: String(b.xposed_data || "")
+        .split(";")
+        .map(x => x.trim())
+        .filter(Boolean)
+        .slice(0, 8)
+    }))
+  };
 }
 
 // Automatic removal from data broker sites. This needs a removal partner (for example Optery's

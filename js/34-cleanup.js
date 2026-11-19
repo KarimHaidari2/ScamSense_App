@@ -258,57 +258,6 @@ function cleanupProgress() {
 const shortDate = ms => new Date(ms).toLocaleDateString(langCode(), { month: "short", day: "numeric" });
 
 /* ----- screen ----- */
-function renderCleanup() {
-  const st = cleanupState();
-  const p = cleanupProgress();
-  const pct = Math.round((p.done / p.total) * 100);
-  const name = [cfg().name, cfg().lastName].filter(Boolean).join(" ");
-  view.innerHTML = `${pageHead(
-    tr("Clean up my info", "Limpiar mis datos"),
-    tr(
-      "Scammers find your name, phone, and home address on people-search sites. Here's how to take them down.",
-      "Los estafadores encuentran su nombre, teléfono y dirección en sitios de búsqueda de personas. Así puede quitarlos."
-    ),
-    "today"
-  )}
-  <section class="ci-prog" aria-label="${esc(tr("Your progress", "Su progreso"))}">
-    <div class="ci-prog-top"><b>${tr(`${p.done} of ${p.total} done`, `${p.done} de ${p.total} listos`)}</b><span>${pct}%</span></div>
-    <div class="ci-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.done}"><i style="width:${pct}%"></i></div>
-  </section>
-
-  <section class="sect"><h2 class="sect-h">${tr("How it works", "Cómo funciona")}</h2>
-    <ol class="ci-how">
-      <li><b>${tr("Look yourself up", "Búsquese")}</b><span>${tr(`Search ${name ? "“" + esc(name) + "”" : "your name"} and your city on each site below.`, `Busque ${name ? "“" + esc(name) + "”" : "su nombre"} y su ciudad en cada sitio.`)}</span></li>
-      <li><b>${tr("Ask them to remove you", "Pida que le quiten")}</b><span>${tr("It's always free. Never pay a site, or anyone who contacts you, to remove your info.", "Siempre es gratis. Nunca pague a un sitio, ni a nadie que le contacte, para quitar sus datos.")}</span></li>
-      <li><b>${tr("Check back", "Vuelva a revisar")}</b><span>${tr("ScamSense reminds you. Some sites add people back after a few months.", "ScamSense le recuerda. Algunos sitios vuelven a agregar a las personas después de unos meses.")}</span></li>
-    </ol>
-  </section>
-
-  <section class="sect"><h2 class="sect-h">${tr("People-search sites", "Sitios de búsqueda de personas")}</h2>
-    <div class="group ci-sites">${CLEANUP_SITES.map(s => siteHTML(s, st)).join("")}</div>
-  </section>
-
-  <section class="sect"><h2 class="sect-h">${tr("Was your email in a data leak?", "¿Su correo estuvo en una filtración?")}</h2>
-    <div class="group"><div class="grow col ci-leak" id="ci-leak">${leakHTML(st.breach)}</div></div>
-  </section>
-
-  <section class="sect"><h2 class="sect-h">${tr("Free steps that stop scam calls and mail", "Pasos gratis contra llamadas y correo de estafa")}</h2>
-    <div class="group">${CLEANUP_STEPS.map(s => stepHTML(s, st)).join("")}</div>
-  </section>
-
-  <section class="sect"><h2 class="sect-h">${tr("Let ScamSense do it for you", "Que ScamSense lo haga por usted")}</h2>
-    <div class="group"><div class="grow col ci-auto">
-      <p class="ci-soon">${ic("spark")}<b>${tr("Coming soon", "Muy pronto")}</b></p>
-      <p>${tr("We're working on an automatic scan of 600+ data broker sites that sends the removal requests for you and keeps watching.", "Estamos preparando un escaneo automático de más de 600 sitios que envía las solicitudes por usted y sigue vigilando.")}</p>
-      <p class="muted small">${tr("Paid services already do this today, such as Cloaked, DeleteMe, Incogni, and Optery. If you use one, buy it from its own website. Never from someone who calls or emails you first.", "Hoy ya existen servicios pagados que lo hacen, como Cloaked, DeleteMe, Incogni y Optery. Si usa uno, cómprelo en su propio sitio web. Nunca a alguien que le llama o escribe primero.")}</p>
-    </div></div>
-  </section>
-
-  <p class="footnote">${ic("lock")}<span>${tr("Your checklist stays on this device. ScamSense never sees what these sites show about you.", "Su lista se guarda en este dispositivo. ScamSense nunca ve lo que estos sitios muestran de usted.")}</span></p>`;
-  bindBack();
-  bindCleanup();
-}
-
 const STATUS_LOOK = {
   new: ["l-gray", "dot", () => tr("Not checked yet", "Sin revisar")],
   found: ["l-red", "alert", () => tr("You're listed. Remove it", "Aparece. Quítelo")],
@@ -364,39 +313,58 @@ function stepHTML(s, st) {
   </div>`;
 }
 
-function leakHTML(res) {
-  const btn = (txt, primary) =>
-    `<div class="btnrow"><button class="btn ${primary ? "primary" : "ghost"} sm" id="ci-leakgo">${txt}</button></div>`;
-  if (!res) {
-    const acct = S.get("acct", null);
-    return `<p>${tr("Companies get hacked, and lists of emails and passwords end up with scammers. That's how they know your email, and sometimes an old password.", "Las empresas sufren hackeos y las listas de correos y contraseñas terminan con los estafadores. Así saben su correo y a veces una contraseña vieja.")}</p>
-      ${acct && acct.verified ? `<p class="muted small">${tr(`ScamSense checks your own email: ${esc(acct.email)}`, `ScamSense revisa su propio correo: ${esc(acct.email)}`)}</p>${btn(tr("Check my email", "Revisar mi correo"), true)}` : `<p class="muted small">${tr("Connect Gmail or Outlook first, so ScamSense knows which email is yours.", "Primero conecte Gmail u Outlook para que ScamSense sepa cuál es su correo.")}</p><div class="btnrow"><button class="btn primary sm" data-go="settings">${tr("Go to Settings", "Ir a Configuración")}</button></div>`}`;
-  }
-  const n = (res.breaches || []).length;
-  const when = res.at ? shortDate(res.at) : "";
-  if (!n)
-    return `<p class="ci-ok">${ic("check")}<b>${tr("Good news: your email wasn't found in any known data leak.", "Buenas noticias: su correo no está en ninguna filtración conocida.")}</b></p>
-      <p class="muted small">${tr(`Checked ${esc(res.email || "")} on ${when}, using ${esc(res.source || "")}.`, `Revisado ${esc(res.email || "")} el ${when}, con ${esc(res.source || "")}.`)}</p>${btn(tr("Check again", "Revisar otra vez"))}`;
-  const list = res.breaches
-    .slice(0, 12)
-    .map(
-      b =>
-        `<li><b>${esc(b.name)}</b>${b.date ? ` <span class="muted">· ${esc(b.date.slice(0, 4))}</span>` : ""}${b.data && b.data.length ? `<span class="muted small">${esc(b.data.slice(0, 4).join(", "))}</span>` : ""}</li>`
-    )
-    .join("");
-  return `<p class="ci-bad">${ic("alert")}<b>${tr(`Your email was in ${n} data ${n === 1 ? "leak" : "leaks"}.`, `Su correo estuvo en ${n} ${n === 1 ? "filtración" : "filtraciones"}.`)}</b></p>
-    <ul class="ci-breaches">${list}</ul>${n > 12 ? `<p class="muted small">${tr(`And ${n - 12} more.`, `Y ${n - 12} más.`)}</p>` : ""}
-    <p><b>${tr("What to do", "Qué hacer")}</b></p>
-    <ol class="ci-todo">
-      <li>${tr("Change your password on those sites, and anywhere you used the same password.", "Cambie su contraseña en esos sitios y en cualquier lugar donde usó la misma.")}</li>
-      <li>${tr("Turn on 2-step verification for your email and bank.", "Active la verificación en 2 pasos en su correo y su banco.")}</li>
-      <li>${tr("Be extra careful with emails that mention these companies. Scammers use leaked details to sound real.", "Tenga cuidado con correos que mencionan estas empresas. Los estafadores usan datos filtrados para parecer reales.")}</li>
-    </ol>
-    <p class="muted small">${tr(`Checked ${esc(res.email || "")} on ${when}, using ${esc(res.source || "")}.`, `Revisado ${esc(res.email || "")} el ${when}, con ${esc(res.source || "")}.`)}</p>${btn(tr("Check again", "Revisar otra vez"))}`;
+/* ----- screen: one box to check, then two small folds ----- */
+function renderCleanup() {
+  const st = cleanupState();
+  const acct = S.get("acct", null);
+  const sitesDone = CLEANUP_SITES.filter(s => ["gone", "none"].includes(siteStatus(s, st))).length;
+  const stepsAll = CLEANUP_STEPS.filter(s => !s.optional);
+  const stepsDone = stepsAll.filter(s => st.steps[s.id]).length;
+  view.innerHTML = `${pageHead(
+    tr("Is my info out there?", "¿Mis datos están expuestos?"),
+    tr(
+      "Type your email or phone number. ScamSense shows if it was leaked, and what to do.",
+      "Escriba su correo o número de teléfono. ScamSense le muestra si se filtró y qué hacer."
+    ),
+    "today"
+  )}
+  <section class="askcard ci-check">
+    <p class="ask-h">${ic("shield")}<b>${tr("Check my info", "Revisar mis datos")}</b></p>
+    <label class="sr" for="ci-q">${tr("Your email or phone number", "Su correo o número de teléfono")}</label>
+    <input id="ci-q" type="text" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Your email or phone number", "Su correo o número de teléfono"))}" value="${esc((acct && acct.email) || "")}">
+    <div class="btnrow"><button class="btn primary" id="ci-go">${tr("Check", "Revisar")}</button></div>
+    ${st.breach ? `<button class="ci-last" id="ci-last">${ic("refresh")}<span>${tr(`Last check: ${esc(st.breach.email)}, ${st.breach.breaches.length} ${st.breach.breaches.length === 1 ? "leak" : "leaks"}. See it again`, `Última revisión: ${esc(st.breach.email)}, ${st.breach.breaches.length} filtraciones. Verla otra vez`)}</span></button>` : ""}
+  </section>
+
+  <section class="sect"><div class="group">
+    <details class="ci-fold">
+      <summary class="grow"><span class="lead-ic l-red">${ic("eyeoff")}</span><span class="gl"><b>${tr("Remove me from people-search sites", "Quitarme de sitios de búsqueda de personas")}</b><span>${tr(`${sitesDone} of ${CLEANUP_SITES.length} sites done · always free`, `${sitesDone} de ${CLEANUP_SITES.length} sitios listos · siempre gratis`)}</span></span>${ic("chev", "chev")}</summary>
+      <div class="ci-foldbody"><p class="muted small">${tr("These sites show your address and phone to anyone. Tap a site, look yourself up, and ask it to remove you. Never pay anyone to do this.", "Estos sitios muestran su dirección y teléfono a cualquiera. Toque un sitio, búsquese y pida que le quiten. Nunca pague por esto.")}</p>
+      <div class="group ci-sites">${CLEANUP_SITES.map(s => siteHTML(s, st)).join("")}</div></div>
+    </details>
+    <details class="ci-fold">
+      <summary class="grow"><span class="lead-ic l-blue">${ic("phone")}</span><span class="gl"><b>${tr("Stop scam calls and mail", "Detener llamadas y correo de estafa")}</b><span>${tr(`${stepsDone} of ${stepsAll.length} free steps done`, `${stepsDone} de ${stepsAll.length} pasos gratis listos`)}</span></span>${ic("chev", "chev")}</summary>
+      <div class="ci-foldbody"><div class="group">${CLEANUP_STEPS.map(s => stepHTML(s, st)).join("")}</div></div>
+    </details>
+  </div></section>
+
+  <p class="footnote">${ic("lock")}<span>${tr("ScamSense only checks the email you type, and never saves the result on our server for more than a day.", "ScamSense solo revisa el correo que escribe y nunca guarda el resultado en el servidor más de un día.")}</span></p>
+  <dialog class="ci-pop" id="ci-pop" aria-labelledby="ci-pop-h"></dialog>`;
+  bindBack();
+  bindCleanup();
 }
+
+const isEmail = v => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v);
+const isPhone = v => v.replace(/\D/g, "").length >= 10 && /^[\d\s()+.-]+$/.test(v);
 
 function bindCleanup() {
   bindGo();
+  const q = document.getElementById("ci-q");
+  const goBtn = document.getElementById("ci-go");
+  if (goBtn) goBtn.onclick = runInfoCheck;
+  if (q) q.onkeydown = e => e.key === "Enter" && runInfoCheck();
+  const last = document.getElementById("ci-last");
+  if (last) last.onclick = () => showInfoPop(cleanupState().breach);
   view.querySelectorAll("[data-ci]").forEach(
     b =>
       (b.onclick = () => {
@@ -406,12 +374,10 @@ function bindCleanup() {
         else st.sites[id] = { s: b.dataset.ci, at: Date.now() };
         saveCleanup(st);
         const site = CLEANUP_SITES.find(s => s.id === id);
-        const el = document.getElementById("ci-" + id);
-        el.outerHTML = siteHTML(site, st);
+        document.getElementById("ci-" + id).outerHTML = siteHTML(site, st);
         const now = document.getElementById("ci-" + id);
         now.open = b.dataset.ci !== "none" && b.dataset.ci !== "gone";
         bindCleanup();
-        updateCleanupProgress();
         if (b.dataset.ci === "gone") toast(tr("Removed. Nice work!", "Eliminado. ¡Bien hecho!"));
         now.querySelector("summary").focus();
       })
@@ -424,65 +390,135 @@ function bindCleanup() {
         saveCleanup(st);
         b.setAttribute("aria-checked", String(!!st.steps[b.dataset.step]));
         b.closest(".ci-stepitem").classList.toggle("done", !!st.steps[b.dataset.step]);
-        updateCleanupProgress();
       })
   );
-  const go2 = document.getElementById("ci-leakgo");
-  if (go2) go2.onclick = runLeakCheck;
-}
-function updateCleanupProgress() {
-  const p = cleanupProgress();
-  const pct = Math.round((p.done / p.total) * 100);
-  const box = view.querySelector(".ci-prog");
-  if (!box) return;
-  box.querySelector(".ci-prog-top b").textContent = tr(
-    `${p.done} of ${p.total} done`,
-    `${p.done} de ${p.total} listos`
-  );
-  box.querySelector(".ci-prog-top span").textContent = pct + "%";
-  box.querySelector(".ci-bar").setAttribute("aria-valuenow", p.done);
-  box.querySelector(".ci-bar i").style.width = pct + "%";
 }
 
-async function runLeakCheck() {
-  const box = document.getElementById("ci-leak");
-  const btn = document.getElementById("ci-leakgo");
-  if (btn) {
-    btn.disabled = true;
-    btn.textContent = tr("Checking…", "Revisando…");
+async function runInfoCheck() {
+  const q = document.getElementById("ci-q");
+  const v = (q.value || "").trim();
+  if (!v) {
+    q.focus();
+    toast(tr("Type your email or phone number first.", "Primero escriba su correo o teléfono."));
+    return;
   }
+  if (isPhone(v)) return showPhonePop(v);
+  if (!isEmail(v)) {
+    toast(tr("That doesn't look like an email or phone number.", "Eso no parece un correo ni un teléfono."));
+    return;
+  }
+  const btn = document.getElementById("ci-go");
+  btn.disabled = true;
+  btn.textContent = tr("Checking…", "Revisando…");
   try {
     if (!serverOn())
       throw new Error(
         tr("The ScamSense server isn't set up.", "El servidor de ScamSense no está configurado.")
       );
-    const j = await serverPost({ mode: "breach" });
+    const j = await serverPost({ mode: "breach", email: v });
     if (!j || !j.ok)
       throw new Error((j && j.error) || tr("Couldn't check right now.", "No se pudo revisar ahora."));
     const st = cleanupState();
-    st.breach = { email: j.email, source: j.source, breaches: j.breaches || [], at: Date.now() };
+    st.breach = {
+      email: j.email,
+      source: j.source,
+      breaches: j.breaches || [],
+      risk: j.risk || "",
+      at: Date.now()
+    };
     saveCleanup(st);
-    box.innerHTML = leakHTML(st.breach);
-    bindCleanup();
+    showInfoPop(st.breach);
     if (typeof serverEvent === "function") serverEvent({ t: "leak", n: st.breach.breaches.length });
   } catch (e) {
     toast(e.message);
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = tr("Check my email", "Revisar mi correo");
-    }
+  } finally {
+    btn.disabled = false;
+    btn.textContent = tr("Check", "Revisar");
   }
 }
 
-/* For Home: a short line about progress, or what this is. */
-function cleanupLine() {
-  const p = cleanupProgress();
-  const due = CLEANUP_SITES.some(s => siteStatus(s) === "recheck");
-  if (due) return tr("Time to check some sites again", "Hora de revisar algunos sitios otra vez");
-  if (!p.done)
-    return tr(
-      "Remove your address and phone from people-search sites",
-      "Quite su dirección y teléfono de sitios de búsqueda"
+/* The pop-up with the result. */
+function openPop(html) {
+  const d = document.getElementById("ci-pop");
+  d.innerHTML =
+    html +
+    `<div class="btnrow ci-pop-end"><button class="btn primary" id="ci-close">${tr("Close", "Cerrar")}</button></div>`;
+  document.getElementById("ci-close").onclick = () => d.close();
+  d.onclick = e => e.target === d && d.close();
+  if (typeof d.showModal === "function") d.showModal();
+  else d.setAttribute("open", "");
+  d.scrollTop = 0;
+}
+function levelOf(res) {
+  const n = res.breaches.length;
+  const pw = res.breaches.some(b => /password/i.test((b.data || []).join(" ")));
+  if (!n) return ["low", tr("Low", "Bajo")];
+  if (n >= 4 || (pw && n >= 2)) return ["high", tr("High", "Alto")];
+  return ["mid", tr("Medium", "Medio")];
+}
+function showInfoPop(res) {
+  if (!res) return;
+  const n = res.breaches.length;
+  const [lv, lvText] = levelOf(res);
+  const when = shortDate(res.at || Date.now());
+  const head = `<div class="ci-pop-head ${lv}">
+    <p class="ci-level">${tr("Risk", "Riesgo")}: <b>${lvText}</b></p>
+    <div class="ci-meter"><i></i></div>
+    <h2 id="ci-pop-h">${n ? tr(`Your email was found in ${n} data ${n === 1 ? "leak" : "leaks"}`, `Su correo aparece en ${n} ${n === 1 ? "filtración" : "filtraciones"}`) : tr("Good news: no leaks found", "Buenas noticias: no hay filtraciones")}</h2>
+    <p class="ci-email">${esc(res.email)}</p></div>`;
+  if (!n)
+    return openPop(
+      head +
+        `<p>${tr("This email isn't in any known data leak. Keep using a different password for each site, and turn on 2-step verification.", "Este correo no está en ninguna filtración conocida. Siga usando una contraseña distinta para cada sitio y active la verificación en 2 pasos.")}</p><p class="muted small">${tr(`Checked ${when} with ${esc(res.source)}.`, `Revisado ${when} con ${esc(res.source)}.`)}</p>`
     );
-  return tr(`${p.done} of ${p.total} done`, `${p.done} de ${p.total} listos`);
+  const types = {};
+  res.breaches.forEach(b => (b.data || []).forEach(d => (types[d] = (types[d] || 0) + 1)));
+  const topTypes = Object.keys(types)
+    .sort((a, b) => types[b] - types[a])
+    .slice(0, 8);
+  const cards = res.breaches
+    .slice(0, 15)
+    .map(
+      b =>
+        `<li class="ci-bcard"><div class="ci-bline"><b>${esc(b.name)}</b>${b.date ? `<span>${esc(String(b.date).slice(0, 4))}</span>` : ""}</div>${
+          b.data && b.data.length
+            ? `<div class="ci-chips">${b.data
+                .slice(0, 6)
+                .map(d => `<span class="${/password/i.test(d) ? "hot" : ""}">${esc(d)}</span>`)
+                .join("")}</div>`
+            : ""
+        }</li>`
+    )
+    .join("");
+  openPop(
+    head +
+      (topTypes.length
+        ? `<h3>${tr("What leaked", "Qué se filtró")}</h3><div class="ci-chips big">${topTypes.map(d => `<span class="${/password/i.test(d) ? "hot" : ""}">${esc(d)}</span>`).join("")}</div>`
+        : "") +
+      `<h3>${tr("Where", "Dónde")}</h3><ul class="ci-blist">${cards}</ul>${n > 15 ? `<p class="muted small">${tr(`And ${n - 15} more.`, `Y ${n - 15} más.`)}</p>` : ""}
+      <h3>${tr("What to do now", "Qué hacer ahora")}</h3>
+      <ol class="ci-todo">
+        <li>${tr("Change your password on those sites, and anywhere you used the same one.", "Cambie su contraseña en esos sitios y donde haya usado la misma.")}</li>
+        <li>${tr("Turn on 2-step verification for your email and bank.", "Active la verificación en 2 pasos en su correo y su banco.")}</li>
+        <li>${tr("Be extra careful with messages that mention these companies. Scammers use leaked details to sound real.", "Tenga cuidado con mensajes que mencionan estas empresas. Los estafadores usan datos filtrados para parecer reales.")}</li>
+      </ol>
+      <p class="muted small">${tr(`Checked ${when} with ${esc(res.source)}.`, `Revisado ${when} con ${esc(res.source)}.`)}</p>`
+  );
+}
+function showPhonePop(v) {
+  openPop(`<div class="ci-pop-head mid"><h2 id="ci-pop-h">${tr("Phone check is coming soon", "La revisión por teléfono llega pronto")}</h2><p class="ci-email">${esc(v)}</p></div>
+    <p>${tr("To show what's public about a phone number, ScamSense first has to text you a code, so nobody can look up someone else's number. We're adding this.", "Para mostrar lo que es público sobre un teléfono, ScamSense primero debe enviarle un código por texto, para que nadie busque el número de otra persona. Lo estamos agregando.")}</p>
+    <p><b>${tr("What you can do today", "Qué puede hacer hoy")}</b></p>
+    <ol class="ci-todo">
+      <li>${tr("Check your email above. It's the most common leak.", "Revise su correo arriba. Es la filtración más común.")}</li>
+      <li>${tr("Open “Remove me from people-search sites” below. Those sites are where your phone and address show up.", "Abra “Quitarme de sitios de búsqueda” abajo. Ahí aparecen su teléfono y dirección.")}</li>
+      <li>${tr("Open “Stop scam calls and mail” for free call blocking.", "Abra “Detener llamadas y correo” para bloquear llamadas gratis.")}</li>
+    </ol>`);
+}
+
+/* For Home: a short line about this screen. */
+function cleanupLine() {
+  if (CLEANUP_SITES.some(s => siteStatus(s) === "recheck"))
+    return tr("Time to check some sites again", "Hora de revisar algunos sitios otra vez");
+  return tr("See if your email or phone was leaked", "Vea si su correo o teléfono se filtró");
 }
