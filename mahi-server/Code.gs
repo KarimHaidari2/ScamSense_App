@@ -832,7 +832,13 @@ function phoneConfirm(req) {
   const v = twilio(k, "/VerificationCheck", { To: to, Code: code });
   if (v.code >= 300 || v.body.status !== "approved") return { error: "That code didn't work. Please check it, or ask for a new one." };
   if (!lookupsLeft(req.uid)) return { error: "You've used this month's phone checks." };
-  const r = UrlFetchApp.fetch("https://api.trestleiq.com/3.2/phone?phone=" + encodeURIComponent(to.slice(2)) + "&phone.country_hint=US", {
+  // Safety filter: we only show a name and address if they match the person's own last name,
+  // so a past owner of the number (a stranger) is never shown.
+  const u = findUser(req.uid);
+  const myFirst = String((u && u["First name"]) || req.name || "").trim();
+  const myLast = String((u && u["Last name"]) || req.lastName || "").trim();
+  const hint = myFirst || myLast ? "&phone.name_hint=" + encodeURIComponent((myFirst + " " + myLast).trim()) : "";
+  const r = UrlFetchApp.fetch("https://api.trestleiq.com/3.2/phone?phone=" + encodeURIComponent(to.slice(2)) + "&phone.country_hint=US" + hint, {
     headers: { "x-api-key": k.trestle },
     muteHttpExceptions: true
   });
@@ -840,7 +846,13 @@ function phoneConfirm(req) {
   const props = PropertiesService.getScriptProperties();
   props.setProperty(monthKey(req.uid), String(PHONE_LOOKUPS_PER_MONTH - lookupsLeft(req.uid) + 1));
   const j = JSON.parse(r.getContentText() || "{}");
-  const owners = (j.owners || []).slice(0, 3).map(o => ({
+  const norm = s => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+  const mine = o =>
+    !!norm(myLast) &&
+    [o.lastname, o.name].concat(o.alternate_names || []).some(n => norm(n).indexOf(norm(myLast)) !== -1);
+  const all = j.owners || [];
+  const hidden = all.filter(o => !mine(o)).length;
+  const owners = all.filter(mine).slice(0, 3).map(o => ({
     name: String(o.name || [o.firstname, o.lastname].filter(Boolean).join(" ")),
     other: (o.alternate_names || []).slice(0, 4).map(String),
     age: String(o.age_range || ""),
@@ -860,6 +872,8 @@ function phoneConfirm(req) {
     lineType: String(j.line_type || ""),
     prepaid: !!j.is_prepaid,
     owners,
+    hidden,
+    needName: !norm(myLast),
     left: lookupsLeft(req.uid),
     source: "Trestle"
   };

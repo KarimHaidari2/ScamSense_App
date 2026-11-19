@@ -559,7 +559,13 @@ function showCodePop(v, sentTo, left) {
     go.disabled = true;
     go.textContent = tr("Checking…", "Revisando…");
     try {
-      const j = await serverPost({ mode: "phone_confirm", phone: v, code });
+      const j = await serverPost({
+        mode: "phone_confirm",
+        phone: v,
+        code,
+        name: cfg().name || "",
+        lastName: cfg().lastName || ""
+      });
       if (!j || !j.ok)
         throw new Error((j && j.error) || tr("Couldn't check right now.", "No se pudo revisar ahora."));
       if (typeof serverEvent === "function") serverEvent({ t: "phone_lookup", n: (j.owners || []).length });
@@ -583,7 +589,7 @@ const LINE_TYPES = {
 function showPhoneResult(j) {
   const owners = j.owners || [];
   const addrs = owners.reduce((n, o) => n + (o.addresses || []).length, 0);
-  const lv = addrs ? "high" : owners.length ? "mid" : "low";
+  const lv = addrs ? "high" : owners.length || j.hidden ? "mid" : "low";
   const lvText = { high: tr("High", "Alto"), mid: tr("Medium", "Medio"), low: tr("Low", "Bajo") }[lv];
   const row = (k, v) => (v ? `<div class="ci-kv"><span>${k}</span><b>${esc(v)}</b></div>` : "");
   const people = owners
@@ -594,10 +600,11 @@ function showPhoneResult(j) {
     .join("");
   openPop(`<div class="ci-pop-head ${lv}">
       <p class="ci-level">${tr("Risk", "Riesgo")}: <b>${lvText}</b></p><div class="ci-meter"><i></i></div>
-      <h2 id="ci-pop-h">${addrs ? tr("Your name and home address are public", "Su nombre y dirección son públicos") : owners.length ? tr("Your name is linked to this number", "Su nombre está vinculado a este número") : tr("Good news: little is public", "Buenas noticias: poco es público")}</h2>
+      <h2 id="ci-pop-h">${addrs ? tr("Your name and home address are public", "Su nombre y dirección son públicos") : owners.length ? tr("Your name is linked to this number", "Su nombre está vinculado a este número") : j.hidden || j.needName ? tr("We couldn't confirm it's you", "No pudimos confirmar que es usted") : tr("Good news: little is public", "Buenas noticias: poco es público")}</h2>
       <p class="ci-email">${esc(j.phone)}</p></div>
     <p>${tr("This is what data companies sell about your number. Scammers buy it to sound real when they call or text you.", "Esto es lo que las empresas de datos venden sobre su número. Los estafadores lo compran para parecer reales al llamarle.")}</p>
     ${owners.length ? `<h3>${tr("What anyone can buy", "Lo que cualquiera puede comprar")}</h3><ul class="ci-blist">${people}</ul>` : ""}
+    ${j.needName ? `<p class="ci-note">${tr("Add your first and last name in Settings → Your account, then check again. ScamSense only shows names that match yours.", "Agregue su nombre y apellido en Configuración → Su cuenta y revise otra vez. ScamSense solo muestra nombres que coinciden con el suyo.")}</p>` : !owners.length && j.hidden ? `<p class="ci-note">${tr("We couldn't confirm your name on this number. The records may still list a past owner, so we're not showing them.", "No pudimos confirmar su nombre en este número. Los registros pueden mostrar a un dueño anterior, así que no los mostramos.")}</p>` : ""}
     <h3>${tr("Your phone line", "Su línea")}</h3>
     <div class="ci-bcard">${row(tr("Phone company", "Compañía"), j.carrier)}${row(tr("Type", "Tipo"), (LINE_TYPES[j.lineType] || (() => j.lineType))())}</div>
     <h3>${tr("What to do now", "Qué hacer ahora")}</h3>

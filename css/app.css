@@ -4622,3 +4622,9 @@ nav.tabs button svg {
   display: block;
   width: calc(100% - 40px);
 }
+.ci-note {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--warn-bg);
+  color: var(--ink);
+}
