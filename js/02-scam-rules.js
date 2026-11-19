@@ -205,6 +205,8 @@ const BRANDS = {
   mcafee: ["mcafee.com"],
   coinbase: ["coinbase.com"],
   venmo: ["venmo.com"],
+  "ace hardware": ["acehardware.com"],
+  yeti: ["yeti.com"],
   walmart: ["walmart.com", "sparkdriverapp.com", "ddiwork.com", "branchapp.com", "walmartspark.com"],
   "spark driver": ["walmart.com", "sparkdriverapp.com", "ddiwork.com", "branchapp.com", "walmartspark.com"],
   costco: ["costco.com"],
@@ -227,6 +229,9 @@ const BRANDS = {
   "e-zpass va": ["ezpassva.com"],
   "e-zpass pa": ["paturnpike.com"]
 };
+// Free website and file hosting. Anyone can put a page here in minutes; real companies don't send from these.
+const FREE_HOSTING =
+  /(^|\.)(infinityfree\.(io|net|com)|000webhostapp\.com|weebly\.com|wixsite\.com|firebaseapp\.com|web\.app|netlify\.app|github\.io|glitch\.me|herokuapp\.com|blogspot\.com|sites\.google\.com|storage\.googleapis\.com|r2\.dev|pages\.dev|vercel\.app|ngrok(-free)?\.(app|io)|repl\.co|square\.site|godaddysites\.com|webflow\.io|carrd\.co|mystrikingly\.com|jimdosite\.com|framer\.website|ipfs\.io|dweb\.link|blob\.core\.windows\.net|s3\.amazonaws\.com)$/;
 // Mailing services that real companies use to send their emails.
 const EMAIL_SERVICES =
   /(^|\.)(helloworlddemail|helloworld|sendgrid|mcsv|mcdlv|rsgsv|mailchimpapp|exacttarget|marketingcloudapps|braze|iterable|klaviyomail|klaviyo|customeriomail|mandrillapp|sparkpostmail|amazonses|mktomail|constantcontact|ccsend|hubspotemail|hs-email|pardot|createsend|cmail\d+|mailgun|postmarkapp|salesforce|attentivemobile|bluecore|cheetahmail|epsilon|responsys|emarsys)\.[a-z.]+$/;
@@ -316,6 +321,15 @@ function linkSignals(links, add) {
     const host = l.host || hostOf(l.href);
     if (!host || seen.has(host)) return;
     seen.add(host);
+    if (FREE_HOSTING.test(host))
+      add(
+        4,
+        tr(
+          `A link goes to "${host}", a free website-hosting service often used for fake pages.`,
+          `Un enlace va a "${host}", un alojamiento web gratuito que se usa a menudo para páginas falsas.`
+        ),
+        "link"
+      );
     const lb = lookalikeBrand(host);
     if (BAD_TLD.test(host))
       add(
@@ -412,6 +426,15 @@ function analyze(msg) {
         break;
       }
     }
+    if (FREE_HOSTING.test(dom))
+      add(
+        5,
+        tr(
+          `Sent from "${dom}", a free website-hosting service. Real companies don't send email from these.`,
+          `Enviado desde "${dom}", un servicio gratuito de alojamiento web. Las empresas reales no envían correos desde ahí.`
+        ),
+        "sender"
+      );
     if (typeof isDisposable === "function" && isDisposable(dom))
       add(
         6,
@@ -504,4 +527,65 @@ function analyze(msg) {
   if (types.toll) kindKey = "toll";
   const level = score >= 8 ? "scam" : score >= 4 ? "warn" : "safe";
   return { score, reasons: [...new Set(reasons)], kind, kindKey, level, trusted };
+}
+
+/* ----- Evidence that's hard for scammers to fake -----
+   history: how many earlier emails (2+ weeks old) came from this exact address.
+   age:     how many days ago the sender's web address was registered (null = unknown).
+   Real senders usually have both: a history with you, and an address that's years old. */
+function applyEvidence(local, ev, auth) {
+  const r = Object.assign({}, local, { reasons: local.reasons.slice(), evidence: ev || {} });
+  if (!ev) return r;
+  const signed = /dmarc=pass/i.test(auth || "");
+  if (ev.history > 0) {
+    r.score = Math.max(0, r.score - 6);
+    r.known = true;
+  }
+  if (ev.age != null) {
+    if (ev.age < 30) {
+      r.score += 6;
+      r.reasons.unshift(
+        tr(
+          `The sender's web address was created only ${ev.age} day${ev.age === 1 ? "" : "s"} ago. Scammers use brand-new addresses; real companies have had theirs for years.`,
+          `La dirección web del remitente se creó hace solo ${ev.age} día${ev.age === 1 ? "" : "s"}. Los estafadores usan direcciones nuevas; las empresas reales las tienen desde hace años.`
+        )
+      );
+    } else if (ev.age < 90) {
+      r.score += 3;
+      r.reasons.push(
+        tr(
+          `The sender's web address is new (${ev.age} days old).`,
+          `La dirección web del remitente es nueva (${ev.age} días).`
+        )
+      );
+    } else if (ev.age >= 365 && signed) r.score = Math.max(0, r.score - 3);
+  }
+  r.level = r.score >= 8 ? "scam" : r.score >= 4 ? "warn" : "safe";
+  return r;
+}
+
+/* Proof strong enough to call something a scam without the AI agreeing. */
+function hardEvidence(local, auth) {
+  if (/dmarc=fail/i.test(auth || "") && local.reasons.some(x => /Says it's from|Dice ser de/.test(x)))
+    return true;
+  const ev = local.evidence || {};
+  if (ev.age != null && ev.age < 30 && !local.known) return true;
+  return local.reasons.some(x =>
+    /fake copy|copia falsa|free website-hosting|alojamiento web gratuito|temporary \(throwaway\)|correo temporal|personal .* address|cuenta personal|gift cards?\b.*never ask|tarjetas de regalo|It looks like .* but it isn't|Parece .* pero no es/i.test(
+      x
+    )
+  );
+}
+
+/* The final word: the AI decides when it's available; the rules alone only say "scam" with hard proof. */
+function decideLevel(local, aiVerdict, auth) {
+  const hard = hardEvidence(local, auth);
+  if (aiVerdict) {
+    let v = { safe: "safe", suspicious: "warn", scam: "scam" }[aiVerdict] || aiVerdict;
+    if (v === "scam" && local.known && !hard) v = "warn"; // you've had real mail from them before
+    if (v === "safe" && hard) v = "warn";
+    return v;
+  }
+  if (local.level === "scam" && !hard) return "warn";
+  return local.level;
 }

@@ -59,6 +59,7 @@ function doPost(e) {
     const req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     if (isBlocked(req.uid)) return json(BLOCKED);
     if (req.mode === "check") return json(checkMessage(req));
+    if (req.mode === "intel") return json({ ok: true, ages: domainAges(req.domains) });
     if (req.mode === "register") return json(registerUser(req));
     if (req.mode === "events") return json(saveEvents(req));
     if (req.mode === "email_me") return json(emailMe(req));
@@ -103,7 +104,7 @@ function checkMessage(req) {
 }
 const CHECK_RULES = `You are ScamSense, a scam detector that protects people, especially older adults, from scams in email, text messages, and phone calls.
 Judge the message you are given. Consider who really sent it, what it asks the reader to do (click, call, pay, share a code, install software, keep a secret), pressure or threats, payment methods (gift cards, crypto, wire, Zelle), lookalike websites, and whether the story makes sense.
-Unpaid toll, package fee, or redelivery texts that link to a website that is not the real company's own website are SCAM.
+Unpaid toll, package fee, or redelivery texts that link to a website that is not the real company's own website are SCAM. Weigh the evidence lines: earlier emails from the same address and a web address registered years ago are strong signs of a real sender; a web address registered in the last 30 days is a strong scam sign. Do not call something a scam only because of a brand name, a sweepstakes, or a marketing tone when the sender is signed and has history.
 Real, signed mail from a company's own domain (for example pay, delivery-route, or account notices from gig apps like Spark Driver, DoorDash, or Uber) is SAFE even when it mentions accounts, payments, or deadlines. Normal newsletters, receipts, account notices and payment reminders from real companies (sent from their official domain, with passing sender checks, pointing to their own website) are SAFE. Do not call something a scam just because it is marketing.
 Reply with ONLY a JSON object, no other text:
 {"verdict":"safe"|"suspicious"|"scam","scam_type":"short name or empty","confidence":0-100,"explanation":"2 short sentences in plain, friendly language a 75-year-old can follow","red_flags":["up to 4 short items"],"what_to_do":["2-4 short steps"]}
@@ -911,3 +912,37 @@ function sendOwnerWeekly() {
 function sendWeeklyNow() {
   sendOwnerWeekly();
 }
+
+/* ========================================================================
+   10. DOMAIN AGE — how long ago a web address was registered
+   Scammers use brand-new addresses; real companies have had theirs for years.
+   Uses the public RDAP registry (rdap.org). Results are remembered for 6 hours.
+   ======================================================================== */
+
+function domainAges(list) {
+  const out = {};
+  const cache = CacheService.getScriptCache();
+  [].concat(list || [])
+    .map(d => String(d || "").toLowerCase().replace(/[^a-z0-9.-]/g, ""))
+    .filter(d => /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(d))
+    .slice(0, 12)
+    .forEach(d => {
+      const hit = cache.get("age:" + d);
+      if (hit !== null) {
+        out[d] = hit === "" ? null : +hit;
+        return;
+      }
+      let age = null;
+      try {
+        const r = UrlFetchApp.fetch("https://rdap.org/domain/" + d, { muteHttpExceptions: true, followRedirects: true });
+        if (r.getResponseCode() === 200) {
+          const ev = (JSON.parse(r.getContentText()).events || []).find(e => e.eventAction === "registration");
+          if (ev && ev.eventDate) age = Math.floor((Date.now() - Date.parse(ev.eventDate)) / 864e5);
+        }
+      } catch (e) {}
+      cache.put("age:" + d, age === null ? "" : String(age), 21600);
+      out[d] = age;
+    });
+  return out;
+}
+

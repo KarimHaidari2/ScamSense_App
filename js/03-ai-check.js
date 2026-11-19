@@ -6,7 +6,7 @@
 
 const AI_SYSTEM = `You are ScamSense, a scam detector that protects people, especially older adults, from scams in email, text messages, and phone calls.
 Judge the message you are given. Consider who really sent it, what it asks the reader to do (click, call, pay, share a code, install software, keep a secret), pressure or threats, payment methods (gift cards, crypto, wire, Zelle), lookalike websites, and whether the story makes sense.
-Unpaid toll, package fee, or redelivery texts that link to a website that is not the real company's own website are SCAM.
+Unpaid toll, package fee, or redelivery texts that link to a website that is not the real company's own website are SCAM. Weigh the evidence lines: earlier emails from the same address and a web address registered years ago are strong signs of a real sender; a web address registered in the last 30 days is a strong scam sign. Do not call something a scam only because of a brand name, a sweepstakes, or a marketing tone when the sender is signed and has history.
 Normal newsletters, receipts, account notices and payment reminders from real companies (sent from their official domain, with passing sender checks, pointing to their own website) are SAFE. Do not call something a scam just because it is marketing.
 Reply with ONLY a JSON object, no other text:
 {"verdict":"safe"|"suspicious"|"scam","scam_type":"short name or empty","confidence":0-100,"explanation":"2 short sentences in plain, friendly language a 75-year-old can follow","red_flags":["up to 4 short items"],"what_to_do":["2-4 short steps"]}
@@ -60,6 +60,15 @@ async function aiCheck(item) {
   if (!(item.text || "").trim())
     parts.push("Note: ScamSense couldn't read the message text. Do not treat a missing body as a scam sign.");
   if (item.phone) parts.push(`Caller number: ${item.phone}`);
+  const ev = (item.local && item.local.evidence) || {};
+  if (ev.history > 0)
+    parts.push(
+      `Sender history: the person has received ${ev.history}+ earlier emails from this exact address (2+ weeks ago).`
+    );
+  else if (item.fromEmail && ev.history === 0)
+    parts.push("Sender history: no earlier emails from this address.");
+  if (ev.age != null)
+    parts.push(`Web address age: the sender's or link's domain was registered ${ev.age} days ago.`);
   if (item.subject) parts.push(`Subject: ${item.subject}`);
   const hosts = [...new Set((item.links || []).map(l => l.host).filter(Boolean))].slice(0, 12);
   if (hosts.length) parts.push(`Link destinations: ${hosts.join(", ")}`);
@@ -131,15 +140,11 @@ async function callClaude(system, user, maxTokens) {
     .map(b => b.text)
     .join("");
 }
+/* The AI decides when it answered; the built-in rules alone only say "scam" with hard proof. */
 function finalLevel(item) {
-  if (item.ai) {
-    let v = item.ai.verdict;
-    if (item.local.score >= 8 && v === "safe") v = "warn";
-    // A verified official sender (real company domain + Gmail's sender checks pass) is at most "suspicious"
-    // unless the on-device rules also found strong scam signs.
-    if (item.local.trusted && item.local.score < 8 && v === "scam") v = "warn";
-    if (item.local.score >= 14 && v === "warn") v = "scam";
-    return v;
-  }
-  return item.local.level;
+  const v = decideLevel(item.local, item.ai && item.ai.verdict, item.auth);
+  // A verified official sender (real company domain + Gmail's sender checks pass) is at most "suspicious"
+  // unless there's hard proof.
+  if (v === "scam" && item.local.trusted && !hardEvidence(item.local, item.auth)) return "warn";
+  return v;
 }

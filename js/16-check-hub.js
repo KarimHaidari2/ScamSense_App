@@ -246,6 +246,7 @@ async function showVerdict(it, info, kind, sample) {
     it.local.reasons.push(t("call_rule"));
   }
   it.local.level = it.local.score >= 8 ? "scam" : it.local.score >= 4 ? "warn" : "safe";
+  if (!sample) await linkEvidence(it); // brand-new websites are a strong scam sign
   const c = cfg();
   if (sample) {
     // The examples have a ready-made AI answer, so they're instant and free.

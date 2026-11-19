@@ -56,6 +56,9 @@ async function finishScan(items, source) {
   items.forEach(it => {
     it.local = analyze(it);
   });
+  // Proof that's hard to fake: sender history and how old the sender's address is.
+  renderToday({ progress: { label: tr("Checking the senders…", "Revisando los remitentes…"), pct: 50 } });
+  await gatherEvidence(items);
   const wantsAI = aiOn();
   let aiList = wantsAI
     ? items.filter(it => c.aiMode === "all" || it.local.score >= 2 || it.local.reasons.length)

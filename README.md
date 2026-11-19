@@ -55,3 +55,10 @@ Live: https://karimhaidari2.github.io/ScamSense_App/
 | 31-email-actions.js | Move to Spam and Block sender for Gmail and Outlook, plus the blocked senders list |
 
 Run it on your Mac: `python3 -m http.server 8000`, then open http://localhost:8000
+
+## Accuracy test
+
+`node tests/run.js` runs every email in `tests/emails.json` (real company emails and real scam patterns)
+through the same checks the app and the daily report use, without the AI. It must show
+**0 real emails called scam** and **0 scams missed** before any change to the rules ships.
+When ScamSense gets an email wrong, add it to `tests/emails.json` so it can never break again.
