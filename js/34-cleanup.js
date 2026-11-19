@@ -323,15 +323,15 @@ function renderCleanup() {
   view.innerHTML = `${pageHead(
     tr("Is my info out there?", "¿Mis datos están expuestos?"),
     tr(
-      "Type your email or phone number. ScamSense shows if it was leaked, and what to do.",
-      "Escriba su correo o número de teléfono. ScamSense le muestra si se filtró y qué hacer."
+      "Type your email or phone number to see if it was leaked. Or paste a text or email you got to check it for scams.",
+      "Escriba su correo o teléfono para ver si se filtró. O pegue un texto o correo que recibió para revisarlo."
     ),
     ""
   )}
   <section class="askcard ci-check">
     <p class="ask-h">${ic("shield")}<b>${tr("Check my info", "Revisar mis datos")}</b></p>
     <label class="sr" for="ci-q">${tr("Your email or phone number", "Su correo o número de teléfono")}</label>
-    <input id="ci-q" type="text" inputmode="email" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Your email or phone number", "Su correo o número de teléfono"))}" value="${esc((acct && acct.email) || "")}">
+    <input id="ci-q" type="text" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Your email, phone number, or a message you got", "Su correo, teléfono o un mensaje que recibió"))}" value="${esc((acct && acct.email) || "")}">
     <div class="btnrow"><button class="btn primary" id="ci-go">${tr("Check", "Revisar")}</button></div>
     ${st.breach ? `<button class="ci-last" id="ci-last">${ic("refresh")}<span>${tr(`Last check: ${esc(st.breach.email)}, ${st.breach.breaches.length} ${st.breach.breaches.length === 1 ? "leak" : "leaks"}. See it again`, `Última revisión: ${esc(st.breach.email)}, ${st.breach.breaches.length} filtraciones. Verla otra vez`)}</span></button>` : ""}
   </section>
@@ -404,7 +404,10 @@ async function runInfoCheck() {
   }
   if (isPhone(v)) return showPhonePop(v);
   if (!isEmail(v)) {
-    toast(tr("That doesn't look like an email or phone number.", "Eso no parece un correo ni un teléfono."));
+    // Anything else (a text message, an email you got, a link): check it for scams instead.
+    checkDraft = v;
+    go("check");
+    setTimeout(() => runCheck(null), 30);
     return;
   }
   const btn = document.getElementById("ci-go");
