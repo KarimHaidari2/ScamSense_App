@@ -16,7 +16,7 @@ const TAB_OF = {
   lesson: "today",
   monthly: "today",
   helper: "today",
-  cleanup: "today",
+  cleanup: "cleanup",
   family: "family",
   settings: "settings",
   plans: "settings",

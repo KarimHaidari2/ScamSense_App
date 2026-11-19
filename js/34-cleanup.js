@@ -326,7 +326,7 @@ function renderCleanup() {
       "Type your email or phone number. ScamSense shows if it was leaked, and what to do.",
       "Escriba su correo o número de teléfono. ScamSense le muestra si se filtró y qué hacer."
     ),
-    "today"
+    ""
   )}
   <section class="askcard ci-check">
     <p class="ask-h">${ic("shield")}<b>${tr("Check my info", "Revisar mis datos")}</b></p>
