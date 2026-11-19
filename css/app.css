@@ -4581,3 +4581,44 @@ nav.tabs button svg {
 :root[data-theme="dark"] .ci-chips span:not(.hot) {
   box-shadow: inset 0 0 0 1px var(--line);
 }
+.ci-code {
+  font: inherit;
+  font-size: 1.6rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+.ci-code:focus {
+  outline: none;
+  border-color: var(--brand);
+}
+.ci-pop .btnrow .btn {
+  width: 100%;
+}
+.ci-kv {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+}
+.ci-kv + .ci-kv {
+  border-top: 1px solid var(--line);
+}
+.ci-kv span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.ci-pop {
+  overflow-x: hidden;
+}
+.ci-pop .ci-code {
+  display: block;
+  width: calc(100% - 40px);
+}

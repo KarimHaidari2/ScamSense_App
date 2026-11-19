@@ -73,5 +73,7 @@ Pick the function from the menu at the top of the script editor and click **Run*
 ## Never put these on GitHub
 
 - The AI key (it lives only in each script's **Project Settings → Script Properties** as `ANTHROPIC_API_KEY`)
+- The phone check keys (Mahi Server Script Properties: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SID`, `TRESTLE_API_KEY`)
+- The optional leak check key (`HIBP_API_KEY`)
 - Any password
 - The daily report link with `?key=` at the end

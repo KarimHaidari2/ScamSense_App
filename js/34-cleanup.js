@@ -402,7 +402,7 @@ async function runInfoCheck() {
     toast(tr("Type your email or phone number first.", "Primero escriba su correo o teléfono."));
     return;
   }
-  if (isPhone(v)) return showPhonePop(v);
+  if (isPhone(v)) return startPhoneCheck(v);
   if (!isEmail(v)) {
     // Anything else (a text message, an email you got, a link): check it for scams instead.
     checkDraft = v;
@@ -445,7 +445,7 @@ function openPop(html) {
   const d = document.getElementById("ci-pop");
   d.innerHTML =
     html +
-    `<div class="btnrow ci-pop-end"><button class="btn primary" id="ci-close">${tr("Close", "Cerrar")}</button></div>`;
+    `<div class="btnrow ci-pop-end"><button class="btn ghost" id="ci-close">${tr("Close", "Cerrar")}</button></div>`;
   document.getElementById("ci-close").onclick = () => d.close();
   d.onclick = e => e.target === d && d.close();
   if (typeof d.showModal === "function") d.showModal();
@@ -517,6 +517,96 @@ function showPhonePop(v) {
       <li>${tr("Open “Remove me from people-search sites” below. Those sites are where your phone and address show up.", "Abra “Quitarme de sitios de búsqueda” abajo. Ahí aparecen su teléfono y dirección.")}</li>
       <li>${tr("Open “Stop scam calls and mail” for free call blocking.", "Abra “Detener llamadas y correo” para bloquear llamadas gratis.")}</li>
     </ol>`);
+}
+
+/* Phone: text a code to the number first, so people can only look up their own. */
+async function startPhoneCheck(v) {
+  const btn = document.getElementById("ci-go");
+  btn.disabled = true;
+  btn.textContent = tr("Sending a code…", "Enviando un código…");
+  try {
+    if (!serverOn()) return showPhonePop(v);
+    const j = await serverPost({ mode: "phone_start", phone: v });
+    if (j && j.ok && j.available === false) return showPhonePop(v);
+    if (!j || !j.ok)
+      throw new Error(
+        (j && j.error) || tr("Couldn't send a code right now.", "No se pudo enviar un código ahora.")
+      );
+    showCodePop(v, j.sentTo, j.left);
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = tr("Check", "Revisar");
+  }
+}
+function showCodePop(v, sentTo, left) {
+  openPop(`<div class="ci-pop-head mid"><h2 id="ci-pop-h">${tr("Enter the code we texted you", "Escriba el código que le enviamos")}</h2><p class="ci-email">${esc(sentTo || v)}</p></div>
+    <p>${tr("This makes sure the number is yours. Nobody can look up someone else's number.", "Así sabemos que el número es suyo. Nadie puede buscar el número de otra persona.")}</p>
+    <label class="sr" for="ci-code">${tr("Code", "Código")}</label>
+    <input id="ci-code" class="ci-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">
+    <div class="btnrow"><button class="btn primary" id="ci-codego">${tr("Show my results", "Ver mis resultados")}</button></div>
+    <p class="muted small">${tr(`You have ${left} phone ${left === 1 ? "check" : "checks"} left this month.`, `Le quedan ${left} revisiones de teléfono este mes.`)}</p>`);
+  const inp = document.getElementById("ci-code");
+  const go = document.getElementById("ci-codego");
+  setTimeout(() => inp.focus(), 50);
+  const send = async () => {
+    const code = inp.value.replace(/\D/g, "");
+    if (code.length < 4) {
+      inp.focus();
+      return;
+    }
+    go.disabled = true;
+    go.textContent = tr("Checking…", "Revisando…");
+    try {
+      const j = await serverPost({ mode: "phone_confirm", phone: v, code });
+      if (!j || !j.ok)
+        throw new Error((j && j.error) || tr("Couldn't check right now.", "No se pudo revisar ahora."));
+      if (typeof serverEvent === "function") serverEvent({ t: "phone_lookup", n: (j.owners || []).length });
+      showPhoneResult(j);
+    } catch (e) {
+      toast(e.message);
+      go.disabled = false;
+      go.textContent = tr("Show my results", "Ver mis resultados");
+    }
+  };
+  go.onclick = send;
+  inp.onkeydown = e => e.key === "Enter" && send();
+}
+const LINE_TYPES = {
+  Mobile: () => tr("Cell phone", "Celular"),
+  Landline: () => tr("Landline", "Teléfono fijo"),
+  FixedVOIP: () => tr("Internet phone", "Teléfono por internet"),
+  NonFixedVOIP: () => tr("Internet phone", "Teléfono por internet"),
+  TollFree: () => tr("Toll-free", "Línea gratuita")
+};
+function showPhoneResult(j) {
+  const owners = j.owners || [];
+  const addrs = owners.reduce((n, o) => n + (o.addresses || []).length, 0);
+  const lv = addrs ? "high" : owners.length ? "mid" : "low";
+  const lvText = { high: tr("High", "Alto"), mid: tr("Medium", "Medio"), low: tr("Low", "Bajo") }[lv];
+  const row = (k, v) => (v ? `<div class="ci-kv"><span>${k}</span><b>${esc(v)}</b></div>` : "");
+  const people = owners
+    .map(
+      o =>
+        `<li class="ci-bcard">${row(tr("Name", "Nombre"), o.name)}${row(tr("Also known as", "También como"), (o.other || []).join(", "))}${row(tr("Age", "Edad"), o.age)}${(o.addresses || []).map(a => row(tr("Home address", "Dirección"), a)).join("")}${row(tr("Linked to this number since", "Vinculado a este número desde"), o.since)}</li>`
+    )
+    .join("");
+  openPop(`<div class="ci-pop-head ${lv}">
+      <p class="ci-level">${tr("Risk", "Riesgo")}: <b>${lvText}</b></p><div class="ci-meter"><i></i></div>
+      <h2 id="ci-pop-h">${addrs ? tr("Your name and home address are public", "Su nombre y dirección son públicos") : owners.length ? tr("Your name is linked to this number", "Su nombre está vinculado a este número") : tr("Good news: little is public", "Buenas noticias: poco es público")}</h2>
+      <p class="ci-email">${esc(j.phone)}</p></div>
+    <p>${tr("This is what data companies sell about your number. Scammers buy it to sound real when they call or text you.", "Esto es lo que las empresas de datos venden sobre su número. Los estafadores lo compran para parecer reales al llamarle.")}</p>
+    ${owners.length ? `<h3>${tr("What anyone can buy", "Lo que cualquiera puede comprar")}</h3><ul class="ci-blist">${people}</ul>` : ""}
+    <h3>${tr("Your phone line", "Su línea")}</h3>
+    <div class="ci-bcard">${row(tr("Phone company", "Compañía"), j.carrier)}${row(tr("Type", "Tipo"), (LINE_TYPES[j.lineType] || (() => j.lineType))())}</div>
+    <h3>${tr("What to do now", "Qué hacer ahora")}</h3>
+    <ol class="ci-todo">
+      <li>${tr("Open “Remove me from people-search sites” and ask each site to remove you. It's free.", "Abra “Quitarme de sitios de búsqueda” y pida a cada sitio que le quite. Es gratis.")}</li>
+      <li>${tr("Freeze your credit (free) so nobody can open accounts in your name.", "Congele su crédito (gratis) para que nadie abra cuentas a su nombre.")}</li>
+      <li>${tr("If a caller knows your address, that doesn't prove they're real. Hang up and call back on a number you trust.", "Si quien llama sabe su dirección, eso no prueba que sea real. Cuelgue y llame a un número de confianza.")}</li>
+    </ol>
+    <p class="muted small">${tr(`Data from ${esc(j.source)}. ScamSense doesn't save it. ${j.left} phone ${j.left === 1 ? "check" : "checks"} left this month.`, `Datos de ${esc(j.source)}. ScamSense no los guarda. Le quedan ${j.left} revisiones este mes.`)}</p>`);
 }
 
 /* For Home: a short line about this screen. */

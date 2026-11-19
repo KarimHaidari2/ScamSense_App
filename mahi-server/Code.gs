@@ -65,6 +65,8 @@ function doPost(e) {
     if (req.mode === "email_me") return json(emailMe(req));
     if (req.mode === "breach") return json(breachCheck(req));
     if (req.mode === "exposure") return json(exposureScan(req));
+    if (req.mode === "phone_start") return json(phoneStart(req));
+    if (req.mode === "phone_confirm") return json(phoneConfirm(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -765,6 +767,101 @@ function breachesXON(email) {
         .filter(Boolean)
         .slice(0, 8)
     }))
+  };
+}
+
+// "What's public about my phone number?" Like the paid sites, but only for YOUR OWN number:
+// 1. phoneStart texts a 6-digit code to the number (Twilio Verify).
+// 2. phoneConfirm checks the code, then looks the number up (Trestle Reverse Phone API) and returns
+//    the name, age range, address, and phone company linked to it. Nothing is saved on the server.
+// Limits: 3 lookups per person per month, 5 codes per person per day (each costs a few cents).
+// Script Properties needed: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID, TRESTLE_API_KEY.
+const PHONE_LOOKUPS_PER_MONTH = 3;
+function phoneKeys() {
+  const p = PropertiesService.getScriptProperties();
+  const k = {
+    sid: p.getProperty("TWILIO_ACCOUNT_SID"),
+    token: p.getProperty("TWILIO_AUTH_TOKEN"),
+    verify: p.getProperty("TWILIO_VERIFY_SID"),
+    trestle: p.getProperty("TRESTLE_API_KEY")
+  };
+  return k.sid && k.token && k.verify && k.trestle ? k : null;
+}
+function usPhone(v) {
+  let d = String(v || "").replace(/\D/g, "");
+  if (d.length === 11 && d[0] === "1") d = d.slice(1);
+  return /^[2-9]\d{9}$/.test(d) ? "+1" + d : "";
+}
+function monthKey(uid) {
+  return "phq:" + uid + ":" + Utilities.formatDate(new Date(), "UTC", "yyyyMM");
+}
+function lookupsLeft(uid) {
+  const used = +(PropertiesService.getScriptProperties().getProperty(monthKey(uid)) || 0);
+  return Math.max(0, PHONE_LOOKUPS_PER_MONTH - used);
+}
+function twilio(k, path, form) {
+  const r = UrlFetchApp.fetch("https://verify.twilio.com/v2/Services/" + k.verify + path, {
+    method: "post",
+    payload: form,
+    headers: { Authorization: "Basic " + Utilities.base64Encode(k.sid + ":" + k.token) },
+    muteHttpExceptions: true
+  });
+  return { code: r.getResponseCode(), body: JSON.parse(r.getContentText() || "{}") };
+}
+function phoneStart(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const k = phoneKeys();
+  if (!k) return { ok: true, available: false };
+  const to = usPhone(req.phone);
+  if (!to) return { error: "Please type a US phone number with its area code." };
+  if (!lookupsLeft(req.uid))
+    return { error: "You've used this month's " + PHONE_LOOKUPS_PER_MONTH + " phone checks. Please try again next month." };
+  if (!takeQuota("phcode:" + req.uid, 5)) return { error: "Too many codes today. Please try again tomorrow." };
+  const r = twilio(k, "/Verifications", { To: to, Channel: "sms" });
+  if (r.code >= 300) return { error: "We couldn't text that number. Please check it and try again." };
+  return { ok: true, available: true, sentTo: to, left: lookupsLeft(req.uid) };
+}
+function phoneConfirm(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const k = phoneKeys();
+  if (!k) return { ok: true, available: false };
+  const to = usPhone(req.phone);
+  const code = String(req.code || "").replace(/\D/g, "");
+  if (!to || !/^\d{4,10}$/.test(code)) return { error: "Please type the code from the text." };
+  if (!takeQuota("phtry:" + req.uid, 10)) return { error: "Too many tries today. Please try again tomorrow." };
+  const v = twilio(k, "/VerificationCheck", { To: to, Code: code });
+  if (v.code >= 300 || v.body.status !== "approved") return { error: "That code didn't work. Please check it, or ask for a new one." };
+  if (!lookupsLeft(req.uid)) return { error: "You've used this month's phone checks." };
+  const r = UrlFetchApp.fetch("https://api.trestleiq.com/3.2/phone?phone=" + encodeURIComponent(to.slice(2)) + "&phone.country_hint=US", {
+    headers: { "x-api-key": k.trestle },
+    muteHttpExceptions: true
+  });
+  if (r.getResponseCode() !== 200) return { error: "The phone lookup isn't answering right now. Please try again later." };
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(monthKey(req.uid), String(PHONE_LOOKUPS_PER_MONTH - lookupsLeft(req.uid) + 1));
+  const j = JSON.parse(r.getContentText() || "{}");
+  const owners = (j.owners || []).slice(0, 3).map(o => ({
+    name: String(o.name || [o.firstname, o.lastname].filter(Boolean).join(" ")),
+    other: (o.alternate_names || []).slice(0, 4).map(String),
+    age: String(o.age_range || ""),
+    type: String(o.type || ""),
+    since: String(o.link_to_phone_start_date || "").slice(0, 10),
+    addresses: (o.current_addresses || []).slice(0, 2).map(a =>
+      [a.street_line_1, a.street_line_2, a.city, [a.state_code, a.postal_code].filter(Boolean).join(" ")]
+        .filter(Boolean)
+        .join(", ")
+    )
+  }));
+  return {
+    ok: true,
+    phone: to,
+    valid: !!j.is_valid,
+    carrier: String(j.carrier || ""),
+    lineType: String(j.line_type || ""),
+    prepaid: !!j.is_prepaid,
+    owners,
+    left: lookupsLeft(req.uid),
+    source: "Trestle"
   };
 }
 
