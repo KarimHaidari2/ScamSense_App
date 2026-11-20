@@ -81,7 +81,7 @@ async function registerUser() {
   try {
     const j = await serverPost(body);
     if (j && j.ok && !j.waiting) {
-      S.set("acct", { email: j.email, verified: j.verified, at: Date.now() });
+      S.set("acct", { email: j.email, verified: j.verified, owner: !!j.owner, at: Date.now() });
       flushServerEvents();
     }
     return j;
@@ -167,6 +167,7 @@ function accountHTML() {
     <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>${tr("Your email", "Su correo")}</b><span>${emailLine}</span></span></div>
     <div class="grow">${lead("bell", "l-amber")}<span class="gl"><b>${tr("Daily report email", "Reporte diario por correo")}</b><span>${tr("Every morning: what ScamSense caught for you.", "Cada mañana: lo que ScamSense detectó para usted.")}</span></span>${switchHTML("drep", c.dailyReport !== false, "")}</div>
     <div class="grow">${lead("alert", "l-red")}<span class="gl"><b>${tr("Danger alerts", "Alertas de peligro")}</b><span>${tr("If you say you were scammed or already paid, your trusted people get an email right away.", "Si dice que le estafaron o que ya pagó, sus personas de confianza reciben un correo enseguida.")}</span></span>${switchHTML("dalert", c.dangerAlerts !== false, "")}</div>
+    ${acct && acct.owner ? `<a class="grow" href="owner.html" target="_blank" rel="noopener">${lead("shield", "l-blue")}<span class="gl"><b>${tr("Owner dashboard", "Panel del dueño")}</b><span>${tr("Only you see this: people, alerts, costs.", "Solo usted lo ve: personas, alertas, costos.")}</span></span>${ic("chev", "chev")}</a>` : ""}
   </div><p class="footnote">${ic("lock")}<span>${tr('ScamSense saves your name, email, and what it finds (like "text message: scam"), never your messages. ', 'ScamSense guarda su nombre, correo y lo que encuentra (como "texto: estafa"), nunca sus mensajes. ')}<a href="privacy.html" target="_blank" rel="noopener">${tr("Privacy Policy", "Política de privacidad")}</a></span></p></section>`;
 }
 function bindAccount() {

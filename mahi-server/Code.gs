@@ -67,6 +67,7 @@ function doPost(e) {
     if (req.mode === "exposure") return json(exposureScan(req));
     if (req.mode === "phone_start") return json(phoneStart(req));
     if (req.mode === "phone_confirm") return json(phoneConfirm(req));
+    if (req.mode === "owner") return json(ownerApi(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -292,7 +293,8 @@ const USER_COLS = [
   "Devices",
   "Follow-up", // "needs follow-up" after a danger alert; type "done" when you've reached them
   "Blocked", // type "yes" to stop ScamSense for this person
-  "Status" // "active" or "quiet 7+ days", updated every morning
+  "Status", // "active" or "quiet 7+ days", updated every morning
+  "Owner notes" // your own notes about this person (from the Owner dashboard)
 ];
 const ACT_COLS = ["Time", "User ID", "Name", "What", "Channel", "Result", "Scam type", "Details"];
 const ALERT_COLS = ["Time", "Name", "Email", "What happened", "Emailed to"];
@@ -526,7 +528,8 @@ function registerUser(req) {
     delete u._welcome;
     writeUser(u);
     if (welcome) sendWelcome(u);
-    return { ok: true, verified: u["Email verified"] === "yes", email: u.Email || "" };
+    const isOwner = u["Email verified"] === "yes" && ownerEmails().indexOf(String(u.Email).toLowerCase()) >= 0;
+    return { ok: true, verified: u["Email verified"] === "yes", email: u.Email || "", owner: isOwner };
   } finally {
     lock.releaseLock();
   }
@@ -535,7 +538,7 @@ function registerUser(req) {
 // What the app tells the server: the kind of thing checked, the result, and the time. Never the message itself.
 function cleanEv(x) {
   if (!x || typeof x !== "object") return null;
-  const t = { check: 1, pause: 1, scammed: 1, block: 1, scan: 1, account: 1 }[x.t] ? x.t : null;
+  const t = { check: 1, pause: 1, scammed: 1, block: 1, scan: 1, account: 1, leak: 1, phone_lookup: 1 }[x.t] ? x.t : null;
   if (!t) return null;
   const at = +x.at;
   return {
@@ -557,7 +560,9 @@ const WHAT = {
   scammed: 'Opened "I was scammed"',
   block: "Blocked a sender",
   scan: "Scanned email",
-  account: ""
+  account: "",
+  leak: "Checked an email for data leaks",
+  phone_lookup: "Checked their phone number"
 };
 const ACCOUNT = {
   gmail_on: "Connected Gmail",
@@ -586,7 +591,13 @@ function saveEvents(req) {
       fullName(u),
       e.t === "account" ? ACCOUNT[e.o] || "Account" : WHAT[e.t] + (e.o === "paid" ? " (already paid)" : ""),
       e.t === "scan" ? e.src : e.c,
-      e.t === "scan" ? `${e.n} emails, ${e.s} scams, ${e.w} careful` : e.l,
+      e.t === "scan"
+        ? `${e.n} emails, ${e.s} scams, ${e.w} careful`
+        : e.t === "leak"
+          ? `${e.n} leaks`
+          : e.t === "phone_lookup"
+            ? (e.n ? "name and address public" : "nothing confirmed")
+            : e.l,
       e.k,
       ""
     ]);
@@ -752,6 +763,7 @@ function breachCheck(req) {
   } catch (err) {
     return { error: "The leak check isn't answering right now. Please try again later." };
   }
+  bump("LEAK");
   out.ok = true;
   out.email = email;
   out.checked = new Date().toISOString();
@@ -858,6 +870,7 @@ function phoneStart(req) {
     return { error: "We couldn't text that number. (" + why + ")" };
   }
   takeQuota("phcode:" + req.uid, 5); // only texts that were really sent count toward the limit
+  bump("SMS");
   return { ok: true, available: true, sentTo: to, left: lookupsLeft(req.uid) };
 }
 function phoneConfirm(req) {
@@ -884,6 +897,7 @@ function phoneConfirm(req) {
   if (r.getResponseCode() !== 200) return { error: "The phone lookup isn't answering right now. Please try again later." };
   const props = PropertiesService.getScriptProperties();
   props.setProperty(monthKey(req.uid), String(PHONE_LOOKUPS_PER_MONTH - lookupsLeft(req.uid) + 1));
+  bump("LOOKUP");
   const j = JSON.parse(r.getContentText() || "{}");
   const norm = s => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
   const mine = o =>
@@ -925,6 +939,222 @@ function exposureScan(req) {
   if (!key) return { ok: true, available: false };
   // A partner is set up but not wired in yet: the partner's API details go here.
   return { ok: true, available: false, note: "partner key saved, connection not built yet" };
+}
+
+/* ========================================================================
+   10. OWNER DASHBOARD — the private owner.html page talks to these
+   Only the owner can use them: the page signs in with Google or Microsoft, and the
+   email must be OWNER.EMAIL or one listed in Script Property OWNER_LOGINS (comma-separated).
+   Never returns anyone's messages, only what the dashboard already keeps.
+   ======================================================================== */
+
+const GOOGLE_CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleusercontent.com";
+
+// Counts something per month in Script Properties (texts sent, phone lookups, leak checks).
+function bump(what) {
+  const p = PropertiesService.getScriptProperties();
+  const k = what + "_" + Utilities.formatDate(new Date(), "UTC", "yyyyMM");
+  p.setProperty(k, String(+(p.getProperty(k) || 0) + 1));
+}
+function monthCount(what, ym) {
+  return +(PropertiesService.getScriptProperties().getProperty(what + "_" + ym) || 0);
+}
+
+function ownerEmails() {
+  const extra = String(PropertiesService.getScriptProperties().getProperty("OWNER_LOGINS") || "");
+  return [OWNER.EMAIL]
+    .concat(extra.split(","))
+    .map(x => String(x || "").trim().toLowerCase())
+    .filter(Boolean);
+}
+// Who is signed in on the Owner page? Google (an "email" sign-in made for ScamSense) or Microsoft.
+function ownerWho(req) {
+  try {
+    if (req.gtoken) {
+      const r = UrlFetchApp.fetch(
+        "https://oauth2.googleapis.com/tokeninfo?access_token=" + encodeURIComponent(req.gtoken),
+        { muteHttpExceptions: true }
+      );
+      if (r.getResponseCode() === 200) {
+        const j = JSON.parse(r.getContentText());
+        // The sign-in must be one made for ScamSense, not some other app's.
+        if ((j.azp === GOOGLE_CLIENT_ID || j.aud === GOOGLE_CLIENT_ID) && String(j.email_verified) === "true")
+          return String(j.email || "").toLowerCase();
+      }
+    }
+    if (req.mstoken) return verifiedEmail({ mstoken: req.mstoken });
+  } catch (e) {}
+  return "";
+}
+
+function ownerApi(req) {
+  const who = ownerWho(req);
+  if (!who) return { error: "Please sign in again.", signin: true };
+  if (ownerEmails().indexOf(who) < 0)
+    return { error: "This account isn't a ScamSense owner: " + who, notOwner: true, email: who };
+  const a = String(req.action || "overview");
+  if (a === "overview") return ownerOverview(who);
+  if (a === "person") return ownerPerson(req.uid);
+  const u = findUser(req.uid);
+  if (!u) return { error: "Couldn't find that person." };
+  let did = "";
+  if (a === "block") {
+    u.Blocked = "yes";
+    did = "Blocked";
+  } else if (a === "unblock") {
+    u.Blocked = "";
+    did = "Unblocked";
+  } else if (a === "followup_done") {
+    u["Follow-up"] = "done";
+    did = "Follow-up marked done";
+  } else if (a === "note") {
+    u["Owner notes"] = cleanText(req.note, 1000);
+    did = "Saved a note";
+  } else if (a === "reset_phone") {
+    const p = PropertiesService.getScriptProperties();
+    devicesOf(u).forEach(id => p.deleteProperty(monthKey(id)));
+    did = "Reset phone checks for this month";
+  } else if (a === "send_report") {
+    if (!u.Email || u["Email verified"] !== "yes") return { error: "This person's email isn't confirmed yet." };
+    sendReportTo(u);
+    did = "Sent the daily report now";
+  } else if (a === "email") {
+    if (!u.Email || u["Email verified"] !== "yes") return { error: "This person's email isn't confirmed yet." };
+    const subject = cleanText(req.subject, 150) || "A message from ScamSense";
+    const body = String(req.body || "").slice(0, 5000);
+    if (!body.trim()) return { error: "Write a message first." };
+    MailApp.sendEmail({
+      to: u.Email,
+      replyTo: OWNER.EMAIL,
+      subject,
+      body,
+      htmlBody: mailShell(
+        `<div style="padding:22px"><div style="font-size:16px;line-height:1.55;color:#111827;white-space:pre-wrap">${esc(body)}</div></div>`
+      ),
+      name: "ScamSense"
+    });
+    did = "Emailed: " + subject;
+  } else return { error: "Unknown action." };
+  if (a !== "reset_phone" && a !== "send_report" && a !== "email") writeUser(u);
+  ownerLog(who, did, u);
+  return Object.assign({ ok: true, done: did }, ownerPerson(u["User ID"]));
+}
+
+function devicesOf(u) {
+  return [u["User ID"]].concat(String(u.Devices || "").split(/\s+/)).filter(Boolean);
+}
+function ownerLog(who, action, u) {
+  const db = getDb();
+  let sh = db.getSheetByName("Owner log");
+  if (!sh) {
+    sh = db.insertSheet("Owner log");
+    sh.appendRow(["Time", "Owner", "Action", "Person", "Person email"]);
+    sh.getRange(1, 1, 1, 5).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh.setFrozenRows(1);
+  }
+  sh.appendRow([new Date(), who, action, u ? fullName(u) : "", u ? u.Email || "" : ""]);
+}
+function rowsOf(name, max) {
+  const sh = sheet(name);
+  if (!sh || sh.getLastRow() < 2) return { head: [], rows: [] };
+  const n = Math.min(max, sh.getLastRow() - 1);
+  const head = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  const rows = sh.getRange(sh.getLastRow() - n + 1, 1, n, head.length).getValues();
+  return { head, rows };
+}
+const iso = v => (v instanceof Date ? v.toISOString() : v);
+function userObj(head, r) {
+  const o = {};
+  head.forEach((c, i) => (o[c] = iso(r[i])));
+  return o;
+}
+
+function ownerOverview(who) {
+  const U = rowsOf("Users", 2000);
+  const users = U.rows.map(r => userObj(U.head, r)).filter(u => u["User ID"]);
+  const A = rowsOf("Activity", 400);
+  const activity = A.rows.map(r => userObj(A.head, r)).reverse();
+  const L = rowsOf("Alerts", 100);
+  const alerts = L.rows.map(r => userObj(L.head, r)).reverse();
+  const G = rowsOf("Owner log", 50);
+  const log = G.rows.map(r => userObj(G.head, r)).reverse();
+  const ym = Utilities.formatDate(new Date(), "UTC", "yyyyMM");
+  const props = PropertiesService.getScriptProperties().getProperties();
+  let aiMonth = 0;
+  Object.keys(props).forEach(k => {
+    if (k.indexOf("COUNT_" + ym) === 0) aiMonth += +props[k] || 0;
+  });
+  const sms = monthCount("SMS", ym),
+    lookups = monthCount("LOOKUP", ym),
+    leaks = monthCount("LEAK", ym);
+  const has = k => !!props[k];
+  return {
+    ok: true,
+    owner: who,
+    users,
+    activity,
+    alerts,
+    log,
+    usage: {
+      aiToday: countToday(),
+      aiMonth,
+      aiDailyLimit: MAHI.MAX_PER_DAY,
+      sms,
+      lookups,
+      leaks,
+      estCost: Math.round((sms * 0.0583 + lookups * 0.07) * 100) / 100
+    },
+    services: [
+      { name: "Anthropic AI (Mahi + smart checks)", ok: has("ANTHROPIC_API_KEY"), link: "https://console.anthropic.com" },
+      { name: "Twilio Verify (text codes)", ok: has("TWILIO_ACCOUNT_SID") && has("TWILIO_AUTH_TOKEN") && has("TWILIO_VERIFY_SID"), link: "https://console.twilio.com" },
+      { name: "Trestle (phone lookup)", ok: has("TRESTLE_API_KEY"), link: "https://trestleiq.com" },
+      { name: "Email leak check", ok: true, note: has("HIBP_API_KEY") ? "Have I Been Pwned" : "XposedOrNot (free)", link: "https://xposedornot.com" },
+      { name: "Owner Dashboard spreadsheet", ok: true, link: getDb().getUrl() },
+      { name: "Automatic removal (Optery)", ok: has("REMOVAL_PARTNER_KEY"), note: "planned", link: "https://www.optery.com/api" }
+    ],
+    sheetUrl: getDb().getUrl()
+  };
+}
+
+function ownerPerson(uid) {
+  const u = findUser(uid);
+  if (!u) return { error: "Couldn't find that person." };
+  const ids = devicesOf(u);
+  const A = rowsOf("Activity", 3000);
+  const uidAt = A.head.indexOf("User ID");
+  const activity = A.rows
+    .filter(r => ids.indexOf(r[uidAt]) >= 0)
+    .map(r => userObj(A.head, r))
+    .reverse()
+    .slice(0, 300);
+  const L = rowsOf("Alerts", 500);
+  const alerts = L.rows
+    .map(r => userObj(L.head, r))
+    .filter(x => (u.Email && x.Email === u.Email) || (fullName(u) && x.Name === fullName(u)))
+    .reverse();
+  const person = {};
+  USER_COLS.forEach(c => (person[c] = iso(u[c])));
+  const used = ids.reduce((n, id) => n + (PHONE_LOOKUPS_PER_MONTH - lookupsLeft(id)), 0);
+  return { ok: true, person, activity, alerts, phoneChecksUsed: used, phoneChecksMax: PHONE_LOOKUPS_PER_MONTH };
+}
+
+// One person's daily report, right now (used by the Owner dashboard).
+function sendReportTo(u) {
+  const ids = devicesOf(u);
+  const since = Date.now() - 864e5;
+  const mine = sheet("Activity")
+    .getDataRange()
+    .getValues()
+    .slice(1)
+    .filter(r => new Date(r[0]).getTime() >= since && ids.indexOf(r[1]) >= 0);
+  MailApp.sendEmail({
+    replyTo: OWNER.EMAIL,
+    to: u.Email,
+    subject: reportSubject(mine),
+    htmlBody: userReportHTML(u, mine),
+    body: `Your ScamSense report: ${mine.length} things happened in the last day. Open ScamSense: ${OWNER.APP_URL}`,
+    name: "ScamSense Daily Report"
+  });
 }
 
 // Runs every morning: one report per user who has an email and reports turned on.

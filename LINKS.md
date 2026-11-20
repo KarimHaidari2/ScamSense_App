@@ -10,6 +10,8 @@ Everything you need, on one page. Passwords and keys are **not** here. They stay
 | GitHub project | https://github.com/KarimHaidari2/ScamSense_App |
 | Privacy Policy | https://karimhaidari2.github.io/ScamSense_App/privacy.html |
 | Terms of Use | https://karimhaidari2.github.io/ScamSense_App/terms.html |
+| **Owner dashboard** (only you) | https://karimhaidari2.github.io/ScamSense_App/owner.html |
+| Owner dashboard with sample data | https://karimhaidari2.github.io/ScamSense_App/owner.html?demo |
 
 ## The two Google scripts
 
@@ -77,5 +79,7 @@ Pick the function from the menu at the top of the script editor and click **Run*
 - The AI key (it lives only in each script's **Project Settings → Script Properties** as `ANTHROPIC_API_KEY`)
 - The phone check keys (Mahi Server Script Properties: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_VERIFY_SID`, `TRESTLE_API_KEY`)
 - The optional leak check key (`HIBP_API_KEY`)
+
+Script Property `OWNER_LOGINS` (not secret): the Google email(s) allowed into the Owner dashboard, comma-separated.
 - Any password
 - The daily report link with `?key=` at the end

@@ -4728,3 +4728,8 @@ nav.tabs button svg {
 .ci-skip:focus-visible {
   outline: 3px solid var(--gold);
 }
+a.grow {
+  color: inherit;
+  text-decoration: none;
+  border-top: 1px solid var(--line);
+}
