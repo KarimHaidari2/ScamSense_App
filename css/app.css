@@ -4708,3 +4708,23 @@ nav.tabs button svg {
 .ci-check input.ph {
   padding-left: 48px;
 }
+.ci-pop > .ci-bar {
+  margin-top: -6px;
+  margin-bottom: 10px;
+}
+.ci-pop .btnrow.ci-pop-end {
+  display: grid;
+  gap: 8px;
+}
+.ci-skip {
+  all: unset;
+  cursor: pointer;
+  text-align: center;
+  padding: 8px;
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.ci-skip:focus-visible {
+  outline: 3px solid var(--gold);
+}

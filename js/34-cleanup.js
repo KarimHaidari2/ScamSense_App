@@ -344,6 +344,7 @@ function renderCleanup() {
     <details class="ci-fold" id="ci-fold-sites">
       <summary class="grow"><span class="lead-ic l-red">${ic("eyeoff")}</span><span class="gl"><b>${tr("Remove me from people-search sites", "Quitarme de sitios de búsqueda de personas")}</b><span>${tr(`${sitesDone} of ${CLEANUP_SITES.length} sites done · always free`, `${sitesDone} de ${CLEANUP_SITES.length} sitios listos · siempre gratis`)}</span></span>${ic("chev", "chev")}</summary>
       <div class="ci-foldbody"><p class="muted small">${tr("These sites show your address and phone to anyone. Tap a site, look yourself up, and ask it to remove you. Never pay anyone to do this.", "Estos sitios muestran su dirección y teléfono a cualquiera. Toque un sitio, búsquese y pida que le quiten. Nunca pague por esto.")}</p>
+      <div class="btnrow"><button class="btn primary" id="ci-guide">${ic("eyeoff")}<span>${tr("Remove me, one site at a time", "Quitarme, un sitio a la vez")}</span></button></div>
       <div class="group ci-sites">${CLEANUP_SITES.map(s => siteHTML(s, st)).join("")}</div></div>
     </details>
     <details class="ci-fold">
@@ -399,6 +400,8 @@ function bindCleanup() {
         q.focus();
       })
   );
+  const guide = document.getElementById("ci-guide");
+  if (guide) guide.onclick = () => startRemoval();
   const last = document.getElementById("ci-last");
   if (last) last.onclick = () => showInfoPop(cleanupState().breach);
   view.querySelectorAll("[data-ci]").forEach(
@@ -493,16 +496,7 @@ function openPop(html, remove) {
     `<div class="btnrow ci-pop-end">${remove ? `<button class="btn primary" id="ci-remove">${ic("eyeoff")}<span>${tr("Remove my info", "Quitar mis datos")}</span></button>` : ""}<button class="btn ghost" id="ci-close">${tr("Close", "Cerrar")}</button></div>`;
   document.getElementById("ci-close").onclick = () => d.close();
   const rm = document.getElementById("ci-remove");
-  if (rm)
-    rm.onclick = () => {
-      d.close();
-      const f = document.getElementById("ci-fold-sites");
-      if (!f) return;
-      f.open = true;
-      f.scrollIntoView({ behavior: "smooth", block: "start" });
-      const first = f.querySelector(".ci-site summary");
-      if (first) setTimeout(() => first.focus({ preventScroll: true }), 400);
-    };
+  if (rm) rm.onclick = () => startRemoval();
   d.onclick = e => e.target === d && d.close();
   if (typeof d.showModal === "function") d.showModal();
   else d.setAttribute("open", "");
@@ -701,4 +695,94 @@ function cleanupLine() {
   if (CLEANUP_SITES.some(s => siteStatus(s) === "recheck"))
     return tr("Time to check some sites again", "Hora de revisar algunos sitios otra vez");
   return tr("See if your email or phone was leaked", "Vea si su correo o teléfono se filtró");
+}
+
+/* ----- Guided removal: one site at a time, in a pop-up ----- */
+let removalChanged = false;
+function startRemoval() {
+  removalChanged = false;
+  const d = document.getElementById("ci-pop");
+  d.onclose = () => {
+    if (removalChanged) renderCleanup();
+  };
+  removalStep();
+}
+function removalStep() {
+  const st = cleanupState();
+  const todo = CLEANUP_SITES.filter(x => !["gone", "none", "sent"].includes(siteStatus(x, st)));
+  const doneCount = CLEANUP_SITES.length - todo.length;
+  const d = document.getElementById("ci-pop");
+  const bar = `<div class="ci-bar"><i style="width:${Math.round((doneCount / CLEANUP_SITES.length) * 100)}%"></i></div>`;
+  if (!todo.length) {
+    const sent = CLEANUP_SITES.filter(x => siteStatus(x, st) === "sent").length;
+    d.innerHTML = `<div class="ci-pop-head low"><h2 id="ci-pop-h">${tr("You went through every site", "Revisó todos los sitios")}</h2><p class="ci-email">${tr(`${CLEANUP_SITES.length} of ${CLEANUP_SITES.length}`, `${CLEANUP_SITES.length} de ${CLEANUP_SITES.length}`)}</p></div>
+      ${bar}
+      <p>${sent ? tr(`You asked ${sent} ${sent === 1 ? "site" : "sites"} to remove you. Removals take a few days to a few weeks. ScamSense will remind you when it's time to check that they're gone.`, `Pidió a ${sent} sitios que le quiten. Tarda de unos días a unas semanas. ScamSense le recordará cuándo revisar.`) : tr("Nice work. ScamSense will remind you to check again in a few months, because some sites add people back.", "Bien hecho. ScamSense le recordará revisar otra vez en unos meses, porque algunos sitios vuelven a agregar a las personas.")}</p>
+      <div class="btnrow ci-pop-end"><button class="btn primary" id="ci-close">${tr("Done", "Listo")}</button></div>`;
+    document.getElementById("ci-close").onclick = () => d.close();
+  } else {
+    const x = todo[0];
+    const n = doneCount + 1;
+    d.innerHTML = `<div class="ci-pop-head mid"><p class="ci-level">${tr(`Site ${n} of ${CLEANUP_SITES.length}`, `Sitio ${n} de ${CLEANUP_SITES.length}`)}</p><h2 id="ci-pop-h">${esc(x.name)}</h2>${x.also ? `<p class="ci-email">${x.also()}</p>` : ""}</div>
+      ${bar}
+      <ol class="ci-todo">
+        ${x.direct ? "" : `<li>${tr("Tap the button below. The site opens in a new tab.", "Toque el botón de abajo. El sitio se abre en otra pestaña.")}</li><li>${tr("Search your name and city.", "Busque su nombre y ciudad.")}</li>`}
+        <li>${x.how()}</li>
+        <li>${tr("Come back here and tap what happened.", "Vuelva aquí y toque lo que pasó.")}</li>
+      </ol>
+      <div class="btnrow ci-pop-end">
+        ${x.search ? `<a class="btn ghost" href="${x.search}" target="_blank" rel="noopener noreferrer">${tr(`1. Find myself on ${x.name.split(",")[0]}`, `1. Buscarme en ${x.name.split(",")[0]}`)}</a>` : ""}<a class="btn primary" href="${x.remove}" target="_blank" rel="noopener noreferrer">${x.search ? tr("2. Open the removal page", "2. Abrir la página para quitarme") : tr(`Open ${x.name.split(",")[0]}`, `Abrir ${x.name.split(",")[0]}`)}</a>
+        <button class="btn ghost" data-rs="sent">${ic("check")}<span>${tr("I asked them to remove me", "Pedí que me quiten")}</span></button>
+        ${x.direct ? "" : `<button class="btn ghost" data-rs="none">${tr("I'm not on this site", "No aparezco en este sitio")}</button>`}
+        <button class="ci-skip" data-rs="skip">${tr("Skip for now", "Saltar por ahora")}</button>
+        <button class="ci-skip" id="ci-close">${tr("Stop and finish later", "Parar y seguir después")}</button>
+      </div>`;
+    document.getElementById("ci-close").onclick = () => d.close();
+    d.querySelectorAll("[data-rs]").forEach(
+      b =>
+        (b.onclick = () => {
+          const st2 = cleanupState();
+          if (b.dataset.rs === "skip") {
+            // Move it to the end of this round by marking it, without counting it as done.
+            removalSkip.add(x.id);
+          } else {
+            st2.sites[x.id] = { s: b.dataset.rs, at: Date.now() };
+            saveCleanup(st2);
+            removalChanged = true;
+          }
+          removalStepNext();
+        })
+    );
+  }
+  if (!d.open) {
+    if (typeof d.showModal === "function") d.showModal();
+    else d.setAttribute("open", "");
+  }
+  d.scrollTop = 0;
+}
+const removalSkip = new Set();
+function removalStepNext() {
+  // Show the next site that wasn't skipped this time; when only skipped ones are left, finish.
+  const st = cleanupState();
+  const todo = CLEANUP_SITES.filter(
+    x => !["gone", "none", "sent"].includes(siteStatus(x, st)) && !removalSkip.has(x.id)
+  );
+  if (!todo.length) {
+    removalSkip.clear();
+    const d = document.getElementById("ci-pop");
+    d.close();
+    if (removalChanged) renderCleanup();
+    toast(
+      tr(
+        "Saved. You can finish the skipped sites any time.",
+        "Guardado. Puede terminar los sitios saltados cuando quiera."
+      )
+    );
+    return;
+  }
+  const keep = CLEANUP_SITES.slice();
+  // Temporarily reorder so removalStep shows the next non-skipped site first.
+  CLEANUP_SITES.sort((a, b) => (removalSkip.has(a.id) ? 1 : 0) - (removalSkip.has(b.id) ? 1 : 0));
+  removalStep();
+  CLEANUP_SITES.splice(0, CLEANUP_SITES.length, ...keep);
 }
