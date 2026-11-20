@@ -19,6 +19,10 @@ const SERVER_URL =
   "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
 const CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleusercontent.com";
 const DEMO = /[?&]demo\b/.test(location.search);
+const MS_CLIENT_ID = "1187ff8b-fa16-43d4-acb6-788bb696c627";
+const MS_LOGIN = "https://login.microsoftonline.com/common/oauth2/v2.0";
+const MS_REDIRECT = location.origin + location.pathname; // .../owner.html (add it in Azure as a SPA redirect URI)
+let provider = "ms"; // "ms" (Outlook) or "google"
 
 const $ = id => document.getElementById(id);
 const main = $("main");
@@ -92,7 +96,9 @@ async function api(body) {
   const r = await fetch(SERVER_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(Object.assign({ mode: "owner", gtoken: token }, body))
+    body: JSON.stringify(
+      Object.assign({ mode: "owner" }, provider === "ms" ? { mstoken: token } : { gtoken: token }, body)
+    )
   });
   const j = await r.json();
   if (j && j.signin) {
@@ -114,16 +120,18 @@ function showSignIn(msg) {
   main.innerHTML = `<section class="gate">
     <div class="gate-owl">${OWL}</div>
     <h1>ScamSense Owner</h1>
-    <p>This page is only for the ScamSense owner. Sign in with your owner Google account.</p>
+    <p>This page is only for the ScamSense owner. Sign in with your owner account.</p>
     ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
-    <button class="btn primary big" id="signin">Sign in with Google</button>
+    <button class="btn primary big" id="signinms">Sign in with Outlook (Microsoft)</button>
+    <button class="btn big gbtn" id="signin">Sign in with Google</button>
     <p class="small"><a href="?demo">See it with sample data</a></p>
   </section>`;
   $("signin").onclick = signIn;
+  $("signinms").onclick = signInMs;
 }
 function showNotOwner(email) {
   showSignIn(
-    `${email} isn't an owner account. Sign in with your owner account, or add this email to OWNER_LOGINS in the ScamSense Server's Script Properties.`
+    `${email} isn't an owner account. Sign in with scamsense.karim@outlook.com, or add this email to OWNER_LOGINS in the ScamSense Server's Script Properties.`
   );
 }
 function signIn() {
@@ -136,17 +144,85 @@ function signIn() {
     scope: "openid email",
     callback: r => {
       if (!r || !r.access_token) return toast("Sign-in didn't finish.");
-      token = r.access_token;
-      try {
-        sessionStorage.setItem(
-          "own_t",
-          JSON.stringify({ t: token, exp: Date.now() + (r.expires_in || 3600) * 1000 - 60000 })
-        );
-      } catch (e) {}
+      saveToken("google", r.access_token, r.expires_in);
       load();
     }
   });
   tc.requestAccessToken({ prompt: "" });
+}
+function saveToken(p, t, sec) {
+  provider = p;
+  token = t;
+  try {
+    sessionStorage.setItem("own_t", JSON.stringify({ p, t, exp: Date.now() + (sec || 3600) * 1000 - 60000 }));
+  } catch (e) {}
+}
+/* Microsoft (Outlook) sign-in, the secure way for web pages (PKCE). Only asks who you are. */
+const b64url = buf =>
+  btoa(String.fromCharCode(...new Uint8Array(buf)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+const rnd = n => b64url(crypto.getRandomValues(new Uint8Array(n)));
+async function signInMs() {
+  const verifier = rnd(48),
+    state = rnd(16);
+  sessionStorage.setItem("own_pkce", JSON.stringify({ verifier, state }));
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  location.href =
+    MS_LOGIN +
+    "/authorize?" +
+    new URLSearchParams({
+      client_id: MS_CLIENT_ID,
+      response_type: "code",
+      redirect_uri: MS_REDIRECT,
+      response_mode: "query",
+      scope: "openid User.Read",
+      state,
+      code_challenge: challenge,
+      code_challenge_method: "S256",
+      prompt: "select_account",
+      login_hint: "scamsense.karim@outlook.com"
+    });
+}
+async function finishMs() {
+  const q = new URLSearchParams(location.search);
+  if (!q.has("code") && !q.has("error")) return false;
+  const saved = JSON.parse(sessionStorage.getItem("own_pkce") || "null");
+  sessionStorage.removeItem("own_pkce");
+  history.replaceState(null, "", MS_REDIRECT + location.hash);
+  if (q.has("error")) {
+    showSignIn(q.get("error_description") || "Microsoft sign-in was cancelled.");
+    return true;
+  }
+  if (!saved || saved.state !== q.get("state")) {
+    showSignIn("That sign-in didn't match. Please try again.");
+    return true;
+  }
+  try {
+    const r = await fetch(MS_LOGIN + "/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: MS_CLIENT_ID,
+        scope: "openid User.Read",
+        grant_type: "authorization_code",
+        code: q.get("code"),
+        redirect_uri: MS_REDIRECT,
+        code_verifier: saved.verifier
+      })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!j.access_token)
+      throw new Error(
+        j.error_description ? j.error_description.split("\r\n")[0] : "Microsoft sign-in failed."
+      );
+    saveToken("ms", j.access_token, j.expires_in);
+    load();
+  } catch (e) {
+    showSignIn(e.message);
+  }
+  return true;
 }
 function signOut(expired) {
   token = "";
@@ -208,6 +284,65 @@ function bindOpen(root) {
     .forEach(el => (el.onclick = () => go("person/" + el.dataset.uid)));
 }
 
+/* ----- What ScamSense checked, for every kind of thing (emails, texts, calls, ...) ----- */
+const KINDS = [
+  ["email", "📧", "Emails"],
+  ["text", "💬", "Text messages"],
+  ["call", "📞", "Phone calls"],
+  ["web", "🌐", "Websites, links, crypto"],
+  ["pay", "✋", "Payments paused"],
+  ["leak", "🛡️", "Email leak checks"],
+  ["phone", "📱", "Phone number checks"],
+  ["scammed", "🚨", '"I was scammed"']
+];
+function kindOf(r) {
+  const w = String(r.What || ""),
+    c = String(r.Channel || "").toLowerCase();
+  if (/Scanned email/.test(w)) return "email";
+  if (/leak/i.test(w)) return "leak";
+  if (/phone number/i.test(w)) return "phone";
+  if (/Pause/.test(w)) return "pay";
+  if (/scammed/.test(w)) return "scammed";
+  if (/Checked something/.test(w))
+    return c === "call" ? "call" : c === "text" ? "text" : c === "email" ? "email" : "web";
+  return "";
+}
+function kindStats(rows) {
+  const st = {};
+  KINDS.forEach(([k]) => (st[k] = { n: 0, bad: 0 }));
+  rows.forEach(r => {
+    const k = kindOf(r);
+    if (!k) return;
+    const res = String(r.Result || "");
+    if (/Scanned email/.test(r.What)) {
+      const m = res.match(/(\d+) emails, (\d+) scams/);
+      st.email.n += m ? +m[1] : 0;
+      st.email.bad += m ? +m[2] : 0;
+      return;
+    }
+    st[k].n++;
+    if (res === "scam" || /[1-9]\d* leaks|public|already paid/.test(res + " " + r.What)) st[k].bad++;
+  });
+  return st;
+}
+function kindsHTML(rows, title) {
+  const st = kindStats(rows);
+  return `<section class="card"><h2>${title}</h2><div class="kinds">${KINDS.map(([k, icon, label]) => {
+    const x = st[k];
+    const badWord =
+      k === "leak"
+        ? "found leaks"
+        : k === "phone"
+          ? "info public"
+          : k === "pay"
+            ? "already paid"
+            : k === "scammed"
+              ? ""
+              : "scams";
+    return `<div class="kind${x.n ? "" : " zero"}"><span class="ki" aria-hidden="true">${icon}</span><b>${x.n}</b><span>${label}</span>${x.bad && badWord ? `<small class="r-scam">${x.bad} ${x.bad === 1 && badWord === "scams" ? "scam" : badWord}</small>` : `<small>&nbsp;</small>`}</div>`;
+  }).join("")}</div></section>`;
+}
+
 /* ----- Overview ----- */
 function overview() {
   const U = data.users;
@@ -227,6 +362,7 @@ function overview() {
     ${stat(data.alerts.length, "Danger alerts", `${U.filter(needsFollow).length} need follow-up`)}
   </div>
   ${attention.length ? `<section class="card warn"><h2>Needs your attention</h2>${list(attention)}</section>` : ""}
+  ${kindsHTML(data.activity, "What people checked (recent activity)")}
   <div class="cols">
     <section class="card"><h2>Newest people</h2>${list(
       U.slice()
@@ -382,6 +518,7 @@ function drawPerson(d) {
       <p class="muted small">It goes to ${esc(u.Email || "")}. Replies come to your owner email.</p>
     </div>
 
+    ${kindsHTML(d.activity, "What ScamSense checked for " + esc(u["First name"] || "them"))}
     <div class="stats four">
       <div class="stat"><b>${+u["Emails scanned"] || 0}</b><span>Emails scanned</span></div>
       <div class="stat"><b>${+u["Scams caught"] || 0}</b><span>Scams caught</span></div>
@@ -630,6 +767,39 @@ function demoApi(body) {
           What: "Connected Gmail",
           Channel: "",
           Result: ""
+        },
+        {
+          Time: d(30),
+          "User ID": "demoA0000000000001",
+          Name: "Maria Sample",
+          What: "Checked something",
+          Channel: "call",
+          Result: "scam",
+          "Scam type": "Grandparent scam"
+        },
+        {
+          Time: d(34),
+          "User ID": "demoB0000000000002",
+          Name: "George Example",
+          What: "Checked something",
+          Channel: "web",
+          Result: "warn"
+        },
+        {
+          Time: d(40),
+          "User ID": "demoB0000000000002",
+          Name: "George Example",
+          What: "Pause before you pay",
+          Channel: "",
+          Result: "scam"
+        },
+        {
+          Time: d(52),
+          "User ID": "demoA0000000000001",
+          Name: "Maria Sample",
+          What: "Checked something",
+          Channel: "email",
+          Result: "safe"
         }
       ],
       alerts: [
@@ -731,9 +901,10 @@ function demoApi(body) {
   try {
     const s = JSON.parse(sessionStorage.getItem("own_t") || "null");
     if (s && s.exp > Date.now()) {
+      provider = s.p || "google";
       token = s.t;
       return load();
     }
   } catch (e) {}
-  showSignIn();
+  finishMs().then(handled => handled || showSignIn());
 })();
