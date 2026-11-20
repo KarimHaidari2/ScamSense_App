@@ -367,7 +367,9 @@ function bindCleanup() {
   const goBtn = document.getElementById("ci-go");
   if (goBtn) goBtn.onclick = runInfoCheck;
   if (q) {
-    q.onkeydown = e => e.key === "Enter" && runInfoCheck();
+    q.onkeydown = e => {
+      if (e.key === "Enter") runInfoCheck();
+    };
     q.oninput = () => (document.getElementById("ci-clear").hidden = !q.value);
   }
   const clr = document.getElementById("ci-clear");
@@ -618,7 +620,9 @@ function showCodePop(v, sentTo, left) {
     }
   };
   go.onclick = send;
-  inp.onkeydown = e => e.key === "Enter" && send();
+  inp.onkeydown = e => {
+    if (e.key === "Enter") send();
+  };
 }
 const LINE_TYPES = {
   Mobile: () => tr("Cell phone", "Celular"),

@@ -4689,3 +4689,6 @@ nav.tabs button svg {
 .ci-clear:focus-visible {
   outline: 3px solid var(--gold);
 }
+.ci-clear[hidden] {
+  display: none;
+}
