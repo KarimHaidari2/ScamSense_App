@@ -4,6 +4,19 @@
  */
 "use strict";
 
+/* An Owner dashboard sign-in comes back here (the address Microsoft knows). Pass it on to owner.html. */
+const OWNER_HANDOFF = (() => {
+  try {
+    const q = new URLSearchParams(location.search);
+    const own = JSON.parse(sessionStorage.getItem("own_pkce") || "null");
+    if (own && q.get("state") === own.state) {
+      location.replace("owner.html" + location.search);
+      return true;
+    }
+  } catch (e) {}
+  return false;
+})();
+
 const S = {
   get(k, d) {
     try {

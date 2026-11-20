@@ -853,3 +853,42 @@ main:focus {
 body[data-role="viewer"] .actions {
   display: none;
 }
+
+/* Fits every screen: phones, iPad, Android, laptops, big monitors */
+.shell:has(#nav[hidden]) {
+  display: block;
+}
+.gate {
+  width: calc(100% - 32px);
+  max-width: 440px;
+}
+@media (min-width: 860px) {
+  .shell:has(#nav[hidden]) main {
+    padding: 22px 24px 60px;
+  }
+}
+@media (min-width: 1500px) {
+  .shell {
+    max-width: 1400px;
+  }
+}
+.exitdemo {
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .who .email {
+    display: none;
+  }
+}
+@media (max-width: 600px) {
+  .who .chip {
+    display: none;
+  }
+  .brand {
+    font-size: 1rem;
+  }
+}

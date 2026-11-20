@@ -21,7 +21,8 @@ const CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleuser
 const DEMO = /[?&]demo\b/.test(location.search);
 const MS_CLIENT_ID = "1187ff8b-fa16-43d4-acb6-788bb696c627";
 const MS_LOGIN = "https://login.microsoftonline.com/common/oauth2/v2.0";
-const MS_REDIRECT = location.origin + location.pathname; // .../owner.html (add it in Azure as a SPA redirect URI)
+// Microsoft sends you back to the ScamSense app's address (already allowed in Azure), which passes you on here.
+const MS_REDIRECT = location.origin + location.pathname.replace(/owner\.html$/, "");
 let provider = "ms"; // "ms" (Outlook) or "google"
 
 const $ = id => document.getElementById(id);
@@ -235,7 +236,7 @@ async function finishMs() {
   if (!q.has("code") && !q.has("error")) return false;
   const saved = JSON.parse(sessionStorage.getItem("own_pkce") || "null");
   sessionStorage.removeItem("own_pkce");
-  history.replaceState(null, "", MS_REDIRECT + location.hash);
+  history.replaceState(null, "", location.pathname + location.hash);
   if (q.has("error")) {
     showSignIn(q.get("error_description") || "Microsoft sign-in was cancelled.");
     return true;
@@ -287,7 +288,7 @@ async function load(quiet) {
     $("teamtab").hidden = data.role !== "owner";
     document.body.dataset.role = data.role || "owner";
     $("who").innerHTML =
-      `${DEMO ? `<span class="chip c-quiet">Sample data</span>` : ""}<span class="email">${esc(data.owner)} · ${esc({ owner: "Owner", admin: "Admin", viewer: "Viewer" }[data.role || "owner"])}</span><button class="iconbtn" id="refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/></svg></button>${DEMO ? "" : `<button class="linkbtn" id="signout">Sign out</button>`}`;
+      `${DEMO ? `<span class="chip c-quiet">Sample data</span><a class="exitdemo" href="owner.html">Exit sample · Sign in</a>` : ""}<span class="email">${esc(data.owner)} · ${esc({ owner: "Owner", admin: "Admin", viewer: "Viewer" }[data.role || "owner"])}</span><button class="iconbtn" id="refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/></svg></button>${DEMO ? "" : `<button class="linkbtn" id="signout">Sign out</button>`}`;
     $("refresh").onclick = () => load();
     if ($("signout")) $("signout").onclick = () => signOut();
     const open = data.users.filter(needsFollow).length;

@@ -82,6 +82,7 @@ async function msTokenRequest(params) {
   return msAccess.value;
 }
 async function finishOutlookSignIn() {
+  if (OWNER_HANDOFF) return; // this sign-in belongs to the Owner dashboard
   const q = new URLSearchParams(location.search);
   if (!q.has("code") && !q.has("error")) return;
   const saved = JSON.parse(sessionStorage.getItem("ss_ms_pkce") || "null");
