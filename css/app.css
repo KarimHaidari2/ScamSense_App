@@ -4733,3 +4733,181 @@ a.grow {
   text-decoration: none;
   border-top: 1px solid var(--line);
 }
+
+/* Welcome: the sign-in screen */
+.onb.onb-gate {
+  padding: 0;
+  align-items: stretch;
+  background: var(--backdrop, var(--bg));
+}
+.gate-box {
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+.gate-hero {
+  background: var(--hero);
+  color: var(--hero-ink);
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 22px 34px;
+  border-radius: 0 0 32px 32px;
+  text-align: center;
+}
+.gate-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: start;
+}
+.gate-brand {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.15rem;
+}
+.gate-lang {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--hero-line);
+  border-radius: 99px;
+  padding: 4px 6px 4px 12px;
+  background: var(--hero-glass);
+}
+.gate-lang .ic {
+  width: 18px;
+  height: 18px;
+}
+.gate-lang select {
+  font: inherit;
+  font-weight: 700;
+  color: var(--hero-ink);
+  background: transparent;
+  border: 0;
+  padding: 4px;
+}
+.gate-lang select option {
+  color: #111827;
+}
+.gate-owl svg {
+  width: 96px;
+  height: 104px;
+  margin: 26px auto 10px;
+  display: block;
+}
+.gate-hero h1 {
+  font-family: var(--display);
+  font-size: 2rem;
+  line-height: 1.15;
+  margin: 0 0 10px;
+}
+.gate-hero p {
+  color: var(--hero-muted);
+  font-size: 1.08rem;
+  margin: 0 auto;
+  max-width: 340px;
+}
+.gate-body {
+  padding: 26px 20px calc(24px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gate-btn {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 60px;
+  padding: 0 18px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 1.1rem;
+  box-shadow:
+    0 0 0 2px var(--line),
+    0 2px 6px rgba(17, 24, 39, 0.06);
+}
+.gate-btn:hover {
+  box-shadow: 0 0 0 2px var(--brand);
+}
+.gate-btn:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 3px;
+}
+.gate-logo {
+  flex: none;
+  width: 26px;
+  height: 26px;
+}
+.gate-logo.g {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #fff;
+  color: #4285f4;
+  font-weight: 800;
+  font-family: Arial, sans-serif;
+  font-size: 1.05rem;
+  box-shadow: inset 0 0 0 1.5px #dadce0;
+}
+.gate-logo.ms {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 2px;
+}
+.gate-logo.ms i:nth-child(1) {
+  background: #f25022;
+}
+.gate-logo.ms i:nth-child(2) {
+  background: #7fba00;
+}
+.gate-logo.ms i:nth-child(3) {
+  background: #00a4ef;
+}
+.gate-logo.ms i:nth-child(4) {
+  background: #ffb900;
+}
+.gate-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin: 6px 2px 0;
+}
+.gate-note .ic {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+}
+.gate-demo {
+  all: unset;
+  cursor: pointer;
+  align-self: center;
+  padding: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: underline;
+}
+.gate-demo:focus-visible {
+  outline: 3px solid var(--gold);
+}
+.gate-fine {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+.gate-fine a {
+  color: inherit;
+}
