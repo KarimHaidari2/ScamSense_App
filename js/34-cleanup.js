@@ -341,7 +341,7 @@ function renderCleanup() {
   </section>
 
   <section class="sect"><div class="group">
-    <details class="ci-fold">
+    <details class="ci-fold" id="ci-fold-sites">
       <summary class="grow"><span class="lead-ic l-red">${ic("eyeoff")}</span><span class="gl"><b>${tr("Remove me from people-search sites", "Quitarme de sitios de búsqueda de personas")}</b><span>${tr(`${sitesDone} of ${CLEANUP_SITES.length} sites done · always free`, `${sitesDone} de ${CLEANUP_SITES.length} sitios listos · siempre gratis`)}</span></span>${ic("chev", "chev")}</summary>
       <div class="ci-foldbody"><p class="muted small">${tr("These sites show your address and phone to anyone. Tap a site, look yourself up, and ask it to remove you. Never pay anyone to do this.", "Estos sitios muestran su dirección y teléfono a cualquiera. Toque un sitio, búsquese y pida que le quiten. Nunca pague por esto.")}</p>
       <div class="group ci-sites">${CLEANUP_SITES.map(s => siteHTML(s, st)).join("")}</div></div>
@@ -486,12 +486,23 @@ async function runInfoCheck() {
 }
 
 /* The pop-up with the result. */
-function openPop(html) {
+function openPop(html, remove) {
   const d = document.getElementById("ci-pop");
   d.innerHTML =
     html +
-    `<div class="btnrow ci-pop-end"><button class="btn ghost" id="ci-close">${tr("Close", "Cerrar")}</button></div>`;
+    `<div class="btnrow ci-pop-end">${remove ? `<button class="btn primary" id="ci-remove">${ic("eyeoff")}<span>${tr("Remove my info", "Quitar mis datos")}</span></button>` : ""}<button class="btn ghost" id="ci-close">${tr("Close", "Cerrar")}</button></div>`;
   document.getElementById("ci-close").onclick = () => d.close();
+  const rm = document.getElementById("ci-remove");
+  if (rm)
+    rm.onclick = () => {
+      d.close();
+      const f = document.getElementById("ci-fold-sites");
+      if (!f) return;
+      f.open = true;
+      f.scrollIntoView({ behavior: "smooth", block: "start" });
+      const first = f.querySelector(".ci-site summary");
+      if (first) setTimeout(() => first.focus({ preventScroll: true }), 400);
+    };
   d.onclick = e => e.target === d && d.close();
   if (typeof d.showModal === "function") d.showModal();
   else d.setAttribute("open", "");
@@ -663,7 +674,8 @@ function showPhoneResult(j) {
         `<li class="ci-bcard">${row(tr("Name", "Nombre"), o.name)}${row(tr("Also known as", "También como"), (o.other || []).join(", "))}${row(tr("Age", "Edad"), o.age)}${(o.addresses || []).map(a => row(tr("Home address", "Dirección"), a)).join("")}${row(tr("Linked to this number since", "Vinculado a este número desde"), o.since)}</li>`
     )
     .join("");
-  openPop(`<div class="ci-pop-head ${lv}">
+  openPop(
+    `<div class="ci-pop-head ${lv}">
       <p class="ci-level">${tr("Risk", "Riesgo")}: <b>${lvText}</b></p><div class="ci-meter"><i></i></div>
       <h2 id="ci-pop-h">${addrs ? tr("Your name and home address are public", "Su nombre y dirección son públicos") : owners.length ? tr("Your name is linked to this number", "Su nombre está vinculado a este número") : j.hidden || j.needName ? tr("We couldn't confirm it's you", "No pudimos confirmar que es usted") : tr("Good news: little is public", "Buenas noticias: poco es público")}</h2>
       <p class="ci-email">${esc(j.phone)}</p></div>
@@ -678,7 +690,10 @@ function showPhoneResult(j) {
       <li>${tr("Freeze your credit (free) so nobody can open accounts in your name.", "Congele su crédito (gratis) para que nadie abra cuentas a su nombre.")}</li>
       <li>${tr("If a caller knows your address, that doesn't prove they're real. Hang up and call back on a number you trust.", "Si quien llama sabe su dirección, eso no prueba que sea real. Cuelgue y llame a un número de confianza.")}</li>
     </ol>
-    <p class="muted small">${tr(`Data from ${esc(j.source)}. ScamSense doesn't save it. ${j.left} phone ${j.left === 1 ? "check" : "checks"} left this month.`, `Datos de ${esc(j.source)}. ScamSense no los guarda. Le quedan ${j.left} revisiones este mes.`)}</p>`);
+    <p class="ci-note">${tr("Removing your info takes a few weeks and lowers scam calls and texts, but it can't stop them all: some scammers already have your number. Keep using ScamSense to check calls and messages.", "Quitar sus datos toma unas semanas y reduce las llamadas y textos de estafa, pero no los detiene todos: algunos estafadores ya tienen su número. Siga usando ScamSense para revisar llamadas y mensajes.")}</p>
+    <p class="muted small">${tr(`Data from ${esc(j.source)}. ScamSense doesn't save it. ${j.left} phone ${j.left === 1 ? "check" : "checks"} left this month.`, `Datos de ${esc(j.source)}. ScamSense no los guarda. Le quedan ${j.left} revisiones este mes.`)}</p>`,
+    true
+  );
 }
 
 /* For Home: a short line about this screen. */
