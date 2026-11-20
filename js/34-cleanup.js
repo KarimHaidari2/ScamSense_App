@@ -330,8 +330,12 @@ function renderCleanup() {
   )}
   <section class="askcard ci-check">
     <p class="ask-h">${ic("shield")}<b>${tr("Check my info", "Revisar mis datos")}</b></p>
-    <label class="sr" for="ci-q">${tr("Your email or phone number", "Su correo o número de teléfono")}</label>
-    <input id="ci-q" type="text" autocomplete="email" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Your email, phone number, or a message you got", "Su correo, teléfono o un mensaje que recibió"))}" value="${esc((acct && acct.email) || "")}">
+    <div class="ci-kind" role="radiogroup" aria-label="${esc(tr("What do you want to check?", "¿Qué quiere revisar?"))}">
+      <button class="ci-k" role="radio" aria-checked="true" data-kind="email">${ic("mail")}<span>${tr("Email", "Correo")}</span></button>
+      <button class="ci-k" role="radio" aria-checked="false" data-kind="phone">${ic("phone")}<span>${tr("Phone", "Teléfono")}</span></button>
+    </div>
+    <label class="sr" for="ci-q" id="ci-ql">${tr("Your email", "Su correo")}</label>
+    <div class="ci-field"><input id="ci-q" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Type your email", "Escriba su correo"))}"><button class="ci-clear" id="ci-clear" type="button" aria-label="${esc(tr("Clear", "Borrar"))}" hidden>×</button></div>
     <div class="btnrow"><button class="btn primary" id="ci-go">${tr("Check", "Revisar")}</button></div>
     ${st.breach ? `<button class="ci-last" id="ci-last">${ic("refresh")}<span>${tr(`Last check: ${esc(st.breach.email)}, ${st.breach.breaches.length} ${st.breach.breaches.length === 1 ? "leak" : "leaks"}. See it again`, `Última revisión: ${esc(st.breach.email)}, ${st.breach.breaches.length} filtraciones. Verla otra vez`)}</span></button>` : ""}
   </section>
@@ -362,7 +366,35 @@ function bindCleanup() {
   const q = document.getElementById("ci-q");
   const goBtn = document.getElementById("ci-go");
   if (goBtn) goBtn.onclick = runInfoCheck;
-  if (q) q.onkeydown = e => e.key === "Enter" && runInfoCheck();
+  if (q) {
+    q.onkeydown = e => e.key === "Enter" && runInfoCheck();
+    q.oninput = () => (document.getElementById("ci-clear").hidden = !q.value);
+  }
+  const clr = document.getElementById("ci-clear");
+  if (clr)
+    clr.onclick = () => {
+      q.value = "";
+      clr.hidden = true;
+      q.focus();
+    };
+  view.querySelectorAll(".ci-k").forEach(
+    b =>
+      (b.onclick = () => {
+        view.querySelectorAll(".ci-k").forEach(x => x.setAttribute("aria-checked", String(x === b)));
+        const phone = b.dataset.kind === "phone";
+        q.type = phone ? "tel" : "email";
+        q.inputMode = phone ? "tel" : "email";
+        q.placeholder = phone
+          ? tr("Type your phone number", "Escriba su número de teléfono")
+          : tr("Type your email", "Escriba su correo");
+        document.getElementById("ci-ql").textContent = phone
+          ? tr("Your phone number", "Su número de teléfono")
+          : tr("Your email", "Su correo");
+        q.value = "";
+        clr.hidden = true;
+        q.focus();
+      })
+  );
   const last = document.getElementById("ci-last");
   if (last) last.onclick = () => showInfoPop(cleanupState().breach);
   view.querySelectorAll("[data-ci]").forEach(
@@ -402,7 +434,15 @@ async function runInfoCheck() {
     toast(tr("Type your email or phone number first.", "Primero escriba su correo o teléfono."));
     return;
   }
-  if (isPhone(v)) return startPhoneCheck(v);
+  const clearBox = () => {
+    q.value = "";
+    const c = document.getElementById("ci-clear");
+    if (c) c.hidden = true;
+  };
+  if (isPhone(v)) {
+    clearBox();
+    return startPhoneCheck(v);
+  }
   if (!isEmail(v)) {
     // Anything else (a text message, an email you got, a link): check it for scams instead.
     checkDraft = v;
@@ -430,6 +470,7 @@ async function runInfoCheck() {
       at: Date.now()
     };
     saveCleanup(st);
+    clearBox();
     showInfoPop(st.breach);
     if (typeof serverEvent === "function") serverEvent({ t: "leak", n: st.breach.breaches.length });
   } catch (e) {

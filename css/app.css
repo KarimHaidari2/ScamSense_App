@@ -4628,3 +4628,64 @@ nav.tabs button svg {
   background: var(--warn-bg);
   color: var(--ink);
 }
+.ci-kind {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: var(--brand-soft);
+  margin: 4px 0 10px;
+}
+.ci-k {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-radius: 11px;
+  font-weight: 700;
+  color: var(--muted);
+}
+.ci-k .ic {
+  width: 18px;
+  height: 18px;
+}
+.ci-k[aria-checked="true"] {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(17, 24, 39, 0.12);
+}
+:root[data-theme="dark"] .ci-k[aria-checked="true"] {
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.ci-k:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+.ci-field {
+  position: relative;
+}
+.ci-field input {
+  padding-right: 48px !important;
+}
+.ci-clear {
+  all: unset;
+  cursor: pointer;
+  position: absolute;
+  right: 8px;
+  top: 10px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  color: var(--muted);
+}
+.ci-clear:focus-visible {
+  outline: 3px solid var(--gold);
+}
