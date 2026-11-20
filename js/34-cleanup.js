@@ -335,7 +335,7 @@ function renderCleanup() {
       <button class="ci-k" role="radio" aria-checked="false" data-kind="phone">${ic("phone")}<span>${tr("Phone", "Teléfono")}</span></button>
     </div>
     <label class="sr" for="ci-q" id="ci-ql">${tr("Your email", "Su correo")}</label>
-    <div class="ci-field"><input id="ci-q" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Type your email", "Escriba su correo"))}"><button class="ci-clear" id="ci-clear" type="button" aria-label="${esc(tr("Clear", "Borrar"))}" hidden>×</button></div>
+    <div class="ci-field"><span class="ci-cc" id="ci-cc" hidden>+1</span><input id="ci-q" type="email" inputmode="email" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(tr("Type your email", "Escriba su correo"))}"><button class="ci-clear" id="ci-clear" type="button" aria-label="${esc(tr("Clear", "Borrar"))}" hidden>×</button></div>
     <div class="btnrow"><button class="btn primary" id="ci-go">${tr("Check", "Revisar")}</button></div>
     ${st.breach ? `<button class="ci-last" id="ci-last">${ic("refresh")}<span>${tr(`Last check: ${esc(st.breach.email)}, ${st.breach.breaches.length} ${st.breach.breaches.length === 1 ? "leak" : "leaks"}. See it again`, `Última revisión: ${esc(st.breach.email)}, ${st.breach.breaches.length} filtraciones. Verla otra vez`)}</span></button>` : ""}
   </section>
@@ -385,6 +385,8 @@ function bindCleanup() {
         view.querySelectorAll(".ci-k").forEach(x => x.setAttribute("aria-checked", String(x === b)));
         const phone = b.dataset.kind === "phone";
         q.type = phone ? "tel" : "email";
+        document.getElementById("ci-cc").hidden = !phone;
+        q.classList.toggle("ph", phone);
         q.inputMode = phone ? "tel" : "email";
         q.placeholder = phone
           ? tr("Type your phone number", "Escriba su número de teléfono")
@@ -569,7 +571,23 @@ async function startPhoneCheck(v) {
   btn.textContent = tr("Sending a code…", "Enviando un código…");
   try {
     if (!serverOn()) return showPhonePop(v);
-    const j = await serverPost({ mode: "phone_start", phone: v });
+    const j = await Promise.race([
+      serverPost({ mode: "phone_start", phone: v }),
+      new Promise((_, no) =>
+        setTimeout(
+          () =>
+            no(
+              new Error(
+                tr(
+                  "The server took too long. Please try again in a minute.",
+                  "El servidor tardó mucho. Intente otra vez en un minuto."
+                )
+              )
+            ),
+          30000
+        )
+      )
+    ]);
     if (j && j.ok && j.available === false) return showPhonePop(v);
     if (!j || !j.ok)
       throw new Error(

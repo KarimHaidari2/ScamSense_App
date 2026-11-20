@@ -4692,3 +4692,19 @@ nav.tabs button svg {
 .ci-clear[hidden] {
   display: none;
 }
+.ci-cc {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(calc(-50% - 6px));
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--muted);
+  pointer-events: none;
+}
+.ci-cc[hidden] {
+  display: none;
+}
+.ci-check input.ph {
+  padding-left: 48px;
+}
