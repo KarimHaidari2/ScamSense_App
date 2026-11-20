@@ -651,6 +651,10 @@ function alertHTML(name, what, u) {
   );
 }
 
+// How many times something was counted today (without counting it again).
+function quotaUsed(key) {
+  return +(CacheService.getScriptCache().get(key + ":" + Utilities.formatDate(new Date(), "UTC", "yyyyMMdd")) || 0);
+}
 // Counts something per person per day; false once the limit is reached.
 function takeQuota(key, max) {
   const c = CacheService.getScriptCache();
@@ -816,13 +820,15 @@ function phoneStart(req) {
   if (!to) return { error: "Please type a US phone number with its area code." };
   if (!lookupsLeft(req.uid))
     return { error: "You've used this month's " + PHONE_LOOKUPS_PER_MONTH + " phone checks. Please try again next month." };
-  if (!takeQuota("phcode:" + req.uid, 5)) return { error: "Too many codes today. Please try again tomorrow." };
+  if (quotaUsed("phcode:" + req.uid) >= 5)
+    return { error: "That's 5 codes today, the daily limit. You can try again after 6 PM Central time." };
   const r = twilio(k, "/Verifications", { To: to, Channel: "sms" });
   if (r.code >= 300) {
     const why = "Twilio " + (r.body.code || r.code) + ": " + String(r.body.message || "").slice(0, 160);
     console.log("phone_start failed. " + why);
     return { error: "We couldn't text that number. (" + why + ")" };
   }
+  takeQuota("phcode:" + req.uid, 5); // only texts that were really sent count toward the limit
   return { ok: true, available: true, sentTo: to, left: lookupsLeft(req.uid) };
 }
 function phoneConfirm(req) {
