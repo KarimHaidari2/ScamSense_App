@@ -312,7 +312,36 @@ function setupServer() {
     .onWeekDay(ScriptApp.WeekDay.MONDAY)
     .atHour(OWNER.REPORT_HOUR)
     .create();
+  writeServicesTab();
   console.log("Owner dashboard: " + db.getUrl());
+}
+
+// A "Services" tab in the Owner Dashboard: every outside service ScamSense uses, what it does,
+// why we chose it, what it costs, and where its key lives. Run writeServicesTab to refresh it.
+// (No keys or passwords are written here.)
+const SERVICES = [
+  ["Service", "What it does in ScamSense", "Why we chose it", "Cost", "Account", "Where the key lives", "Limits we set", "Link"],
+  ["Anthropic Claude (AI)", "Mahi's answers and the smart scam check for emails, texts, calls, and links", "Strong at judging scams in plain language; API data isn't used to train its models", "Pay per use; set a monthly spending limit in Claude Console", "Claude Console", "Script Properties: ANTHROPIC_API_KEY", "300 answers a day for everyone", "https://console.anthropic.com"],
+  ["Google Apps Script + Sheets", "Runs this server (Mahi, accounts, reports, alerts) and keeps this dashboard", "Free, no servers to manage, keeps keys off the phone", "Free", "Owner Google account", "-", "-", "https://script.google.com"],
+  ["GitHub Pages", "Hosts the ScamSense app itself", "Free, fast, and the code is public and easy to review", "Free", "KarimHaidari2 on GitHub", "-", "-", "https://github.com/KarimHaidari2/ScamSense_App"],
+  ["Google Cloud (Gmail sign-in)", "Lets people connect Gmail so ScamSense can scan it, move scams to Spam, and block senders", "The official, safe way to read Gmail with the person's permission", "Free", "Google Cloud project", "Public client ID in the app", "Testing mode: approved test users only (100 max)", "https://console.cloud.google.com"],
+  ["Microsoft Azure (Outlook sign-in)", "Lets people connect Outlook and Hotmail the same way", "The official Microsoft sign-in; no password ever reaches ScamSense", "Free", "Azure app 'scamsense'", "Public client ID in the app", "-", "https://portal.azure.com"],
+  ["XposedOrNot", "Email leak check: was this email in a known data breach, what leaked, and when", "Free, no key needed, public breach lists", "Free (low use)", "None", "-", "10 checks per device per day; results cached 1 day", "https://xposedornot.com"],
+  ["Have I Been Pwned (optional)", "Same leak check, used instead of XposedOrNot if a key is added", "The best-known breach database, made for apps", "About $4-5/month", "Not set up yet", "Script Properties: HIBP_API_KEY", "-", "https://haveibeenpwned.com/API/Key"],
+  ["Twilio Verify (TEXT)", "Texts a 6-digit code to the phone number first, so people can only look up THEIR OWN number", "Reliable, used by big companies for login codes; handles phone-company rules (no 10DLC registration needed)", "About $0.06 per code; $20 prepaid, auto-recharge OFF", "scamsense.karim@outlook.com", "Script Properties: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VERIFY_SID", "5 sent codes per device per day; Fraud Guard on", "https://console.twilio.com"],
+  ["Trestle Reverse Phone API (PHONE LOOKUP)", "After the code: shows the name, age range, home address, and phone company that data companies sell about the number", "Real identity data (built by the former Whitepages Pro team); simple pay-per-use pricing", "$0.07 per lookup; 14-day trial", "kah3271@utulsa.edu", "Script Properties: TRESTLE_API_KEY", "3 lookups per device per month; only shows names matching the user's last name (hides past owners)", "https://trestleiq.com"],
+  ["RDAP (domain records)", "Checks how old a sender's website is; brand-new websites are a strong scam sign", "Free official internet registry data", "Free", "None", "-", "Results cached", "https://about.rdap.org"],
+  ["Optery (planned)", "Automatic removal from 600+ data broker sites with one tap", "Sells this as an API to other apps; would replace the manual site list", "Ask for a quote", "Not set up yet", "-", "-", "https://www.optery.com/api"]
+];
+function writeServicesTab() {
+  const db = getDb();
+  const sh = db.getSheetByName("Services") || db.insertSheet("Services");
+  sh.clear();
+  sh.getRange(1, 1, SERVICES.length, SERVICES[0].length).setValues(SERVICES).setWrap(true).setVerticalAlignment("top");
+  sh.getRange(1, 1, 1, SERVICES[0].length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+  sh.setFrozenRows(1);
+  [210, 300, 280, 190, 190, 230, 230, 230].forEach((w, i) => sh.setColumnWidth(i + 1, w));
+  console.log("Services tab updated: " + db.getUrl() + "#gid=" + sh.getSheetId());
 }
 
 function getDb() {

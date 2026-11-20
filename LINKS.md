@@ -29,6 +29,7 @@ Where to paste the code: https://script.google.com (open the script with the mat
 | `setupServer` | Run once. Makes your **ScamSense Owner Dashboard** Google Sheet (Users, Activity, Alerts) and the 8 AM report timer for every user. The log shows the Sheet's link. |
 | `sendReportsNow` | Sends every user their daily report right now (for testing) |
 | `sendWeeklyNow` | Sends you this week's owner summary right now (it also comes every Monday at 8 AM) |
+| `writeServicesTab` | Adds or refreshes the **Services** tab in the dashboard: every outside service, why we use it, and what it costs |
 
 ## Daily Report: what to run
 
@@ -69,6 +70,7 @@ Pick the function from the menu at the top of the script editor and click **Run*
 |---|---|
 | Outlook setup (Azure) | [docs/outlook-setup.md](docs/outlook-setup.md) |
 | How the app is built (file map) | [README.md](README.md) |
+| Services we use (Twilio, Trestle, AI…) and why | [docs/services.md](docs/services.md) |
 
 ## Never put these on GitHub
 
