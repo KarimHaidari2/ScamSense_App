@@ -769,3 +769,87 @@ main:focus {
 .gbtn {
   margin-top: 10px;
 }
+.side:has(#teamtab:not([hidden])) {
+  grid-template-columns: repeat(6, 1fr);
+}
+@media (min-width: 860px) {
+  .side:has(#teamtab:not([hidden])) {
+    grid-template-columns: 1fr;
+  }
+}
+.bars {
+  display: grid;
+  gap: 10px;
+}
+.brow {
+  display: grid;
+  grid-template-columns: minmax(90px, 38%) 1fr 34px 40px;
+  align-items: center;
+  gap: 10px;
+}
+.bl {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.bt {
+  height: 14px;
+  border-radius: 99px;
+  background: var(--brand-soft);
+  overflow: hidden;
+}
+.bt i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  min-width: 3px;
+}
+.brow b {
+  text-align: right;
+}
+.brow small {
+  color: var(--muted);
+  text-align: right;
+}
+.addrow {
+  display: grid;
+  gap: 10px;
+}
+@media (min-width: 700px) {
+  .addrow {
+    grid-template-columns: 1fr 260px auto;
+  }
+}
+.addrow input,
+.addrow select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+.av.sm {
+  width: 34px;
+  height: 34px;
+  font-size: 0.9rem;
+}
+.linkbtn.danger {
+  color: var(--scam);
+}
+.codebox {
+  width: 100%;
+  font: inherit;
+  font-size: 1.8rem;
+  letter-spacing: 0.3em;
+  text-align: center;
+  padding: 12px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+body[data-role="viewer"] .actions {
+  display: none;
+}

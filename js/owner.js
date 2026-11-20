@@ -105,6 +105,10 @@ async function api(body) {
     signOut(true);
     throw new Error(j.error);
   }
+  if (j && j.needCode && body.action !== "join") {
+    showCode(j.email, "");
+    throw new Error("");
+  }
   if (j && j.notOwner) {
     showNotOwner(j.email);
     throw new Error(j.error);
@@ -133,6 +137,47 @@ function showNotOwner(email) {
   showSignIn(
     `${email} isn't an owner account. Sign in with scamsense.karim@outlook.com, or add this email to OWNER_LOGINS in the ScamSense Server's Script Properties.`
   );
+}
+function showCode(email, msg) {
+  $("nav").hidden = true;
+  main.innerHTML = `<section class="gate">
+    <div class="gate-owl">${OWL}</div>
+    <h1>Welcome to the team</h1>
+    <p>You're signed in as <b>${esc(email)}</b>. Enter the 6-digit code from your invite email.</p>
+    ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
+    <label class="sr" for="jcode">Invite code</label>
+    <input id="jcode" class="codebox" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+    <button class="btn primary big" id="jgo">Join</button>
+    <p class="small"><button class="linkbtn" id="jout">Use a different account</button></p>
+  </section>`;
+  $("jcode").focus();
+  const go2 = async () => {
+    const code = $("jcode").value.replace(/\D/g, "");
+    if (code.length < 6) return $("jcode").focus();
+    $("jgo").disabled = true;
+    try {
+      const r = await fetch(SERVER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(
+          Object.assign(
+            { mode: "owner", action: "join", code },
+            provider === "ms" ? { mstoken: token } : { gtoken: token }
+          )
+        )
+      });
+      const j = await r.json();
+      if (j && j.joined) return load();
+      showCode(email, (j && j.error) || "That didn't work.");
+    } catch (e) {
+      showCode(email, "Couldn't reach the server. Try again.");
+    }
+  };
+  $("jgo").onclick = go2;
+  $("jcode").onkeydown = e => {
+    if (e.key === "Enter") go2();
+  };
+  $("jout").onclick = () => signOut();
 }
 function signIn() {
   if (!window.google || !google.accounts || !google.accounts.oauth2) {
@@ -239,8 +284,10 @@ async function load(quiet) {
   try {
     data = await api({ action: "overview" });
     $("nav").hidden = false;
+    $("teamtab").hidden = data.role !== "owner";
+    document.body.dataset.role = data.role || "owner";
     $("who").innerHTML =
-      `${DEMO ? `<span class="chip c-quiet">Sample data</span>` : ""}<span class="email">${esc(data.owner)}</span><button class="iconbtn" id="refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/></svg></button>${DEMO ? "" : `<button class="linkbtn" id="signout">Sign out</button>`}`;
+      `${DEMO ? `<span class="chip c-quiet">Sample data</span>` : ""}<span class="email">${esc(data.owner)} · ${esc({ owner: "Owner", admin: "Admin", viewer: "Viewer" }[data.role || "owner"])}</span><button class="iconbtn" id="refresh" aria-label="Refresh" title="Refresh"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.9-4M4 4v4h4M4 13a8 8 0 0 0 14.9 4M20 20v-4h-4"/></svg></button>${DEMO ? "" : `<button class="linkbtn" id="signout">Sign out</button>`}`;
     $("refresh").onclick = () => load();
     if ($("signout")) $("signout").onclick = () => signOut();
     const open = data.users.filter(needsFollow).length;
@@ -248,7 +295,8 @@ async function load(quiet) {
     $("alertbadge").textContent = open;
     route();
   } catch (e) {
-    if (token || DEMO) main.innerHTML = `<p class="err pad">${esc(e.message)}</p>`;
+    if ((token || DEMO) && e.message && !main.querySelector(".gate"))
+      main.innerHTML = `<p class="err pad">${esc(e.message)}</p>`;
   }
 }
 
@@ -271,9 +319,15 @@ function route() {
         : b.removeAttribute("aria-current")
     );
   (
-    ({ overview, people: peopleTab, person: personPage, alerts: alertsTab, costs: costsTab, log: logTab })[
-      tab
-    ] || overview
+    ({
+      overview,
+      people: peopleTab,
+      person: personPage,
+      alerts: alertsTab,
+      costs: costsTab,
+      log: logTab,
+      team: teamTab
+    })[tab] || overview
   )(decodeURIComponent(arg || ""));
   main.focus({ preventScroll: true });
   scrollTo(0, 0);
@@ -343,6 +397,54 @@ function kindsHTML(rows, title) {
   }).join("")}</div></section>`;
 }
 
+/* ----- Charts ----- */
+function barChart(title, rows, note) {
+  const max = Math.max(1, ...rows.map(r => r[1]));
+  const total = rows.reduce((n, r) => n + r[1], 0);
+  return `<section class="card"><h2>${title}</h2><div class="bars" role="list">${rows
+    .map(
+      ([label, n, color]) =>
+        `<div class="brow" role="listitem"><span class="bl">${label}</span><span class="bt"><i style="width:${Math.round((n / max) * 100)}%;background:${color}"></i></span><b>${n}</b><small>${total ? Math.round((n / total) * 100) : 0}%</small></div>`
+    )
+    .join("")}</div>${note ? `<p class="muted small">${note}</p>` : ""}</section>`;
+}
+function connectChart(U) {
+  const g = u => /connected/i.test(String(u.Gmail || "")) && !/disconnected/i.test(String(u.Gmail || ""));
+  const o = u => /connected/i.test(String(u.Outlook || "")) && !/disconnected/i.test(String(u.Outlook || ""));
+  return barChart(
+    "How people connect their email",
+    [
+      ["Gmail", U.filter(u => g(u) && !o(u)).length, "#4285F4"],
+      ["Outlook", U.filter(u => o(u) && !g(u)).length, "#0078D4"],
+      ["Both", U.filter(u => g(u) && o(u)).length, "#14213D"],
+      ["Not connected yet", U.filter(u => !g(u) && !o(u)).length, "#9AA4B8"]
+    ],
+    `${U.length} people in total`
+  );
+}
+function checksChart(rows) {
+  const st = kindStats(rows);
+  const colors = {
+    email: "#14213D",
+    text: "#C8932A",
+    call: "#B42318",
+    web: "#1D63C9",
+    pay: "#9A5B00",
+    leak: "#1F7A3E",
+    phone: "#6B3FD4",
+    scammed: "#E2553F"
+  };
+  return barChart(
+    "What people check",
+    KINDS.map(([k, , label]) => [
+      label,
+      k === "email" ? rows.filter(r => kindOf(r) === "email").length : st[k].n,
+      colors[k]
+    ]),
+    "From recent activity. Emails = email scans and email checks."
+  );
+}
+
 /* ----- Overview ----- */
 function overview() {
   const U = data.users;
@@ -362,6 +464,7 @@ function overview() {
     ${stat(data.alerts.length, "Danger alerts", `${U.filter(needsFollow).length} need follow-up`)}
   </div>
   ${attention.length ? `<section class="card warn"><h2>Needs your attention</h2>${list(attention)}</section>` : ""}
+  <div class="cols">${connectChart(U)}${checksChart(data.activity)}</div>
   ${kindsHTML(data.activity, "What people checked (recent activity)")}
   <div class="cols">
     <section class="card"><h2>Newest people</h2>${list(
@@ -503,7 +606,7 @@ function drawPerson(d) {
       <p class="muted small">Joined ${when(u["First seen"])} · last active ${ago(u["Last active"])}</p></div>
     </header>
 
-    <div class="actions">
+    <div class="actions"${data.role === "viewer" ? " hidden" : ""}>
       <button class="btn" data-act="email" ${u["Email verified"] === "yes" ? "" : "disabled"}>Email ${esc(u["First name"] || "them")}</button>
       <button class="btn" data-act="send_report" ${u["Email verified"] === "yes" ? "" : "disabled"}>Send today's report</button>
       <button class="btn" data-act="reset_phone">Reset phone checks</button>
@@ -539,7 +642,7 @@ function drawPerson(d) {
         <h2 class="mt">Your notes</h2>
         <label class="sr" for="note">Your notes about this person</label>
         <textarea id="note" rows="4" placeholder="Only you see this. For example: called on Nov 20, all good.">${esc(u["Owner notes"] || "")}</textarea>
-        <button class="btn" id="savenote">Save note</button>
+        ${data.role === "viewer" ? "" : `<button class="btn" id="savenote">Save note</button>`}
       </section>
     </div>
 
@@ -571,7 +674,8 @@ function drawPerson(d) {
   $("ecancel").onclick = () => (compose.hidden = true);
   $("esend").onclick = () =>
     act(uid, { action: "email", subject: $("esub").value, body: $("ebody").value }, $("esend"));
-  $("savenote").onclick = () => act(uid, { action: "note", note: $("note").value }, $("savenote"));
+  if ($("savenote"))
+    $("savenote").onclick = () => act(uid, { action: "note", note: $("note").value }, $("savenote"));
 }
 // A second tap confirms (no browser pop-ups).
 function confirmBox(msg, btn) {
@@ -640,6 +744,47 @@ function costsTab() {
         `<li><span class="dot ${s.ok ? "on" : "off"}" aria-hidden="true"></span><span class="fl"><b>${esc(s.name)}</b><small>${s.ok ? "Set up" : "Not set up"}${s.note ? " · " + esc(s.note) : ""}</small></span><a href="${esc(s.link)}" target="_blank" rel="noopener noreferrer">Open</a></li>`
     )
     .join("")}</ul></section>`;
+}
+
+/* ----- Team (only the owner) ----- */
+function teamTab() {
+  if (data.role !== "owner") return overview();
+  const team = data.team || [];
+  main.innerHTML = `<h1>Team</h1>
+  <p class="muted">Add people who can use this dashboard. They get an email with a code, sign in with that email (Outlook or Google), and enter the code once.</p>
+  <section class="card"><h2>Add someone</h2>
+    <div class="addrow">
+      <label class="sr" for="tmail">Their email</label><input id="tmail" type="email" placeholder="Their email" autocomplete="off">
+      <label class="sr" for="trole">Role</label><select id="trole"><option value="Viewer">Viewer: can look</option><option value="Admin">Admin: can look and help customers</option></select>
+      <button class="btn primary" id="tadd">Send invite</button>
+    </div>
+  </section>
+  <section class="card"><h2>People on the team <small>${team.length}</small></h2>
+    <ul class="svc">${team
+      .map(
+        m =>
+          `<li><span class="av sm">${esc((m.email[0] || "?").toUpperCase())}</span><span class="fl"><b>${esc(m.email)}</b><small>${esc(m.role)} · ${m.status === "active" ? "active" : "invited, waiting for their code"}</small></span>${m.role === "Owner" ? "" : `<button class="linkbtn danger" data-rm="${esc(m.email)}">Remove</button>`}</li>`
+      )
+      .join("")}</ul>
+  </section>
+  <p class="muted small">Viewers can see people, alerts, and costs. Admins can also email customers, send reports, block, and reset limits. Only you can change the team.</p>`;
+  const send = async (body, btn) => {
+    btn.disabled = true;
+    try {
+      const j = await api(body);
+      data.team = j.team;
+      toast(j.done);
+      teamTab();
+    } catch (e) {
+      if (e.message) toast(e.message);
+      btn.disabled = false;
+    }
+  };
+  $("tadd").onclick = () =>
+    send({ action: "team_add", email: $("tmail").value, role: $("trole").value }, $("tadd"));
+  main
+    .querySelectorAll("[data-rm]")
+    .forEach(b => (b.onclick = () => send({ action: "team_remove", email: b.dataset.rm }, b)));
 }
 
 /* ----- Owner log ----- */
@@ -819,6 +964,11 @@ function demoApi(body) {
           Person: "Pat Demo",
           "Person email": "pat@example.com"
         }
+      ],
+      team: [
+        { email: "owner@example.com", role: "Owner", status: "active" },
+        { email: "helper@example.com", role: "Admin", status: "active" },
+        { email: "advisor@example.com", role: "Viewer", status: "invited" }
       ]
     };
   }
@@ -841,6 +991,8 @@ function demoApi(body) {
         return res({
           ok: true,
           owner: "owner@example.com",
+          role: "owner",
+          team: db.team,
           users: db.users,
           activity: db.activity,
           alerts: db.alerts,
@@ -874,6 +1026,16 @@ function demoApi(body) {
           sheetUrl: "#"
         });
       if (body.action === "person") return res(person(body.uid));
+      if (body.action === "team_add") {
+        if (!/@/.test(body.email || ""))
+          return res({ ok: false, error: "That doesn't look like an email address." });
+        db.team.push({ email: body.email, role: body.role, status: "invited" });
+        return res({ ok: true, done: "Invite sent (sample: nothing was sent)", team: db.team });
+      }
+      if (body.action === "team_remove") {
+        db.team = db.team.filter(m => m.email !== body.email);
+        return res({ ok: true, done: "Removed " + body.email, team: db.team });
+      }
       const u = find(body.uid);
       const done = {
         block: () => ((u.Blocked = "yes"), "Blocked"),

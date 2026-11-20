@@ -990,11 +990,26 @@ function ownerWho(req) {
 function ownerApi(req) {
   const who = ownerWho(req);
   if (!who) return { error: "Please sign in again.", signin: true };
-  if (ownerEmails().indexOf(who) < 0)
-    return { error: "This account isn't a ScamSense owner: " + who, notOwner: true, email: who };
   const a = String(req.action || "overview");
-  if (a === "overview") return ownerOverview(who);
-  if (a === "person") return ownerPerson(req.uid);
+  // Who is this? The owner, or a team member the owner added (Admin or Viewer).
+  let role = ownerEmails().indexOf(who) >= 0 ? "owner" : "";
+  if (!role) {
+    const m = teamFind(who);
+    if (!m) return { error: "This account isn't on the ScamSense team: " + who, notOwner: true, email: who };
+    if (m.Status !== "active") {
+      if (a !== "join") return { ok: false, needCode: true, email: who, error: "Enter the code from your invite email." };
+      return teamJoin(m, req.code, who);
+    }
+    role = m.Role === "Admin" ? "admin" : "viewer";
+  }
+  if (a === "join") return { ok: true, joined: true };
+  if (a === "overview") return Object.assign(ownerOverview(who), { role, team: role === "owner" ? teamList() : [] });
+  if (a === "person") return Object.assign(ownerPerson(req.uid), { role });
+  if (a === "team_add" || a === "team_remove") {
+    if (role !== "owner") return { error: "Only the owner can change the team." };
+    return a === "team_add" ? teamAdd(who, req.email, req.role) : teamRemove(who, req.email);
+  }
+  if (role === "viewer") return { error: "Viewers can look, but can't make changes." };
   const u = findUser(req.uid);
   if (!u) return { error: "Couldn't find that person." };
   let did = "";
@@ -1136,6 +1151,103 @@ function ownerPerson(uid) {
   USER_COLS.forEach(c => (person[c] = iso(u[c])));
   const used = ids.reduce((n, id) => n + (PHONE_LOOKUPS_PER_MONTH - lookupsLeft(id)), 0);
   return { ok: true, person, activity, alerts, phoneChecksUsed: used, phoneChecksMax: PHONE_LOOKUPS_PER_MONTH };
+}
+
+/* ----- The team: people the owner lets into the Owner dashboard ----- */
+const TEAM_COLS = ["Email", "Role", "Status", "Added", "Added by", "Code", "Code expires", "Tries", "Joined"];
+function teamSheet() {
+  const db = getDb();
+  let sh = db.getSheetByName("Team");
+  if (!sh) {
+    sh = db.insertSheet("Team");
+    sh.appendRow(TEAM_COLS);
+    sh.getRange(1, 1, 1, TEAM_COLS.length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+function teamRows() {
+  const sh = teamSheet();
+  if (sh.getLastRow() < 2) return [];
+  return sh
+    .getRange(2, 1, sh.getLastRow() - 1, TEAM_COLS.length)
+    .getValues()
+    .map((r, i) => {
+      const o = { row: i + 2 };
+      TEAM_COLS.forEach((c, j) => (o[c] = r[j]));
+      return o;
+    })
+    .filter(o => o.Email);
+}
+const teamFind = email => teamRows().find(m => String(m.Email).toLowerCase() === email);
+function teamSave(m) {
+  teamSheet()
+    .getRange(m.row, 1, 1, TEAM_COLS.length)
+    .setValues([TEAM_COLS.map(c => (m[c] === undefined ? "" : m[c]))]);
+}
+function teamList() {
+  return [{ email: OWNER.EMAIL, role: "Owner", status: "active" }].concat(
+    teamRows().map(m => ({ email: m.Email, role: m.Role, status: m.Status, added: iso(m.Added), joined: iso(m.Joined) }))
+  );
+}
+const sha = t =>
+  Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(t))
+    .map(b => ("0" + (b & 255).toString(16)).slice(-2))
+    .join("");
+function teamAdd(who, email, role) {
+  email = String(email || "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/.test(email)) return { error: "That doesn't look like an email address." };
+  if (ownerEmails().indexOf(email) >= 0) return { error: "That's already the owner." };
+  role = role === "Admin" ? "Admin" : "Viewer";
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  let m = teamFind(email);
+  const now = new Date();
+  const fields = { Email: email, Role: role, Status: "invited", Added: now, "Added by": who, Code: sha(code), "Code expires": new Date(now.getTime() + 7 * 864e5), Tries: 0, Joined: "" };
+  if (m) {
+    Object.assign(m, fields);
+    teamSave(m);
+  } else teamSheet().appendRow(TEAM_COLS.map(c => fields[c]));
+  const link = OWNER.APP_URL + "owner.html";
+  MailApp.sendEmail({
+    to: email,
+    replyTo: OWNER.EMAIL,
+    subject: "You're invited to the ScamSense team",
+    body: `You've been added to the ScamSense team as ${role}.\n\n1. Open ${link}\n2. Sign in with this email (${email}) using Outlook or Google.\n3. Enter this code: ${code}\n\nThe code works for 7 days.`,
+    htmlBody: mailShell(
+      `<div style="padding:22px"><div style="font-size:22px;font-weight:800;color:#111827">You're invited to the ScamSense team</div>
+      <p style="font-size:16px;color:#111827;line-height:1.5">You've been added as <b>${role}</b>${role === "Viewer" ? " (you can see the dashboard, but not make changes)" : " (you can see everything and help customers)"}.</p>
+      <p style="font-size:16px;color:#111827;line-height:1.5">1. Open the ScamSense team dashboard.<br>2. Sign in with <b>${esc(email)}</b> using Outlook or Google.<br>3. Enter this code:</p>
+      <div style="font-size:34px;font-weight:800;letter-spacing:8px;color:#14213D;background:#ECEEF3;border-radius:12px;padding:14px;text-align:center">${code}</div>
+      <p style="font-size:13px;color:#5F6673">The code works for 7 days. If you weren't expecting this, you can ignore this email.</p>
+      <div style="text-align:center;margin-top:18px"><a href="${link}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open the dashboard</a></div></div>`
+    ),
+    name: "ScamSense"
+  });
+  ownerLog(who, "Invited " + email + " as " + role, null);
+  return { ok: true, done: "Invite sent to " + email, team: teamList() };
+}
+function teamRemove(who, email) {
+  email = String(email || "").trim().toLowerCase();
+  const m = teamFind(email);
+  if (!m) return { error: "That person isn't on the team." };
+  teamSheet().deleteRow(m.row);
+  ownerLog(who, "Removed " + email + " from the team", null);
+  return { ok: true, done: "Removed " + email, team: teamList() };
+}
+function teamJoin(m, code, who) {
+  if (+m.Tries >= 5) return { error: "Too many wrong codes. Ask the owner to send a new invite." };
+  if (new Date(m["Code expires"]).getTime() < Date.now()) return { error: "This code has expired. Ask the owner to send a new invite." };
+  if (sha(String(code || "").replace(/\D/g, "")) !== m.Code) {
+    m.Tries = (+m.Tries || 0) + 1;
+    teamSave(m);
+    return { ok: false, needCode: true, email: who, error: "That code didn't work. Please check it and try again." };
+  }
+  m.Status = "active";
+  m.Code = "";
+  m.Joined = new Date();
+  teamSave(m);
+  ownerLog(who, "Joined the team", null);
+  return { ok: true, joined: true };
 }
 
 // One person's daily report, right now (used by the Owner dashboard).
