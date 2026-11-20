@@ -497,7 +497,9 @@ function openPop(html, remove) {
   document.getElementById("ci-close").onclick = () => d.close();
   const rm = document.getElementById("ci-remove");
   if (rm) rm.onclick = () => startRemoval();
-  d.onclick = e => e.target === d && d.close();
+  d.onclick = e => {
+    if (e.target === d) d.close(); // tap outside the pop-up to close it
+  };
   if (typeof d.showModal === "function") d.showModal();
   else d.setAttribute("open", "");
   d.scrollTop = 0;
