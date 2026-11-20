@@ -818,7 +818,11 @@ function phoneStart(req) {
     return { error: "You've used this month's " + PHONE_LOOKUPS_PER_MONTH + " phone checks. Please try again next month." };
   if (!takeQuota("phcode:" + req.uid, 5)) return { error: "Too many codes today. Please try again tomorrow." };
   const r = twilio(k, "/Verifications", { To: to, Channel: "sms" });
-  if (r.code >= 300) return { error: "We couldn't text that number. Please check it and try again." };
+  if (r.code >= 300) {
+    const why = "Twilio " + (r.body.code || r.code) + ": " + String(r.body.message || "").slice(0, 160);
+    console.log("phone_start failed. " + why);
+    return { error: "We couldn't text that number. (" + why + ")" };
+  }
   return { ok: true, available: true, sentTo: to, left: lookupsLeft(req.uid) };
 }
 function phoneConfirm(req) {

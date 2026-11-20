@@ -595,7 +595,9 @@ async function startPhoneCheck(v) {
       );
     showCodePop(v, j.sentTo, j.left);
   } catch (e) {
-    toast(e.message);
+    openPop(
+      `<div class="ci-pop-head mid"><h2 id="ci-pop-h">${tr("We couldn't send the code", "No pudimos enviar el código")}</h2><p class="ci-email">${esc(v)}</p></div><p>${esc(e.message)}</p>`
+    );
   } finally {
     btn.disabled = false;
     btn.textContent = tr("Check", "Revisar");
