@@ -51,7 +51,11 @@ async function gatherEvidence(items) {
   if (!risky.length) return;
   const ages = await domainAgesFor(risky.map(senderDomain));
   await pool(risky, 4, async it => {
-    const ev = { history: await senderHistory(it), age: ages[senderDomain(it)] };
+    const ev = {
+      history: await senderHistory(it),
+      age: ages[senderDomain(it)],
+      category: ["Promotions", "Updates", "Social"].includes(it.folder) // Gmail sorted it as normal bulk mail
+    };
     if (ev.age === undefined) ev.age = null;
     it.local = applyEvidence(it.local, ev, it.auth);
   });

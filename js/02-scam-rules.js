@@ -563,6 +563,15 @@ function applyEvidence(local, ev, auth) {
       );
     } else if (ev.age >= 365 && signed) r.score = Math.max(0, r.score - 3);
   }
+  // A verified sender (signed mail, a company domain, and either years old, mail you've had before, or
+  // sorted by Gmail into Promotions/Updates/Social) can't be flagged on words alone. Only hard proof
+  // (a fake link, a brand-new website, a look-alike name...) can do that.
+  const established =
+    signed && !r.freeMail && (ev.history > 0 || ev.category || (ev.age != null && ev.age >= 365));
+  if (established && !hardEvidence(r, auth)) {
+    r.verifiedSender = true;
+    r.score = Math.min(r.score, ev.history > 0 || ev.category ? 3 : 7);
+  }
   r.level = r.score >= 8 ? "scam" : r.score >= 4 ? "warn" : "safe";
   return r;
 }

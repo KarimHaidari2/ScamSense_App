@@ -44,6 +44,8 @@ Pick the function from the menu at the top of the script editor and click **Run*
 | `connectOutlook` | Adds Outlook to the report (follow the steps in the log) |
 | `finishOutlook` | Use this only if `connectOutlook` stopped waiting before you were done |
 | `showAppLink` | Shows the link to paste into the app: Settings → Advanced → Daily report link |
+| `auditInbox` | **Inbox check:** runs ScamSense on your last 500 emails without blocking anything, and lists every one it would flag in a Google Sheet ("ScamSense Inbox Check"). Mark each Real or Scam. Run it again if it pauses. |
+| `auditReset` | Starts the inbox check over with a new sheet |
 | `stopDailyReport` / `stopBlocking` | Turns the report or the blocking off |
 
 ## Accounts and consoles

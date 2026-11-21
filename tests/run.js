@@ -6,7 +6,7 @@ const code = fs.readFileSync(path.join(__dirname, "../daily-report/Code.gs"), "u
 const stub = { Session: {}, PropertiesService: {}, GmailApp: {}, UrlFetchApp: {}, CacheService: {}, Utilities: {}, ScriptApp: {}, LockService: {}, ContentService: {} };
 const R = new Function(...Object.keys(stub), code + ";return {analyze,applyEvidence,decideLevel,hardEvidence,parseFrom};")(...Object.values(stub));
 const cases = JSON.parse(fs.readFileSync(path.join(__dirname, "emails.json"), "utf8"));
-let fp = 0, missed = 0, weak = 0;
+let fp = 0, missed = 0, weak = 0, careful = 0;
 cases.forEach(c => {
   const f = R.parseFrom(c.from);
   const urls = (c.text.match(/https?:\/\/[^\s]+/g) || []).map(u => ({ href: u, host: u.replace(/^https?:\/\//, "").split("/")[0].toLowerCase(), text: "" }));
@@ -15,11 +15,11 @@ cases.forEach(c => {
   let level = R.decideLevel(local, null, c.auth);
   if (level === "scam" && local.trusted && !R.hardEvidence(local, c.auth)) level = "warn";
   let mark = "ok ";
-  if (c.label === "real" && level !== "safe") { mark = level === "scam" ? "FALSE ALARM" : "warn"; if (level === "scam") fp++; }
+  if (c.label === "real" && level !== "safe") { mark = level === "scam" ? "FALSE ALARM" : "warn"; if (level === "scam") fp++; else careful++; }
   if (c.label === "scam" && level === "safe") { mark = "MISSED"; missed++; }
   if (c.label === "scam" && level === "warn") { mark = "weak"; weak++; }
   console.log(`${mark.padEnd(11)} ${c.label.padEnd(4)} → ${level.padEnd(4)}  ${c.name}`);
 });
 const real = cases.filter(c => c.label === "real").length, scam = cases.length - real;
-console.log(`\nReal emails called scam: ${fp}/${real}   Scams missed: ${missed}/${scam}   Scams only "be careful": ${weak}/${scam}`);
+console.log(`\nReal emails called scam: ${fp}/${real}   Real emails called "be careful": ${careful}/${real}   Scams missed: ${missed}/${scam}   Scams only "be careful": ${weak}/${scam}`);
 process.exitCode = fp || missed ? 1 : 0;

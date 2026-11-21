@@ -171,6 +171,7 @@ function readGmail(me, since) {
     CONFIG.MAX_EMAILS
   );
   const items = [];
+  const cats = categoryThreads(`newer_than:${CONFIG.DAYS}d`);
   threads.forEach(th => {
     const folder = th.isInSpam() ? "Spam" : th.isInTrash() ? "Trash" : th.isInInbox() ? "Inbox" : "Archived";
     const wasBlocked = th.getLabels().some(l => l.getName() === CONFIG.BLOCK_LABEL);
@@ -184,11 +185,23 @@ function readGmail(me, since) {
         date: m.getDate(),
         folder,
         blocked: wasBlocked,
+        category: cats.has(th.getId()),
         link: `https://mail.google.com/mail/u/0/#all/${th.getId()}`
       }));
     });
   });
   return items;
+}
+
+// Threads Gmail sorted into Promotions, Updates, or Social (normal bulk mail), within a search window.
+function categoryThreads(window) {
+  const ids = new Set();
+  ["promotions", "updates", "social"].forEach(c => {
+    try {
+      GmailApp.search(`category:${c} ${window}`, 0, 500).forEach(t => ids.add(t.getId()));
+    } catch (e) {}
+  });
+  return ids;
 }
 
 // Runs the scam checker on one email and returns what the report needs.
@@ -204,6 +217,7 @@ function checkEmail(msg, extra) {
       kind: r.kind,
       reasons: r.reasons,
       trusted: r.trusted,
+      freeMail: r.freeMail,
       msg
     },
     extra
@@ -661,6 +675,135 @@ function blockScams() {
   if (blocked.length) sendBlockedNotice(me, blocked);
 }
 
+/* ========================================================================
+   INBOX CHECK — find false alarms before they happen
+   Run auditInbox. It checks your recent Gmail (up to 500 emails, last 90 days) the same way the
+   report does, but it never moves or blocks anything. Every email ScamSense would flag goes into a
+   Google Sheet called "ScamSense Inbox Check" with the reason. Mark each one Real or Scam in the
+   "Your answer" column, then tell Claude: those become tests, and the rules get fixed.
+   It stops before Google's 6-minute limit; just run it again to continue. Run auditReset to start over.
+   ======================================================================== */
+const AUDIT_COLS = ["Date", "From", "Email address", "Subject", "Gmail folder", "Rules say", "AI says", "ScamSense would show", "Why", "Sender checks", "Seen before", "Website age (days)", "Your answer", "Open in Gmail"];
+function auditInbox() {
+  const t0 = Date.now();
+  const p = props();
+  const me = myEmail();
+  let ss = null;
+  try {
+    ss = SpreadsheetApp.openById(p.getProperty("AUDIT_SHEET") || "x");
+  } catch (e) {}
+  if (!ss) {
+    ss = SpreadsheetApp.create("ScamSense Inbox Check");
+    p.setProperty("AUDIT_SHEET", ss.getId());
+    const sh = ss.getSheets()[0];
+    sh.setName("Flagged");
+    sh.appendRow(AUDIT_COLS);
+    sh.getRange(1, 1, 1, AUDIT_COLS.length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh.setFrozenRows(1);
+    sh.getRange("M2:M1000").setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(["Real", "Scam", "Not sure"], true).build()
+    );
+    p.setProperty("AUDIT_START", "0");
+    p.setProperty("AUDIT_COUNT", "0");
+    p.setProperty("AUDIT_FLAGGED", "0");
+  }
+  const sh = ss.getSheetByName("Flagged");
+  const window = "newer_than:90d";
+  const cats = categoryThreads(window);
+  let start = +(p.getProperty("AUDIT_START") || 0);
+  let count = +(p.getProperty("AUDIT_COUNT") || 0);
+  let flagged = +(p.getProperty("AUDIT_FLAGGED") || 0);
+  const key = p.getProperty("ANTHROPIC_API_KEY");
+  const ageCache = {};
+  let done = false;
+  while (Date.now() - t0 < 270000) {
+    const threads = GmailApp.search(`${window} -in:sent -in:drafts -in:chats -in:trash`, start, 50);
+    if (!threads.length || count >= 500) {
+      done = true;
+      break;
+    }
+    start += threads.length;
+    const items = [];
+    threads.forEach(th => {
+      const folder = th.isInSpam() ? "Spam" : cats.has(th.getId()) ? "Promotions/Updates/Social" : th.isInInbox() ? "Inbox" : "Archived";
+      th.getMessages().forEach(m => {
+        if (m.isDraft() || count >= 500) return;
+        const from = parseFrom(m.getFrom());
+        if (!from.email || (me && from.email.toLowerCase() === me.toLowerCase())) return;
+        count++;
+        const it = checkEmail(toMsg(m, from), {
+          source: "gmail",
+          date: m.getDate(),
+          folder,
+          category: cats.has(th.getId()),
+          link: `https://mail.google.com/mail/u/0/#all/${th.getId()}`
+        });
+        if (it.level !== "safe") items.push(it);
+      });
+    });
+    // The same proof the report uses: sender history, website age, Gmail's sorting.
+    const doms = items.map(i => baseDomain((i.fromEmail.split("@")[1] || "").toLowerCase())).filter(d => !(d in ageCache));
+    if (doms.length) Object.assign(ageCache, domainAges([...new Set(doms)].slice(0, 40)));
+    items.forEach(it => {
+      let history = 0;
+      try {
+        history = GmailApp.search(`from:${it.fromEmail} older_than:14d`, 0, 3).length;
+      } catch (e) {}
+      const age = ageCache[baseDomain((it.fromEmail.split("@")[1] || "").toLowerCase())];
+      const local = applyEvidence(
+        { score: it.score, reasons: it.reasons, level: it.level, trusted: it.trusted, freeMail: it.freeMail },
+        { history, age: age === undefined ? null : age, category: !!it.category },
+        it.msg.auth
+      );
+      Object.assign(it, { score: local.score, reasons: local.reasons, evidence: local.evidence, known: local.known });
+      it.rules = finalVerdict(it, null);
+      it.level = it.rules;
+      if (it.level !== "safe" && (key || CONFIG.MAHI_URL) && Date.now() - t0 < 250000) {
+        try {
+          const a = aiExplain(key, it);
+          if (a) {
+            it.ai = a;
+            it.level = finalVerdict(it, a.verdict);
+          }
+        } catch (e) {}
+      }
+    });
+    const rows = items
+      .filter(it => it.rules !== "safe" || it.level !== "safe")
+      .map(it => [
+        it.date,
+        it.fromName,
+        it.fromEmail,
+        it.subject,
+        it.folder,
+        { scam: "Scam", warn: "Be careful", safe: "Safe" }[it.rules],
+        it.ai ? `${it.ai.verdict} (${it.ai.confidence || "?"}%)` : "not asked",
+        { scam: "SCAM", warn: "Be careful", safe: "Safe" }[it.level],
+        it.reasons.slice(0, 3).join(" | "),
+        (it.msg.auth.match(/(spf|dkim|dmarc)=\w+/gi) || []).join(" ") || "unknown",
+        it.evidence && it.evidence.history ? "yes" : "no",
+        it.evidence && it.evidence.age != null ? it.evidence.age : "",
+        "",
+        it.link
+      ]);
+    if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, AUDIT_COLS.length).setValues(rows);
+    flagged += rows.length;
+    p.setProperty("AUDIT_START", String(start));
+    p.setProperty("AUDIT_COUNT", String(count));
+    p.setProperty("AUDIT_FLAGGED", String(flagged));
+  }
+  console.log(
+    `${done ? "Finished." : "Paused (Google's time limit). Run auditInbox again to continue."} Checked ${count} emails, ${flagged} flagged.\n` +
+      `Open the sheet, mark each one Real or Scam in "Your answer": ${ss.getUrl()}`
+  );
+}
+// Start the inbox check over from the beginning (keeps the old sheet's rows, adds a fresh tab).
+function auditReset() {
+  const p = props();
+  ["AUDIT_SHEET", "AUDIT_START", "AUDIT_COUNT", "AUDIT_FLAGGED"].forEach(k => p.deleteProperty(k));
+  console.log("Reset. Run auditInbox to start a new check (it makes a new sheet).");
+}
+
 // The email really came from the domain in the From address (Gmail's DMARC check passed).
 function passesSenderCheck(msg) {
   return /dmarc=pass/i.test(msg.auth || "");
@@ -849,8 +992,8 @@ function addEvidence(items) {
     }
     const age = ages[baseDomain((it.fromEmail.split("@")[1] || "").toLowerCase())];
     const local = applyEvidence(
-      { score: it.score, reasons: it.reasons, level: it.level, trusted: it.trusted },
-      { history, age: age === undefined ? null : age },
+      { score: it.score, reasons: it.reasons, level: it.level, trusted: it.trusted, freeMail: it.freeMail },
+      { history, age: age === undefined ? null : age, category: !!it.category },
       it.msg.auth
     );
     Object.assign(it, {
@@ -864,7 +1007,7 @@ function addEvidence(items) {
 }
 // The final word for one email: the AI decides when it answered; rules alone need hard proof for "scam".
 function finalVerdict(it, aiVerdict) {
-  const local = { score: it.score, reasons: it.reasons, level: it.score >= 8 ? "scam" : it.score >= 4 ? "warn" : "safe", evidence: it.evidence, known: it.known };
+  const local = { score: it.score, reasons: it.reasons, level: it.score >= 8 ? "scam" : it.score >= 4 ? "warn" : "safe", evidence: it.evidence, known: it.known, freeMail: it.freeMail };
   let v = decideLevel(local, aiVerdict, it.msg.auth);
   if (v === "scam" && it.trusted && !hardEvidence(local, it.msg.auth)) v = "warn";
   return v;
@@ -1878,6 +2021,15 @@ function applyEvidence(local, ev, auth) {
         )
       );
     } else if (ev.age >= 365 && signed) r.score = Math.max(0, r.score - 3);
+  }
+  // A verified sender (signed mail, a company domain, and either years old, mail you've had before, or
+  // sorted by Gmail into Promotions/Updates/Social) can't be flagged on words alone. Only hard proof
+  // (a fake link, a brand-new website, a look-alike name...) can do that.
+  const established =
+    signed && !r.freeMail && (ev.history > 0 || ev.category || (ev.age != null && ev.age >= 365));
+  if (established && !hardEvidence(r, auth)) {
+    r.verifiedSender = true;
+    r.score = Math.min(r.score, ev.history > 0 || ev.category ? 3 : 7);
   }
   r.level = r.score >= 8 ? "scam" : r.score >= 4 ? "warn" : "safe";
   return r;

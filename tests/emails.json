@@ -276,5 +276,57 @@
 "auth": "spf=pass dkim=pass dmarc=pass",
 "history": 0,
 "age": null
+},
+{
+"label": "real",
+"name": "Bank card alert (verified)",
+"from": "Chase <no.reply.alerts@chase.com>",
+"subject": "Action required: confirm a recent purchase",
+"text": "We noticed a purchase of $482.19 at BESTBUY. If you made this purchase, no action is needed. If not, call the number on the back of your card or sign in at https://www.chase.com.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 6,
+"age": 10000
+},
+{
+"label": "real",
+"name": "Utility bill due",
+"from": "PSO <billing@psoklahoma.com>",
+"subject": "Your payment is due in 3 days",
+"text": "Your bill of $112.40 is due Nov 23. Pay now at https://www.psoklahoma.com/pay to avoid a late fee.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"unsub": true,
+"history": 0,
+"age": 8000
+},
+{
+"label": "real",
+"name": "Amazon account security (verified)",
+"from": "Amazon <account-update@amazon.com>",
+"subject": "Verify your new sign-in",
+"text": "Someone signed in to your account from a new device. If this was you, you can ignore this. If not, go to https://www.amazon.com/your-account and change your password immediately.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 10,
+"age": 11000
+},
+{
+"label": "real",
+"name": "Store promo urgent wording",
+"from": "Target <target@em.target.com>",
+"subject": "Last chance! Claim your reward before midnight",
+"text": "Act now: your Target Circle reward expires tonight. Claim it at https://www.target.com/circle. Exclusions apply.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"unsub": true,
+"history": 4,
+"age": 10000
+},
+{
+"label": "scam",
+"name": "Fake Amazon from look-alike",
+"from": "Amazon Security <support@amaz0n-security.com>",
+"subject": "Your account is locked",
+"text": "Your Amazon account has been locked. Verify your identity within 24 hours at http://amaz0n-security.com/verify or it will be closed.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 0,
+"age": 12
 }
 ]
