@@ -229,7 +229,7 @@ function renderHelper() {
   <section class="chat card"><div class="chatlog" id="chatlog" aria-live="polite">${[hello, ...chatLog].map(bubble).join("")}</div>
     <div class="samples" id="chatsamples" ${chatLog.length ? "hidden" : ""}>${[tr("Is a text about an unpaid toll real?", "¿Es real un texto sobre un peaje sin pagar?"), tr("Someone wants me to pay with gift cards", "Alguien quiere que pague con tarjetas de regalo"), tr("How do I know if a website is real?", "¿Cómo sé si un sitio web es real?")].map(q => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
     <div class="composer"><textarea id="chatin" dir="auto" rows="1" placeholder="${esc(tr("Type or tap the mic to talk…", "Escriba o toque el micrófono para hablar…"))}"></textarea>${canListenHere() ? `<button class="btn ghost micbtn" id="chatmic" aria-pressed="false" title="${esc(tr("Talk to Mahi", "Hablar con Mahi"))}">${ic("mic")}<span class="sr">${tr("Talk to Mahi", "Hablar con Mahi")}</span></button>` : ""}<button class="btn primary sendbtn" id="chatgo" aria-label="${esc(tr("Send", "Enviar"))}">${ic("send")}</button></div>
-    <div class="chattools"><button class="ctool" id="chatread">${ic("speaker")}<span>${t("read_aloud").replace(/^\S*🔊\S*\s*/u, "")}</span></button><button class="ctool" id="chatsave" ${chatLog.length ? "" : "disabled"}>${ic("download")}<span>${tr("Save this chat", "Guardar este chat")}</span></button><button class="ctool" id="chatclear" ${chatLog.length ? "" : "disabled"}>${tr("Start over", "Empezar de nuevo")}</button></div>
+    <div class="chattools"><button class="ctool" id="chatread">${ic("speaker")}<span>${t("read_aloud").replace(/^\S*🔊\S*\s*/u, "")}</span></button><button class="ctool" id="chatsave" ${chatLog.length ? "" : "disabled"}>${ic("download")}<span>${tr("Save this chat", "Guardar este chat")}</span></button><button class="ctool" id="chatclear" ${chatLog.length ? "" : "disabled"}>${tr("Start over", "Empezar de nuevo")}</button>${serverOn() ? `<button class="ctool" id="chatperson">${ic("user")}<span>${tr("Talk to a person", "Hablar con una persona")}</span></button>` : ""}</div>
     <p class="footnote small">${ic(has ? "lock" : "info")}<span>${has ? tr("Answers come from Anthropic's AI. Your chat stays on this device until you close the app.", "Las respuestas vienen de la IA de Anthropic. Su chat se queda en este dispositivo hasta que cierre la app.") : tr("Quick answers work right away, even offline. Add an AI key in Settings for longer, smarter answers.", "Las respuestas rápidas funcionan al instante, incluso sin internet. Agregue una clave de IA en Ajustes para respuestas más completas.")}</span></p></section>`;
   bindBack();
   const log = document.getElementById("chatlog"),
@@ -349,6 +349,8 @@ function renderHelper() {
     const last = [hello, ...chatLog].reverse().find(m => m.role === "assistant");
     if (last) speak(last.content);
   };
+  const person = document.getElementById("chatperson");
+  if (person) person.onclick = () => openSupport("person");
   document.getElementById("chatclear").onclick = () => {
     chatLog = [];
     mahiHistory = [];

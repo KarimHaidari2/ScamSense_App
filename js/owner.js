@@ -294,7 +294,16 @@ async function load(quiet) {
     const open = data.users.filter(needsFollow).length;
     $("alertbadge").hidden = !open;
     $("alertbadge").textContent = open;
+    setCaseBadge(data.support);
+    // Opened from a "New case" email link before signing in? Go to that case now.
+    let back = "";
+    try {
+      back = sessionStorage.getItem("own_hash") || "";
+      sessionStorage.removeItem("own_hash");
+    } catch (e) {}
+    if (back && !location.hash) return go(back.slice(1));
     route();
+    if (!caseSeen) watchCases();
   } catch (e) {
     if ((token || DEMO) && e.message && !main.querySelector(".gate"))
       main.innerHTML = `<p class="err pad">${esc(e.message)}</p>`;
@@ -315,7 +324,7 @@ function route() {
   document
     .querySelectorAll("#nav button")
     .forEach(b =>
-      b.dataset.tab === (tab === "person" ? "people" : tab)
+      b.dataset.tab === (tab === "person" ? "people" : tab === "case" ? "cases" : tab)
         ? b.setAttribute("aria-current", "page")
         : b.removeAttribute("aria-current")
     );
@@ -325,6 +334,8 @@ function route() {
       people: peopleTab,
       person: personPage,
       alerts: alertsTab,
+      cases: casesTab,
+      case: casePage,
       costs: costsTab,
       log: logTab,
       team: teamTab
@@ -464,6 +475,7 @@ function overview() {
     ${stat(scams, "Scams caught", `${scanned.toLocaleString()} emails scanned`)}
     ${stat(data.alerts.length, "Danger alerts", `${U.filter(needsFollow).length} need follow-up`)}
   </div>
+  ${data.support && data.support.open ? `<section class="card ${data.support.urgent ? "warn" : ""}"><h2>Open cases</h2><p>${data.support.open} open${data.support.urgent ? ` · <b>${data.support.urgent} urgent</b>` : ""}${data.support.unread ? ` · ${data.support.unread} waiting for your answer` : ""}</p><button class="btn primary" data-go="cases">Open cases</button></section>` : ""}
   ${attention.length ? `<section class="card warn"><h2>Needs your attention</h2>${list(attention)}</section>` : ""}
   <div class="cols">${connectChart(U)}${checksChart(data.activity)}</div>
   ${kindsHTML(data.activity, "What people checked (recent activity)")}
@@ -804,7 +816,549 @@ function logTab() {
   <p><a class="linkbtn" href="${esc(data.sheetUrl)}" target="_blank" rel="noopener noreferrer">Open the spreadsheet</a></p>`;
 }
 
+/* ----- Cases: live help with people (chat, photos, shared emails, team notes) ----- */
+let cases = null; // the latest list from the server
+let caseNow = null; // the open case page
+let caseFilter = "open";
+let casePhoto = ""; // a photo waiting to be sent
+let quick = null; // quick replies
+const casePhotos = {};
+const CASE_STATUS = { new: "New", open: "Open", waiting: "Waiting for them", closed: "Closed" };
+const caseChip = c =>
+  `${c.Priority === "urgent" ? `<span class="chip c-blocked">Urgent</span>` : ""}<span class="chip ${c.Status === "closed" ? "c-quiet" : c.Status === "new" ? "c-follow" : "c-active"}">${CASE_STATUS[c.Status] || esc(c.Status)}</span>${+c["Team unread"] ? `<span class="chip c-follow">${+c["Team unread"]} new</span>` : ""}`;
+
+function setCaseBadge(counts) {
+  const b = $("casebadge");
+  if (!b || !counts) return;
+  const n = counts.unread || 0;
+  b.hidden = !counts.open;
+  b.textContent = n || counts.open;
+  b.classList.toggle("quiet", !n && !counts.urgent);
+  document.title = (n ? `(${n}) ` : "") + "ScamSense Owner";
+}
+
+async function casesTab() {
+  main.innerHTML = `<h1>Cases</h1><p class="loading">Loading…</p>`;
+  try {
+    const j = await api({ action: "cases" });
+    cases = j.cases;
+    setCaseBadge(j.counts);
+  } catch (e) {
+    main.innerHTML = `<h1>Cases</h1><p class="err">${esc(e.message)}</p>`;
+    return;
+  }
+  drawCases();
+}
+function drawCases() {
+  const C = cases || [];
+  const groups = {
+    open: C.filter(c => c.Status !== "closed" && c.Status !== "waiting"),
+    waiting: C.filter(c => c.Status === "waiting"),
+    closed: C.filter(c => c.Status === "closed"),
+    all: C
+  };
+  const list = groups[caseFilter].slice().sort((a, b) => {
+    const u = x => (x.Status !== "closed" && x.Priority === "urgent" ? 1 : 0);
+    return (
+      u(b) - u(a) ||
+      +(b["Team unread"] > 0) - +(a["Team unread"] > 0) ||
+      ms(b["Last update"]) - ms(a["Last update"])
+    );
+  });
+  const canAlert = "Notification" in window && Notification.permission !== "granted";
+  main.innerHTML = `<h1>Cases</h1>
+  <p class="muted">People who asked for a person, said they were scammed, or sent you an email. Answer here: they see it in the app, and get an email if they're away.</p>
+  ${canAlert && !DEMO ? `<p><button class="btn" id="notifon">Turn on alerts on this device</button> <span class="muted small">Shows a pop-up while this page is open.</span></p>` : ""}
+  <div class="seg">${[
+    ["open", "Open"],
+    ["waiting", "Waiting"],
+    ["closed", "Closed"],
+    ["all", "All"]
+  ]
+    .map(
+      ([k, l]) =>
+        `<button data-f="${k}" aria-pressed="${caseFilter === k}">${l} <small>${groups[k].length}</small></button>`
+    )
+    .join("")}</div>
+  <section class="card">${
+    list.length
+      ? `<ul class="plist">${list
+          .map(
+            c =>
+              `<li><button data-case="${esc(c["Case ID"])}" class="${c.Priority === "urgent" && c.Status !== "closed" ? "urgentrow" : ""}"><span class="av">${esc(
+                (String(c.Name || "?").match(/\b\w/g) || ["?"]).slice(0, 2).join("").toUpperCase()
+              )}</span><span class="pl"><b>${esc(c.Name)}</b><span>${esc(c["Last message"] || c.Reason)}</span><span class="tags">${caseChip(c)}</span></span><span class="pr">${ago(c["Last update"] || c.Opened)}<small>${esc(c.Reason)}</small></span></button></li>`
+          )
+          .join("")}</ul>`
+      : `<p class="muted">${caseFilter === "open" ? "No open cases. When someone needs help, it shows up here and you get an email." : "Nothing here."}</p>`
+  }</section>
+  <details class="card" id="quickcard"><summary><b>Quick replies</b> <span class="muted small">ready-made answers you can send with one tap</span></summary><div id="quickedit"><p class="loading">Loading…</p></div></details>`;
+  main
+    .querySelectorAll("[data-f]")
+    .forEach(b => (b.onclick = () => ((caseFilter = b.dataset.f), drawCases())));
+  main.querySelectorAll("[data-case]").forEach(b => (b.onclick = () => go("case/" + b.dataset.case)));
+  if ($("notifon"))
+    $("notifon").onclick = () =>
+      Notification.requestPermission().then(p => {
+        toast(p === "granted" ? "Alerts are on for this device." : "Alerts weren't allowed.");
+        drawCases();
+      });
+  $("quickcard").ontoggle = () => $("quickcard").open && drawQuickEditor();
+}
+
+async function loadQuick() {
+  if (!quick) quick = (await api({ action: "quick_list" })).quick;
+  return quick;
+}
+async function drawQuickEditor() {
+  const box = $("quickedit");
+  try {
+    await loadQuick();
+  } catch (e) {
+    box.innerHTML = `<p class="err">${esc(e.message)}</p>`;
+    return;
+  }
+  const ro = data.role === "viewer";
+  box.innerHTML = `<div class="qlist">${quick
+    .map(
+      (q, i) =>
+        `<div class="qrow"><input aria-label="Title" data-qt="${i}" value="${esc(q.title)}" ${ro ? "disabled" : ""}><textarea aria-label="Message" rows="2" data-qm="${i}" ${ro ? "disabled" : ""}>${esc(q.text)}</textarea>${ro ? "" : `<button class="linkbtn" data-qd="${i}">Remove</button>`}</div>`
+    )
+    .join(
+      ""
+    )}</div>${ro ? "" : `<div class="row"><button class="btn" id="qadd">Add a quick reply</button><button class="btn primary" id="qsave">Save quick replies</button></div>`}`;
+  if (ro) return;
+  const read = () =>
+    quick.map((q, i) => ({
+      title: box.querySelector(`[data-qt="${i}"]`).value,
+      text: box.querySelector(`[data-qm="${i}"]`).value
+    }));
+  $("qadd").onclick = () => {
+    quick = read().concat([{ title: "", text: "" }]);
+    drawQuickEditor();
+  };
+  box.querySelectorAll("[data-qd]").forEach(
+    b =>
+      (b.onclick = () => {
+        quick = read().filter((x, i) => i !== +b.dataset.qd);
+        drawQuickEditor();
+      })
+  );
+  $("qsave").onclick = async () => {
+    try {
+      const j = await api({ action: "quick_save", quick: read() });
+      quick = j.quick;
+      toast("Quick replies saved.");
+      drawQuickEditor();
+    } catch (e) {
+      toast(e.message);
+    }
+  };
+}
+
+let casePoll = null;
+async function casePage(id) {
+  clearInterval(casePoll);
+  casePhoto = "";
+  main.innerHTML = `<button class="back" id="back">‹ Cases</button><p class="loading">Loading…</p>`;
+  $("back").onclick = () => go("cases");
+  try {
+    caseNow = await api({ action: "case", caseId: id });
+  } catch (e) {
+    main.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`);
+    return;
+  }
+  drawCase();
+  loadQuick()
+    .then(drawQuickChips)
+    .catch(() => {});
+  casePoll = setInterval(async () => {
+    if (!$("thread") || location.hash !== "#case/" + encodeURIComponent(id)) return clearInterval(casePoll);
+    if (document.hidden) return;
+    try {
+      const j = await api({ action: "case", caseId: id });
+      if (j.messages.length !== caseNow.messages.length || j.case.Status !== caseNow.case.Status) {
+        caseNow = j;
+        drawThread();
+        drawCaseHead();
+      }
+    } catch (e) {}
+  }, 8000);
+}
+function drawCase() {
+  const p = caseNow.person;
+  const ro = data.role === "viewer";
+  main.innerHTML = `<button class="back" id="back">‹ Cases</button>
+  <article class="doc casepage">
+    <header class="doc-head" id="casehead"></header>
+    <div class="caselayout">
+      <section class="card threadcard">
+        <div class="thread" id="thread" aria-live="polite"></div>
+        ${
+          ro
+            ? `<p class="muted small">Viewers can read cases, but can't answer.</p>`
+            : `<div class="quickchips" id="quickchips"></div>
+        <div id="cpending" hidden></div>
+        <label class="sr" for="ctext">Your message</label>
+        <textarea id="ctext" rows="3" placeholder="Write to ${esc((p && p.name.split(" ")[0]) || "them")}… or tap a quick reply above"></textarea>
+        <div class="row composer-row">
+          <label class="btn">📷 Photo<input id="cfile" type="file" accept="image/*" hidden></label>
+          <button class="btn" id="cnote" title="Only the ScamSense team sees notes">Save as team note</button>
+          <button class="btn primary" id="csend">Send to ${esc((p && p.name.split(" ")[0]) || "them")}</button>
+        </div>
+        <p class="muted small">Team notes are your investigation record: what you checked, who you called, what you found. The person never sees them.</p>`
+        }
+      </section>
+      <aside class="card personcard">${
+        p
+          ? `<h2>${esc(p.name || "No name")}</h2>
+        <div class="kv"><span>Email</span><b>${esc(p.email || "—")} ${p.verified ? `<span class="chip c-active">confirmed</span>` : ""}</b></div>
+        <div class="kv"><span>Language</span><b>${esc(p.language || "—")}</b></div>
+        <div class="kv"><span>Last active</span><b>${ago(p.lastActive)}</b></div>
+        <div class="kv"><span>Scams caught</span><b>${p.scams}</b></div>
+        <h2 class="mt">Trusted people</h2>${
+          p.family
+            ? `<ul class="fam">${p.family
+                .split("\n")
+                .map(f => `<li>${esc(f)}</li>`)
+                .join("")}</ul>`
+            : `<p class="muted">None added.</p>`
+        }
+        <button class="btn" data-uid="${esc(p.uid)}">Open full profile</button>`
+          : `<h2>${esc(caseNow.case.Name)}</h2><p class="muted">Not signed up. You can only answer here in the app.</p>`
+      }
+        ${caseNow.others.length ? `<h2 class="mt">Other cases</h2><ul class="feed">${caseNow.others.map(o => `<li><span class="fl"><a href="#case/${encodeURIComponent(o.id)}">${esc(o.reason)}</a><small>${when(o.opened)} · ${esc(CASE_STATUS[o.status] || o.status)}</small></span></li>`).join("")}</ul>` : ""}
+      </aside>
+    </div>
+  </article>`;
+  $("back").onclick = () => go("cases");
+  bindOpen();
+  drawCaseHead();
+  drawThread();
+  if (ro) return;
+  const t = $("ctext");
+  $("csend").onclick = () =>
+    caseAct({ action: "reply", text: t.value, photo: casePhoto || undefined }, $("csend"), true);
+  $("cnote").onclick = () => caseAct({ action: "case_note", text: t.value }, $("cnote"), true);
+  t.onkeydown = e => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) $("csend").click();
+  };
+  $("cfile").onchange = async e => {
+    const f = e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    try {
+      casePhoto = await shrink(f);
+      drawCasePending();
+    } catch (err) {
+      toast("That photo couldn't be opened.");
+    }
+  };
+  if (quick) drawQuickChips();
+}
+function drawCaseHead() {
+  const c = caseNow.case;
+  const ro = data.role === "viewer";
+  const closed = c.Status === "closed";
+  $("casehead").innerHTML = `<div><h1>${esc(c.Name)}</h1>
+    <p>${esc(c.Reason)} ${caseChip(c)}</p>
+    <p class="muted small">Case ${esc(c["Case ID"])} · opened ${when(c.Opened)}${c.Closed ? " · closed " + when(c.Closed) : ""}${c.Outcome ? " · " + esc(c.Outcome) : ""}</p></div>
+    ${
+      ro
+        ? ""
+        : `<div class="actions">
+      ${closed ? `<button class="btn" data-st="open">Open again</button>` : `<button class="btn" data-st="waiting" ${c.Status === "waiting" ? "disabled" : ""}>Waiting for them</button><button class="btn" data-pr="${c.Priority === "urgent" ? "normal" : "urgent"}">${c.Priority === "urgent" ? "Not urgent" : "Mark urgent"}</button><button class="btn primary" id="closebtn">Close case</button>`}
+    </div>
+    <div id="closebox" class="card compose" hidden>
+      <label for="outcome">What happened? (for your records)</label>
+      <input id="outcome" placeholder="For example: bank stopped the payment, it was a real email, reported to the FTC">
+      <div class="row"><button class="btn primary" id="closego">Close case</button><button class="btn" id="closeno">Cancel</button></div>
+      <p class="muted small">${esc(c.Name)} sees "The ScamSense team closed this conversation" and can write again anytime.</p>
+    </div>`
+    }`;
+  if (ro) return;
+  main
+    .querySelectorAll("[data-st]")
+    .forEach(b => (b.onclick = () => caseAct({ action: "case_status", status: b.dataset.st }, b)));
+  main
+    .querySelectorAll("[data-pr]")
+    .forEach(b => (b.onclick = () => caseAct({ action: "case_priority", priority: b.dataset.pr }, b)));
+  if ($("closebtn"))
+    $("closebtn").onclick = () => {
+      $("closebox").hidden = false;
+      $("outcome").focus();
+    };
+  if ($("closego")) {
+    $("closego").onclick = () =>
+      caseAct({ action: "case_status", status: "closed", outcome: $("outcome").value }, $("closego"));
+    $("closeno").onclick = () => ($("closebox").hidden = true);
+  }
+}
+function drawThread() {
+  const th = $("thread");
+  if (!th) return;
+  const name1 = (caseNow.case.Name || "").split(" ")[0] || "Them";
+  const time = m => `<small>${when(m.t)}</small>`;
+  const photo = m =>
+    m.photo
+      ? `<img class="cimg" data-photo="${esc(m.photo)}" alt="Photo" ${casePhotos[m.photo] ? `src="${casePhotos[m.photo]}"` : ""}>`
+      : "";
+  th.innerHTML = caseNow.messages
+    .map(m => {
+      if (m.from === "system") return `<p class="tsys">${esc(m.text)} · ${when(m.t)}</p>`;
+      if (m.from === "note")
+        return `<div class="tnote"><b>Team note · ${esc(m.who)}</b><span>${esc(m.text)}</span>${time(m)}</div>`;
+      if (m.from === "email" && m.email) {
+        const e = m.email;
+        return `<div class="temail"><b>📧 ${esc(name1)} shared an email</b>
+          <div class="kv"><span>From</span><b>${esc(e.from)}</b></div>
+          <div class="kv"><span>Subject</span><b>${esc(e.subject)}</b></div>
+          ${e.date ? `<div class="kv"><span>Date</span><b>${esc(e.date)}</b></div>` : ""}
+          ${e.verdict ? `<div class="kv"><span>ScamSense said</span><b>${esc({ scam: "Scam", warn: "Be careful", safe: "Safe" }[e.verdict] || e.verdict)}</b></div>` : ""}
+          ${e.reasons && e.reasons.length ? `<ul>${e.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+          ${e.text ? `<details><summary>Read the email</summary><pre>${esc(e.text)}</pre></details>` : ""}
+          ${time(m)}</div>`;
+      }
+      const mine = m.from === "owner";
+      return `<div class="tmsg ${mine ? "mine" : ""}"><b>${mine ? "You" + (m.who ? " · " + esc(m.who) : "") : esc(name1)}</b>${m.text ? `<span>${esc(m.text)}</span>` : ""}${photo(m)}${time(m)}</div>`;
+    })
+    .join("");
+  th.querySelectorAll("img[data-photo]").forEach(async img => {
+    const id = img.dataset.photo;
+    img.onclick = () => img.src && window.open(img.src, "_blank");
+    if (casePhotos[id]) return;
+    try {
+      casePhotos[id] = (await api({ action: "case_photo", id })).data;
+      img.src = casePhotos[id];
+    } catch (e) {}
+  });
+  th.scrollTop = th.scrollHeight;
+}
+function drawQuickChips() {
+  const box = $("quickchips");
+  if (!box || !quick) return;
+  box.innerHTML = quick
+    .map((q, i) => `<button class="qchip" data-q="${i}" title="${esc(q.text)}">${esc(q.title)}</button>`)
+    .join("");
+  box.querySelectorAll("[data-q]").forEach(
+    b =>
+      (b.onclick = () => {
+        const t = $("ctext");
+        const q = quick[+b.dataset.q].text.replace(/\{name\}/g, (caseNow.case.Name || "").split(" ")[0]);
+        t.value = t.value.trim() ? t.value.trim() + "\n\n" + q : q;
+        t.focus();
+      })
+  );
+}
+function drawCasePending() {
+  const box = $("cpending");
+  box.hidden = !casePhoto;
+  box.innerHTML = casePhoto
+    ? `<div class="cpend"><img src="${casePhoto}" alt="Photo to send"><button class="linkbtn" id="cnophoto">Remove photo</button></div>`
+    : "";
+  if (casePhoto) $("cnophoto").onclick = () => ((casePhoto = ""), drawCasePending());
+}
+async function caseAct(body, btn, clear) {
+  const old = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Working…";
+  try {
+    const j = await api(Object.assign({ caseId: caseNow.case["Case ID"] }, body));
+    caseNow = j;
+    toast(j.done || "Done");
+    if (clear) {
+      $("ctext").value = "";
+      casePhoto = "";
+      drawCasePending();
+    }
+    drawCaseHead();
+    drawThread();
+  } catch (e) {
+    toast(e.message);
+  }
+  btn.disabled = false;
+  btn.textContent = old;
+}
+function shrink(file) {
+  return new Promise((res, rej) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      rej(new Error("bad image"));
+    };
+    img.src = url;
+  });
+}
+
+/* Every 30 seconds: any new case or message? Then a badge, a pop-up, and the page title say so. */
+let caseSeen = null;
+async function watchCases() {
+  if (!data || document.hidden) return;
+  try {
+    const j = await api({ action: "cases" });
+    setCaseBadge(j.counts);
+    const fresh = j.cases.filter(c => c.Status !== "closed" && +c["Team unread"] > 0);
+    const key = c => c["Case ID"] + ":" + c["Last update"];
+    if (caseSeen) {
+      const news = fresh.filter(c => !caseSeen.has(key(c)));
+      news.forEach(c => {
+        toast(`${c.Priority === "urgent" ? "🚨 " : ""}${c.Name}: ${c["Last message"] || c.Reason}`);
+        try {
+          if ("Notification" in window && Notification.permission === "granted") {
+            const n = new Notification((c.Priority === "urgent" ? "URGENT · " : "") + c.Name, {
+              body: c["Last message"] || c.Reason,
+              tag: c["Case ID"]
+            });
+            n.onclick = () => {
+              focus();
+              go("case/" + c["Case ID"]);
+            };
+          }
+        } catch (e) {}
+      });
+    }
+    caseSeen = new Set(fresh.map(key));
+    cases = j.cases;
+    if (location.hash === "#cases" && main.querySelector("[data-f]")) drawCases();
+  } catch (e) {}
+}
+setInterval(watchCases, 30000);
+
 /* ----- sample data (owner.html?demo) ----- */
+const DEMO_PHOTO =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200"><rect width="300" height="200" rx="16" fill="#eceef3"/><rect x="20" y="20" width="260" height="60" rx="12" fill="#fff"/><text x="34" y="46" font-family="sans-serif" font-size="14" fill="#111">USPS: Your package is on hold.</text><text x="34" y="66" font-family="sans-serif" font-size="12" fill="#b42318">usps-redeliver-help.top</text><text x="20" y="120" font-family="sans-serif" font-size="12" fill="#5f6673">(sample screenshot)</text></svg>'
+  );
+function demoCases(d) {
+  if (demoCases.db) return demoCases.db;
+  const list = [
+    {
+      "Case ID": "C261121-A1B2",
+      Opened: d(0, 25),
+      "User ID": "demoA0000000000001",
+      uid: "demoA0000000000001",
+      Name: "Maria Sample",
+      Email: "maria.sample@example.com",
+      Reason: "Said they were scammed",
+      Priority: "urgent",
+      Status: "new",
+      "Last update": d(0, 4),
+      "Last message": "They told me to buy gift cards. I already bought $300.",
+      "Team unread": 3,
+      "Person unread": 0
+    },
+    {
+      "Case ID": "C261120-C3D4",
+      Opened: d(20),
+      "User ID": "demoB0000000000002",
+      uid: "demoB0000000000002",
+      Name: "George Example",
+      Email: "george@example.com",
+      Reason: "Shared an email for help",
+      Priority: "normal",
+      Status: "open",
+      "Last update": d(3),
+      "Last message": "Is this email from my bank real?",
+      "Team unread": 1,
+      "Person unread": 0
+    },
+    {
+      "Case ID": "C261115-E5F6",
+      Opened: d(140),
+      "User ID": "demoD0000000000004",
+      uid: "demoD0000000000004",
+      Name: "Sam Placeholder",
+      Email: "sam@example.com",
+      Reason: "Asked to talk to a person",
+      Priority: "normal",
+      Status: "closed",
+      "Last update": d(130),
+      "Last message": "Team: Glad we could help!",
+      "Team unread": 0,
+      "Person unread": 0,
+      Closed: d(130),
+      Outcome: "It was a real text from his pharmacy"
+    }
+  ];
+  const msgs = {
+    "C261121-A1B2": [
+      { t: d(0, 25), from: "system", text: "Said they were scammed (ScamSense opened this case by itself)" },
+      {
+        t: d(0, 22),
+        from: "user",
+        text: "Someone called saying they were from Amazon and my account was hacked."
+      },
+      { t: d(0, 10), from: "user", text: "Here is the text they sent me after.", photo: "demo-photo" },
+      { t: d(0, 4), from: "user", text: "They told me to buy gift cards. I already bought $300." }
+    ],
+    "C261120-C3D4": [
+      { t: d(20), from: "system", text: "Shared an email for help" },
+      {
+        t: d(20),
+        from: "email",
+        email: {
+          from: "Chase Fraud Dept <alerts@chase-secure-verify.com>",
+          subject: "Unusual sign-in: verify your account within 24 hours",
+          date: "Nov 20, 9:12 AM",
+          verdict: "scam",
+          reasons: [
+            'Says it\'s from Chase, but it was sent from "chase-secure-verify.com", which is not Chase.',
+            "Uses pressure to rush you."
+          ],
+          text: "Dear customer,\n\nWe noticed an unusual sign-in to your account. Verify your identity within 24 hours or your account will be locked.\n\nVerify now: https://chase-secure-verify.com/login"
+        }
+      },
+      { t: d(3), from: "user", text: "Is this email from my bank real?" }
+    ],
+    "C261115-E5F6": [
+      { t: d(140), from: "system", text: "Asked to talk to a person" },
+      { t: d(140), from: "user", text: "Is a text from CVS about my prescription real?" },
+      {
+        t: d(135),
+        from: "note",
+        who: "owner@example.com",
+        text: "Checked the number: it's CVS's real short code."
+      },
+      { t: d(134), from: "owner", text: "Good news: I checked it and it's real, not a scam." },
+      { t: d(130), from: "owner", text: "Glad we could help!" },
+      {
+        t: d(130),
+        from: "system",
+        text: "The ScamSense team closed this conversation. If you need anything else, just write here."
+      }
+    ]
+  };
+  const quick = [
+    {
+      title: "Hello",
+      text: "Hi, this is the ScamSense team. I'm here to help. Can you tell me what happened, in your own words?"
+    },
+    {
+      title: "Don't pay, don't reply",
+      text: "Please don't pay anything, don't click any links, and don't reply to them."
+    },
+    {
+      title: "Gift cards",
+      text: "If you paid with gift cards, call the number on the back of each card right away and tell them it was a scam. Keep the cards and the receipts."
+    },
+    {
+      title: "Send a screenshot",
+      text: "Can you send me a screenshot or a photo of the message? Tap the photo button next to the message box."
+    }
+  ];
+  return (demoCases.db = { list, msgs, quick });
+}
 function demoApi(body) {
   const d = (h, m) => new Date(Date.now() - h * 3600e3 - (m || 0) * 60e3).toISOString();
   if (!demoApi.db) {
@@ -1024,9 +1578,88 @@ function demoApi(body) {
               link: "https://www.optery.com/api"
             }
           ],
-          sheetUrl: "#"
+          sheetUrl: "#",
+          support: { open: 2, unread: 2, urgent: 1 }
         });
       if (body.action === "person") return res(person(body.uid));
+      const cs = demoCases(d);
+      const counts = () => {
+        const o = cs.list.filter(c => c.Status !== "closed");
+        return {
+          open: o.length,
+          unread: o.filter(c => +c["Team unread"]).length,
+          urgent: o.filter(c => c.Priority === "urgent").length
+        };
+      };
+      if (body.action === "cases") return res({ ok: true, cases: cs.list, counts: counts() });
+      if (body.action === "quick_list") return res({ ok: true, quick: cs.quick });
+      if (body.action === "quick_save") {
+        cs.quick = body.quick.filter(q => q.title && q.text);
+        return res({ ok: true, quick: cs.quick, done: "Saved quick replies" });
+      }
+      if (body.action === "case_photo") return res({ ok: true, data: DEMO_PHOTO });
+      const c = cs.list.find(x => x["Case ID"] === body.caseId);
+      const view = () => ({
+        ok: true,
+        case: c,
+        messages: cs.msgs[c["Case ID"]],
+        person: c.uid
+          ? {
+              uid: c.uid,
+              name: c.Name,
+              email: c.Email,
+              verified: true,
+              family: "Ana Sample | ana@example.com | 555-0101",
+              language: "en",
+              lastActive: d(0, 20),
+              scams: 7
+            }
+          : null,
+        others: []
+      });
+      if (c) {
+        const now = new Date().toISOString();
+        const add = (from, text, photo) => {
+          cs.msgs[c["Case ID"]].push({ t: now, from, who: "owner@example.com", text, photo });
+          c["Last update"] = now;
+          if (from !== "note") c["Last message"] = text;
+        };
+        if (body.action === "case") return res(((c["Team unread"] = 0), view()));
+        if (body.action === "reply") {
+          if (!String(body.text || "").trim() && !body.photo)
+            return res({ ok: false, error: "Write a message first." });
+          if (c.Status === "new") c.Status = "open";
+          add("owner", body.text, body.photo ? "demo-photo" : "");
+          return res(Object.assign(view(), { done: "Sent (sample: nobody gets it)" }));
+        }
+        if (body.action === "case_note") {
+          if (!String(body.text || "").trim()) return res({ ok: false, error: "Write the note first." });
+          add("note", body.text);
+          return res(Object.assign(view(), { done: "Note saved" }));
+        }
+        if (body.action === "case_status") {
+          c.Status = body.status;
+          if (body.status === "closed") {
+            c.Closed = now;
+            c.Outcome = body.outcome || "";
+            add("note", "Closed the case" + (c.Outcome ? ": " + c.Outcome : ""));
+            add(
+              "system",
+              "The ScamSense team closed this conversation. If you need anything else, just write here."
+            );
+          } else
+            add(
+              "note",
+              body.status === "waiting" ? "Waiting for the person to answer" : "Opened the case again"
+            );
+          return res(Object.assign(view(), { done: "Case " + body.status }));
+        }
+        if (body.action === "case_priority") {
+          c.Priority = body.priority;
+          add("note", "Marked " + body.priority);
+          return res(Object.assign(view(), { done: "Marked " + body.priority }));
+        }
+      }
       if (body.action === "team_add") {
         if (!/@/.test(body.email || ""))
           return res({ ok: false, error: "That doesn't look like an email address." });
@@ -1060,6 +1693,11 @@ function demoApi(body) {
 
 /* ----- start ----- */
 (function start() {
+  // A link to a case (from the "New case" email) is remembered through the sign-in.
+  if (/^#case\//.test(location.hash))
+    try {
+      sessionStorage.setItem("own_hash", location.hash);
+    } catch (e) {}
   if (DEMO) return load();
   try {
     const s = JSON.parse(sessionStorage.getItem("own_t") || "null");

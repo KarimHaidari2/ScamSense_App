@@ -37,7 +37,7 @@ function renderSettings() {
       )
       .join("")}</ul></section>
 
-  <section class="sect"><div class="group">${newsRowHTML()}</div></section>
+  <section class="sect"><div class="group">${newsRowHTML()}${serverOn() ? `<button class="grow linkrow" data-go="support"><span class="lead-ic l-green">${ic("user")}</span><span class="gl"><b>${tr("Talk to the ScamSense team", "Hable con el equipo de ScamSense")}</b><span>${tr("A real person answers, with words and photos", "Una persona real responde, con palabras y fotos")}</span></span>${ic("chev", "chev")}</button>` : ""}</div></section>
 
   <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">
     ${emailAccountsHTML()}

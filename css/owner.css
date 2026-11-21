@@ -892,3 +892,249 @@ body[data-role="viewer"] .actions {
     font-size: 1rem;
   }
 }
+
+/* ----- Cases ----- */
+.side {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+.side button[hidden] {
+  display: none;
+}
+@media (max-width: 859px) {
+  .side button {
+    font-size: 0.68rem;
+    min-width: 0;
+  }
+  .side button span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+@media (min-width: 860px) {
+  .side {
+    grid-auto-flow: row;
+    grid-template-columns: 1fr;
+  }
+}
+.badge.quiet {
+  background: #5f6673;
+}
+.pl .tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  white-space: normal;
+}
+.plist button.urgentrow {
+  box-shadow: inset 4px 0 0 var(--scam);
+  padding-left: 12px;
+}
+.casepage .doc-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.casepage .doc-head .chip {
+  margin-left: 4px;
+}
+#closebox {
+  flex-basis: 100%;
+}
+.caselayout {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+@media (min-width: 1000px) {
+  .caselayout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+  .personcard {
+    position: sticky;
+    top: 80px;
+  }
+}
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: min(62vh, 640px);
+  min-height: 200px;
+  overflow: auto;
+  padding: 4px 2px 8px;
+  overscroll-behavior: contain;
+}
+.tmsg {
+  align-self: flex-start;
+  max-width: 82%;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px 16px 16px 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tmsg.mine {
+  align-self: flex-end;
+  background: #14213d;
+  border-color: #14213d;
+  color: #fff;
+  border-radius: 16px 16px 6px 16px;
+}
+.tmsg b,
+.tnote b,
+.temail > b {
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.tmsg small,
+.tnote small,
+.temail > small {
+  font-size: 0.72rem;
+  opacity: 0.65;
+}
+.tsys {
+  align-self: center;
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 2px 0;
+}
+.tnote {
+  align-self: stretch;
+  background: var(--warn-bg);
+  color: var(--ink);
+  border-left: 4px solid var(--gold);
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.temail {
+  align-self: flex-start;
+  width: min(100%, 560px);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.temail .kv b {
+  overflow-wrap: anywhere;
+}
+.temail ul {
+  margin: 4px 0;
+  padding-left: 18px;
+  font-size: 0.9rem;
+}
+.temail pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 0.9rem/1.5 var(--body);
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+  max-height: 340px;
+  overflow: auto;
+}
+.cimg {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  min-width: 80px;
+  min-height: 60px;
+  margin-top: 6px;
+  border-radius: 10px;
+  background: var(--line);
+  cursor: zoom-in;
+  object-fit: contain;
+}
+.quickchips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 10px 0 8px;
+}
+.qchip {
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 99px;
+  padding: 5px 12px;
+  font: 700 0.85rem var(--body);
+  cursor: pointer;
+}
+.qchip:hover {
+  border-color: var(--brand);
+}
+.threadcard textarea,
+.qrow input,
+.qrow textarea,
+#outcome {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.composer-row .btn.primary {
+  margin-left: auto;
+}
+.cpend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.cpend img {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.qlist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0;
+}
+.qrow {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.qrow .linkbtn {
+  justify-self: start;
+}
+#quickcard summary {
+  cursor: pointer;
+}
+.row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

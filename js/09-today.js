@@ -178,6 +178,8 @@ function detailHTML(it) {
   h += emailActionsHTML(it);
   if (it.level !== "safe" && it.source !== "paste")
     h += `<div class="row"><button class="btn ghost" data-real>${tr("This email is real", "Este correo es real")}</button><button class="btn ghost" data-askmahi>${tr("Ask Mahi about it", "Preguntarle a Mahi")}</button></div>`;
+  if (it.source !== "paste" && serverOn())
+    h += `<div class="row"><button class="btn ghost" data-team>${ic("user")} ${tr("Send to the ScamSense team", "Enviar al equipo de ScamSense")}</button></div>`;
   return h;
 }
 function speakItem(it) {
@@ -237,6 +239,8 @@ function bindItems(list) {
               );
               go("emails");
             };
+          const team = d.querySelector("[data-team]");
+          if (team) team.onclick = () => openSupport("email", emailForTeam(it));
           const ask = d.querySelector("[data-askmahi]");
           if (ask)
             ask.onclick = () => {

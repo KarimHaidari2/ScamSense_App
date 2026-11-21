@@ -18,6 +18,21 @@ on Google's servers instead of inside the app. Free (Google Apps Script).
 
 Test: open the Web app URL in a browser. It should show `{"ok":true,"name":"Mahi",...}`.
 
+## Live help (Cases)
+
+People can write to the ScamSense team from the app (Settings → Talk to the ScamSense team, Ask Mahi →
+Talk to a person, "I was scammed", or "Send to the ScamSense team" on an email). You answer in the
+Owner page → **Cases**.
+
+After pasting a new version of `Code.gs` that has this:
+1. Pick **setupSupport** in the function menu → **Run** → allow Google Drive (it makes a private
+   "ScamSense Support Photos" folder and the Cases, Messages, and Quick replies tabs).
+2. Deploy a new version (below).
+
+Alerts to you: an email for every new case and new message (at most one every 10 minutes per case).
+Optional text to your phone for new and urgent cases: add Script Properties `OWNER_PHONE` (your number)
+and `TWILIO_FROM` (a Twilio phone number you own). Texts need Twilio's US texting registration (A2P 10DLC).
+
 ## Safety
 
 - The key never reaches the app or the browser.

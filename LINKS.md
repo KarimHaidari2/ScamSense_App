@@ -31,6 +31,7 @@ Where to paste the code: https://script.google.com (open the script with the mat
 | `setupServer` | Run once. Makes your **ScamSense Owner Dashboard** Google Sheet (Users, Activity, Alerts) and the 8 AM report timer for every user. The log shows the Sheet's link. |
 | `sendReportsNow` | Sends every user their daily report right now (for testing) |
 | `sendWeeklyNow` | Sends you this week's owner summary right now (it also comes every Monday at 8 AM) |
+| `setupSupport` | Run once (asks for Google Drive). Makes the **Cases**, **Messages**, and **Quick replies** tabs and the private photo folder for live help |
 | `writeServicesTab` | Adds or refreshes the **Services** tab in the dashboard: every outside service, why we use it, and what it costs |
 
 ## Daily Report: what to run

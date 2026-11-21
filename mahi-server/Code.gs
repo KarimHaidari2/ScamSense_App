@@ -28,6 +28,7 @@
      7. Alerts        danger emails to the owner and family
      8. Reports       the daily email to every user, and "email me"
      9. Owner         weekly summary, welcome email, follow-up, blocking
+    11. Support       live help: cases, messages, photos, quick replies
    ======================================================================== */
 
 /* ========================================================================
@@ -68,6 +69,7 @@ function doPost(e) {
     if (req.mode === "phone_start") return json(phoneStart(req));
     if (req.mode === "phone_confirm") return json(phoneConfirm(req));
     if (req.mode === "owner") return json(ownerApi(req));
+    if (req.mode === "support") return json(supportApi(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -634,6 +636,11 @@ function saveEvents(req) {
             ? "was about to pay a scammer. ScamSense told them to stop"
             : "";
     if (danger) dangerAlert(u, danger);
+    const kind = e.t === "scammed" ? "scammed" : e.t === "pause" && e.o === "paid" ? "paid" : e.t === "pause" && e.l === "scam" ? "stop" : "";
+    if (kind)
+      try {
+        supportFromDanger(u, kind);
+      } catch (err) {}
   });
   return { ok: true, saved: evs.length };
 }
@@ -1009,6 +1016,9 @@ function ownerApi(req) {
     if (role !== "owner") return { error: "Only the owner can change the team." };
     return a === "team_add" ? teamAdd(who, req.email, req.role) : teamRemove(who, req.email);
   }
+  if (/^(cases|case|case_photo|quick_list|reply|case_note|case_status|case_priority)$/.test(a))
+    return ownerSupport(who, role, req);
+  if (a === "quick_save") return role === "viewer" ? { error: "Viewers can't change quick replies." } : quickSave(req.quick);
   if (role === "viewer") return { error: "Viewers can look, but can't make changes." };
   const u = findUser(req.uid);
   if (!u) return { error: "Couldn't find that person." };
@@ -1127,7 +1137,8 @@ function ownerOverview(who) {
       { name: "Owner Dashboard spreadsheet", ok: true, link: getDb().getUrl() },
       { name: "Automatic removal (Optery)", ok: has("REMOVAL_PARTNER_KEY"), note: "planned", link: "https://www.optery.com/api" }
     ],
-    sheetUrl: getDb().getUrl()
+    sheetUrl: getDb().getUrl(),
+    support: supportCounts()
   };
 }
 
@@ -1525,3 +1536,564 @@ function domainAges(list) {
   return out;
 }
 
+
+/* ========================================================================
+   11. SUPPORT — live help between a person and the ScamSense team
+   A "case" is one conversation. The person writes from the app (Talk to the ScamSense team);
+   the team answers from the Owner page. Messages live in the Owner Dashboard spreadsheet
+   ("Cases" and "Messages" tabs); photos live in a private Google Drive folder.
+   A case opens by itself when someone says they were scammed or already paid.
+   Team notes ("note") and shared emails are kept with the case, so every step is on record.
+   Run setupSupport once after pasting this code (it asks for Google Drive permission).
+   ======================================================================== */
+
+const SUPPORT = {
+  MAX_MESSAGES_PER_DAY: 120, // per person
+  MAX_PHOTOS_PER_DAY: 20, // per person
+  MAX_NEW_CASES_PER_DAY: 5, // per person
+  PHOTO_MAX_BYTES: 4000000,
+  TEAM_EMAIL_EVERY_MIN: 10, // at most one "new message" email per case this often (new cases always email)
+  PERSON_EMAIL_EVERY_MIN: 20 // at most one "the team answered" email to the person this often
+};
+const CASE_COLS = [
+  "Case ID",
+  "Opened",
+  "User ID",
+  "Name",
+  "Email",
+  "Reason",
+  "Priority",
+  "Status", // new, open, waiting (for the person), closed
+  "Last update",
+  "Last message",
+  "Team unread",
+  "Person unread",
+  "Closed",
+  "Outcome"
+];
+const MSG_COLS = ["Time", "Case ID", "From", "Who", "Text", "Photo", "Email"];
+const REASONS = {
+  person: "Asked to talk to a person",
+  scammed: "Said they were scammed",
+  paid: "Said they already paid someone who may be a scammer",
+  stop: "Was about to pay a scammer",
+  email: "Shared an email for help",
+  other: "Needs help"
+};
+const URGENT_REASONS = ["scammed", "paid", "stop"];
+const QUICK_DEFAULT = [
+  [
+    "Hello",
+    "Hi, this is the ScamSense team. I'm here to help. Can you tell me what happened, in your own words?"
+  ],
+  [
+    "Don't pay, don't reply",
+    "Please don't pay anything, don't click any links, and don't reply to them. Real companies and the government never rush you or ask for gift cards, crypto, or wire transfers."
+  ],
+  [
+    "Call your bank now",
+    "If you sent money or shared card details, please call your bank now. Use the number on the back of your card, not a number from the message. Ask them to stop the payment and to watch your account."
+  ],
+  [
+    "Change your password",
+    "Please change your password for that account now, and turn on 2-step verification. If you used the same password anywhere else, change it there too."
+  ],
+  [
+    "Send a screenshot",
+    "Can you send me a screenshot or a photo of the message? Tap the photo button next to the message box."
+  ],
+  [
+    "Report to the FTC",
+    "Please report it to the FTC at ReportFraud.ftc.gov. It's free and takes about 10 minutes. ScamSense's \"I was scammed\" page can fill in most of it for you."
+  ],
+  [
+    "Gift cards",
+    "If you paid with gift cards, call the number on the back of each card right away and tell them it was a scam. Keep the cards and the receipts."
+  ],
+  [
+    "Freeze your credit",
+    "To be safe, you can freeze your credit for free at Equifax, Experian, and TransUnion. It stops anyone from opening new accounts in your name."
+  ],
+  ["It's safe", "Good news: I checked it and it's real, not a scam. You can go ahead."],
+  [
+    "Closing",
+    "I'm glad we could help. If anything else comes up, just write here anytime. Stay safe!"
+  ]
+];
+
+// Run once: makes the Cases, Messages, and Quick replies tabs and the private photo folder.
+function setupSupport() {
+  casesSheet();
+  msgsSheet();
+  quickSheet();
+  console.log("Support is ready. Photo folder: " + photoFolder().getUrl());
+}
+function supportSheet(name, cols) {
+  const db = getDb();
+  let sh = db.getSheetByName(name);
+  if (!sh) {
+    sh = db.insertSheet(name);
+    sh.appendRow(cols);
+    sh.getRange(1, 1, 1, cols.length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+const casesSheet = () => supportSheet("Cases", CASE_COLS);
+const msgsSheet = () => supportSheet("Messages", MSG_COLS);
+function quickSheet() {
+  const sh = supportSheet("Quick replies", ["Title", "Message"]);
+  if (sh.getLastRow() < 2) sh.getRange(2, 1, QUICK_DEFAULT.length, 2).setValues(QUICK_DEFAULT);
+  return sh;
+}
+function photoFolder() {
+  const p = PropertiesService.getScriptProperties();
+  const id = p.getProperty("SUPPORT_FOLDER");
+  if (id) {
+    try {
+      return DriveApp.getFolderById(id);
+    } catch (e) {}
+  }
+  const f = DriveApp.createFolder("ScamSense Support Photos (private)");
+  p.setProperty("SUPPORT_FOLDER", f.getId());
+  return f;
+}
+
+function allCases() {
+  const sh = casesSheet();
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh
+    .getRange(2, 1, n, CASE_COLS.length)
+    .getValues()
+    .map((r, i) => {
+      const c = { row: i + 2 };
+      CASE_COLS.forEach((k, j) => (c[k] = r[j]));
+      return c;
+    });
+}
+function saveCase(c) {
+  casesSheet()
+    .getRange(c.row, 1, 1, CASE_COLS.length)
+    .setValues([CASE_COLS.map(k => (c[k] === undefined ? "" : c[k]))]);
+}
+const caseById = id => allCases().find(c => c["Case ID"] === id);
+const casesOf = key => allCases().filter(c => c["User ID"] === key);
+const openCaseOf = key =>
+  casesOf(key)
+    .reverse()
+    .find(c => c.Status !== "closed");
+
+function caseMessages(id, withNotes) {
+  const sh = msgsSheet();
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh
+    .getRange(2, 1, n, MSG_COLS.length)
+    .getValues()
+    .filter(r => r[1] === id && (withNotes || r[2] !== "note"))
+    .map(r => {
+      let email = null;
+      try {
+        email = r[6] ? JSON.parse(r[6]) : null;
+      } catch (e) {}
+      return { t: iso(r[0]), from: r[2], who: r[3], text: r[4], photo: r[5], email };
+    });
+}
+
+function newCase(key, u, reason, name) {
+  const c = {
+    "Case ID":
+      "C" + Utilities.formatDate(new Date(), "UTC", "yyMMdd") + "-" + Utilities.getUuid().slice(0, 4).toUpperCase(),
+    Opened: new Date(),
+    "User ID": key,
+    Name: (u && fullName(u)) || cleanText(name, 60) || "Someone (not signed in)",
+    Email: (u && u.Email) || "",
+    Reason: REASONS[reason] || REASONS.other,
+    Priority: URGENT_REASONS.indexOf(reason) >= 0 ? "urgent" : "normal",
+    Status: "new",
+    "Team unread": 0,
+    "Person unread": 0
+  };
+  const sh = casesSheet();
+  sh.appendRow(CASE_COLS.map(k => (c[k] === undefined ? "" : c[k])));
+  c.row = sh.getLastRow();
+  return c;
+}
+
+// Adds one message. from: user | owner | system | note | email
+function addMessage(c, from, who, text, photo, email) {
+  msgsSheet().appendRow([
+    new Date(),
+    c["Case ID"],
+    from,
+    who || "",
+    String(text || "").slice(0, 4000),
+    photo || "",
+    email ? JSON.stringify(email) : ""
+  ]);
+  c["Last update"] = new Date();
+  if (from !== "note")
+    c["Last message"] =
+      (from === "owner" ? "Team: " : "") +
+      (text ? String(text).slice(0, 140) : photo ? "(photo)" : email ? "(shared an email: " + email.subject + ")" : "");
+  if (from === "user" || from === "email") c["Team unread"] = (+c["Team unread"] || 0) + 1;
+  if (from === "owner") c["Person unread"] = (+c["Person unread"] || 0) + 1;
+  saveCase(c);
+}
+
+function savePhoto(c, dataUrl) {
+  const m = /^data:(image\/(jpeg|png|webp));base64,([A-Za-z0-9+/=]+)$/.exec(String(dataUrl || ""));
+  if (!m) return { error: "That photo couldn't be read. Please try another one." };
+  const bytes = Utilities.base64Decode(m[3]);
+  if (bytes.length > SUPPORT.PHOTO_MAX_BYTES) return { error: "That photo is too big. Please try a smaller one." };
+  const ext = m[2] === "jpeg" ? "jpg" : m[2];
+  const f = photoFolder().createFile(
+    Utilities.newBlob(bytes, m[1], c["Case ID"] + "-" + Date.now() + "." + ext)
+  );
+  return { id: f.getId() };
+}
+function photoData(id) {
+  const b = DriveApp.getFileById(id).getBlob();
+  return "data:" + b.getContentType() + ";base64," + Utilities.base64Encode(b.getBytes());
+}
+// Which case a photo belongs to (so people can only see photos from their own case).
+function caseOfPhoto(id) {
+  const sh = msgsSheet();
+  const n = sh.getLastRow() - 1;
+  if (n < 1 || !/^[A-Za-z0-9_-]{10,80}$/.test(String(id || ""))) return "";
+  const r = sh
+    .getRange(2, 1, n, MSG_COLS.length)
+    .getValues()
+    .find(x => x[5] === id);
+  return r ? r[1] : "";
+}
+
+function cleanSharedEmail(e) {
+  if (!e || typeof e !== "object") return null;
+  const o = {
+    from: cleanText(e.from, 200),
+    subject: cleanText(e.subject, 300),
+    date: cleanText(e.date, 60),
+    verdict: cleanText(e.verdict, 40),
+    reasons: [].concat(e.reasons || []).slice(0, 6).map(x => cleanText(x, 300)),
+    text: String(e.text || "").replace(/\u0000/g, "").slice(0, 8000)
+  };
+  return o.subject || o.text ? o : null;
+}
+const pubCase = c => ({
+  id: c["Case ID"],
+  status: c.Status,
+  opened: iso(c.Opened),
+  reason: c.Reason,
+  priority: c.Priority
+});
+// What the person sees: the team's name is "ScamSense team", and team-only notes are never sent.
+const pubMsg = m => ({
+  t: m.t,
+  from: m.from,
+  who: m.from === "owner" ? "ScamSense team" : "",
+  text: m.text,
+  photo: m.photo,
+  email: m.email
+});
+
+/* ----- the person's side (from the app) ----- */
+function supportApi(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const u = findUser(req.uid);
+  const key = u ? u["User ID"] : req.uid;
+  const a = String(req.action || "poll");
+  if (a === "poll") return supportPoll(key);
+  if (a === "photo") {
+    const cid = caseOfPhoto(req.id);
+    const c = cid && caseById(cid);
+    if (!c || c["User ID"] !== key) return { error: "That photo isn't available." };
+    return { ok: true, data: photoData(req.id) };
+  }
+  if (a !== "send" && a !== "open") return { error: "Unknown action." };
+  const text = String(req.text || "").slice(0, 4000).trim();
+  const email = cleanSharedEmail(req.email);
+  if (!text && !req.photo && !email && a === "send") return { error: "Write a message first." };
+  if (!takeQuota("sup:" + key, SUPPORT.MAX_MESSAGES_PER_DAY))
+    return { error: "You've sent a lot of messages today. The team will read them and answer soon." };
+  if (req.photo && !takeQuota("supph:" + key, SUPPORT.MAX_PHOTOS_PER_DAY))
+    return { error: "That's the most photos for today. Please describe it in words, or try again tomorrow." };
+  const reason = REASONS[req.reason] ? req.reason : email ? "email" : "person";
+  let c,
+    isNew = false;
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    c = openCaseOf(key);
+    if (!c) {
+      if (!takeQuota("supopen:" + key, SUPPORT.MAX_NEW_CASES_PER_DAY))
+        return { error: "Please write in your open conversation." };
+      c = newCase(key, u, reason, req.name);
+      isNew = true;
+      addMessage(c, "system", "", REASONS[reason]);
+    } else if (URGENT_REASONS.indexOf(reason) >= 0 && c.Priority !== "urgent") {
+      c.Priority = "urgent";
+      addMessage(c, "system", "", REASONS[reason]);
+    }
+    if (c.Status === "waiting") c.Status = "open";
+    let photo = "";
+    if (req.photo) {
+      const p = savePhoto(c, req.photo);
+      if (p.error) return p;
+      photo = p.id;
+    }
+    if (email) addMessage(c, "email", c.Name, "", "", email);
+    if (text || photo) addMessage(c, "user", c.Name, text, photo);
+  } finally {
+    lock.releaseLock();
+  }
+  notifyTeam(c, isNew, text || (email ? "Shared an email: " + email.subject : photo ? "Sent a photo" : c.Reason));
+  return supportPoll(key);
+}
+function supportPoll(key) {
+  const list = casesOf(key);
+  const c = list.reverse().find(x => x.Status !== "closed") || list[0];
+  if (!c) return { ok: true, case: null, messages: [] };
+  if (+c["Person unread"]) {
+    c["Person unread"] = 0;
+    saveCase(c);
+  }
+  return { ok: true, case: pubCase(c), messages: caseMessages(c["Case ID"], false).map(pubMsg) };
+}
+
+// A danger event (scammed, already paid, about to pay) opens an urgent case by itself.
+function supportFromDanger(u, kind) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  let c,
+    isNew = false;
+  try {
+    const key = u["User ID"];
+    c = openCaseOf(key);
+    if (!c) {
+      c = newCase(key, u, kind);
+      isNew = true;
+    }
+    c.Priority = "urgent";
+    if (c.Status === "waiting") c.Status = "open";
+    addMessage(c, "system", "", REASONS[kind] + " (ScamSense opened this case by itself)");
+  } finally {
+    lock.releaseLock();
+  }
+  notifyTeam(c, isNew, REASONS[kind], { noEmail: true }); // the danger alert email already went out
+}
+
+/* ----- telling people ----- */
+function notifyTeam(c, isNew, preview, opt) {
+  opt = opt || {};
+  const cache = CacheService.getScriptCache();
+  const k = "supnote:" + c["Case ID"];
+  if (!isNew && cache.get(k)) return;
+  cache.put(k, "1", SUPPORT.TEAM_EMAIL_EVERY_MIN * 60);
+  const urgent = c.Priority === "urgent";
+  const link = OWNER.APP_URL + "owner.html#case/" + encodeURIComponent(c["Case ID"]);
+  const subject = (urgent ? "URGENT: " : "") + (isNew ? "New case: " : "New message: ") + c.Name + " — " + c.Reason;
+  if (!opt.noEmail)
+    ownerEmails()
+      .slice(0, 5)
+      .forEach(to => {
+        try {
+          MailApp.sendEmail({
+            to,
+            subject,
+            body: `${c.Name}: ${preview}\n\nOpen the case: ${link}`,
+            htmlBody: mailShell(
+              `<div style="border-top:6px solid ${urgent ? "#B42318" : "#14213D"};padding:22px">
+                <div style="font-size:20px;font-weight:800;color:#111827">${esc(c.Name)}${urgent ? " may be in danger" : " needs help"}</div>
+                <p style="font-size:15px;color:#5F6673;margin:6px 0 14px">${esc(c.Reason)} · case ${esc(c["Case ID"])}</p>
+                <div style="background:#F4F5F8;border-radius:12px;padding:14px 16px;font-size:16px;line-height:1.5;color:#111827;white-space:pre-wrap">${esc(preview)}</div>
+                <div style="text-align:center;margin-top:18px"><a href="${link}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open the case</a></div>
+              </div>`,
+              "You get this because you're on the ScamSense team."
+            ),
+            name: "ScamSense Cases"
+          });
+        } catch (e) {}
+      });
+  if (isNew || urgent) textOwner((urgent ? "URGENT " : "") + "ScamSense: " + c.Name + " — " + c.Reason + ". " + link);
+}
+// A text to the owner's phone, when Script Properties OWNER_PHONE and TWILIO_FROM (a Twilio number) are set.
+function textOwner(msg) {
+  const p = PropertiesService.getScriptProperties();
+  const to = usPhone(p.getProperty("OWNER_PHONE")),
+    from = p.getProperty("TWILIO_FROM"),
+    sid = p.getProperty("TWILIO_ACCOUNT_SID"),
+    tok = p.getProperty("TWILIO_AUTH_TOKEN");
+  if (!to || !from || !sid || !tok) return;
+  try {
+    const r = UrlFetchApp.fetch("https://api.twilio.com/2010-04-01/Accounts/" + sid + "/Messages.json", {
+      method: "post",
+      payload: { To: to, From: from, Body: msg.slice(0, 300) },
+      headers: { Authorization: "Basic " + Utilities.base64Encode(sid + ":" + tok) },
+      muteHttpExceptions: true
+    });
+    if (r.getResponseCode() < 300) bump("SMS");
+    else console.log("Owner text failed: " + r.getContentText().slice(0, 200));
+  } catch (e) {}
+}
+function notifyPerson(c, preview) {
+  if (!c.Email) return;
+  const u = findUser(c["User ID"]);
+  if (!u || u["Email verified"] !== "yes") return;
+  const cache = CacheService.getScriptCache();
+  const k = "supperson:" + c["Case ID"];
+  if (cache.get(k)) return;
+  cache.put(k, "1", SUPPORT.PERSON_EMAIL_EVERY_MIN * 60);
+  const link = OWNER.APP_URL + "#support";
+  try {
+    MailApp.sendEmail({
+      to: u.Email,
+      replyTo: OWNER.EMAIL,
+      subject: "The ScamSense team answered you",
+      body: `${preview}\n\nOpen ScamSense to answer: ${link}`,
+      htmlBody: mailShell(
+        `<div style="padding:22px">
+          <div style="font-size:20px;font-weight:800;color:#111827">The ScamSense team answered you</div>
+          <div style="background:#F4F5F8;border-radius:12px;padding:14px 16px;margin-top:12px;font-size:16px;line-height:1.5;color:#111827;white-space:pre-wrap">${esc(preview)}</div>
+          <div style="text-align:center;margin-top:18px"><a href="${link}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open ScamSense to answer</a></div>
+        </div>`
+      ),
+      name: "ScamSense"
+    });
+  } catch (e) {}
+}
+
+/* ----- the team's side (from the Owner page) ----- */
+function supportCounts() {
+  const open = allCases().filter(c => c.Status !== "closed");
+  return {
+    open: open.length,
+    unread: open.filter(c => +c["Team unread"] > 0).length,
+    urgent: open.filter(c => c.Priority === "urgent").length
+  };
+}
+function ownerSupport(who, role, req) {
+  const a = req.action;
+  if (a === "cases")
+    return {
+      ok: true,
+      cases: allCases()
+        .reverse()
+        .slice(0, 400)
+        .map(c => {
+          const o = {};
+          CASE_COLS.forEach(k => (o[k] = iso(c[k])));
+          return o;
+        }),
+      counts: supportCounts()
+    };
+  if (a === "quick_list") return { ok: true, quick: quickList() };
+  if (a === "case_photo") {
+    if (!caseOfPhoto(req.id)) return { error: "That photo isn't available." };
+    return { ok: true, data: photoData(req.id) };
+  }
+  const c = caseById(String(req.caseId || ""));
+  if (!c) return { error: "Couldn't find that case." };
+  if (a === "case") {
+    if (+c["Team unread"] && role !== "viewer") {
+      c["Team unread"] = 0;
+      saveCase(c);
+    }
+    return caseView(c);
+  }
+  if (role === "viewer") return { error: "Viewers can read cases, but can't answer." };
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  let did = "";
+  try {
+    if (a === "reply") {
+      const text = String(req.text || "").slice(0, 4000).trim();
+      let photo = "";
+      if (req.photo) {
+        const p = savePhoto(c, req.photo);
+        if (p.error) return p;
+        photo = p.id;
+      }
+      if (!text && !photo) return { error: "Write a message first." };
+      if (c.Status === "new") c.Status = "open";
+      addMessage(c, "owner", who, text, photo);
+      did = "Answered case " + c["Case ID"];
+      notifyPerson(c, text || "The ScamSense team sent you a photo.");
+    } else if (a === "case_note") {
+      const text = String(req.text || "").slice(0, 4000).trim();
+      if (!text) return { error: "Write the note first." };
+      addMessage(c, "note", who, text);
+      did = "Added a note to case " + c["Case ID"];
+    } else if (a === "case_status") {
+      const s = String(req.status || "");
+      if (["open", "waiting", "closed"].indexOf(s) < 0) return { error: "Unknown status." };
+      c.Status = s;
+      if (s === "closed") {
+        c.Closed = new Date();
+        c.Outcome = cleanText(req.outcome, 500);
+        c["Team unread"] = 0;
+        addMessage(c, "note", who, "Closed the case" + (c.Outcome ? ": " + c.Outcome : ""));
+        addMessage(
+          c,
+          "system",
+          "",
+          "The ScamSense team closed this conversation. If you need anything else, just write here."
+        );
+      } else {
+        c.Closed = "";
+        addMessage(c, "note", who, s === "waiting" ? "Waiting for the person to answer" : "Opened the case again");
+      }
+      did = "Case " + c["Case ID"] + ": " + s;
+    } else if (a === "case_priority") {
+      c.Priority = req.priority === "urgent" ? "urgent" : "normal";
+      addMessage(c, "note", who, "Marked " + c.Priority);
+      did = "Case " + c["Case ID"] + ": " + c.Priority;
+    } else return { error: "Unknown action." };
+  } finally {
+    lock.releaseLock();
+  }
+  ownerLog(who, did, findUser(c["User ID"]) || { "First name": c.Name, Email: c.Email });
+  return Object.assign({ done: did }, caseView(caseById(c["Case ID"])));
+}
+function caseView(c) {
+  const o = {};
+  CASE_COLS.forEach(k => (o[k] = iso(c[k])));
+  const u = findUser(c["User ID"]);
+  const person = u
+    ? {
+        uid: u["User ID"],
+        name: fullName(u),
+        email: u.Email || "",
+        verified: u["Email verified"] === "yes",
+        family: String(u["Trusted people"] || ""),
+        language: u.Language || "",
+        lastActive: iso(u["Last active"]),
+        scams: +u["Scams caught"] || 0
+      }
+    : null;
+  const others = casesOf(c["User ID"])
+    .filter(x => x["Case ID"] !== c["Case ID"])
+    .map(x => ({ id: x["Case ID"], opened: iso(x.Opened), reason: x.Reason, status: x.Status }));
+  return { ok: true, case: o, messages: caseMessages(c["Case ID"], true), person, others };
+}
+function quickList() {
+  const sh = quickSheet();
+  return sh
+    .getRange(2, 1, sh.getLastRow() - 1, 2)
+    .getValues()
+    .filter(r => r[0] && r[1])
+    .map(r => ({ title: String(r[0]), text: String(r[1]) }));
+}
+function quickSave(list) {
+  const rows = []
+    .concat(list || [])
+    .slice(0, 40)
+    .map(q => [cleanText(q.title, 60), String(q.text || "").slice(0, 2000).trim()])
+    .filter(r => r[0] && r[1]);
+  if (!rows.length) return { error: "Add at least one quick reply." };
+  const sh = quickSheet();
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).clearContent();
+  sh.getRange(2, 1, rows.length, 2).setValues(rows);
+  return { ok: true, quick: quickList(), done: "Saved quick replies" };
+}

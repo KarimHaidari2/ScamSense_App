@@ -18,6 +18,7 @@ const TAB_OF = {
   helper: "today",
   cleanup: "cleanup",
   whatsnew: "settings",
+  support: "today",
   family: "family",
   settings: "settings",
   plans: "settings",
@@ -164,7 +165,7 @@ const Fab = (() => {
     const label = tr("Ask Mahi", "Pregúntele a Mahi");
     document.getElementById("agentfab-l").textContent = label;
     b.setAttribute("aria-label", label + " — " + tr("drag to move", "arrastre para mover"));
-    b.hidden = tab === "helper";
+    b.hidden = tab === "helper" || tab === "support";
     if (!b.hidden) requestAnimationFrame(restore);
   }
   return { update };
@@ -174,6 +175,8 @@ function go(tab) {
   clearInterval(stillTimer);
   if (typeof simClear === "function") simClear();
   tab = OLD_SCREENS[tab] || tab;
+  const sb = document.getElementById("supbanner");
+  if (sb && tab === "support") sb.remove();
   useHero(false); // Home, Family and Settings turn the navy top panel back on
   document.body.classList.remove("navhide"); // a new screen always shows the tab bar
   const top = TAB_OF[tab] || "today";
@@ -198,7 +201,8 @@ function go(tab) {
       settings: renderSettings,
       share: renderShare,
       cleanup: renderCleanup,
-      whatsnew: renderWhatsNew
+      whatsnew: renderWhatsNew,
+      support: renderSupport
     })[tab] || renderToday
   )();
   window.scrollTo(0, 0);

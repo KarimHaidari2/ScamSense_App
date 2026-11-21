@@ -515,6 +515,7 @@ function renderScammed() {
   const chk = k =>
     `<label class="checkrow"><input type="checkbox" value="${k}" ${s.what.includes(k) ? "checked" : ""}> ${t("w_" + k)}</label>`;
   view.innerHTML = `${pageHead(t("s_title"), t("s_sub"), "today")}
+  ${serverOn() ? `<section class="card teamcard"><div><b>${tr("Talk to a real person", "Hable con una persona real")}</b><span class="small">${tr("The ScamSense team has been told. Write to them here, with photos if you have them.", "El equipo de ScamSense ya lo sabe. Escríbales aquí, con fotos si tiene.")}</span></div><button class="btn primary sm" id="steam">${tr("Talk to the team", "Hablar con el equipo")}</button></section>` : ""}
   <section class="card">
     <div class="example-box"><div><b>${tr("See how it works", "Vea cómo funciona")}</b><span class="small">${tr('Fill in a made-up case: a fake "Chase Fraud Department" call, with sample screenshots.', 'Llene un caso inventado: una llamada falsa del "Departamento de Fraude de Chase", con capturas de ejemplo.')}</span></div>
       <button class="btn ghost sm" id="sexample">${tr("Try an example", "Probar un ejemplo")}</button></div>
@@ -544,6 +545,8 @@ function renderScammed() {
     <button class="btn primary" id="sgo">${tr("Make my plan and documents", "Crear mi plan y documentos")}</button></section><section id="splan" aria-live="polite"></section>`;
   bindBack();
   document.getElementById("sgo").onclick = () => buildPlan(true);
+  const steam = document.getElementById("steam");
+  if (steam) steam.onclick = () => openSupport("scammed");
   document.getElementById("sexample").onclick = loadExample;
   const sclr = document.getElementById("sclear");
   if (sclr)

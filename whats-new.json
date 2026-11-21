@@ -2,6 +2,19 @@
   "note": "What's new in ScamSense. Newest first. Each item: date, kind (new | better | fixed), icon, en, es. The app shows a 'New' badge for items newer than the last time the person opened this page.",
   "items": [
     {
+      "date": "2026-11-21",
+      "kind": "new",
+      "icon": "msg",
+      "en": {
+        "title": "Talk to a real person",
+        "text": "Write to the ScamSense team right in the app, and send a photo or screenshot. A real person answers here, and you get an email when they do. You can also send any email to the team with one tap."
+      },
+      "es": {
+        "title": "Hable con una persona real",
+        "text": "Escriba al equipo de ScamSense en la app y envíe una foto o captura. Una persona real responde aquí, y le llega un correo cuando lo hace. También puede enviar cualquier correo al equipo con un toque."
+      }
+    },
+    {
       "date": "2026-11-20",
       "kind": "better",
       "icon": "shield",
