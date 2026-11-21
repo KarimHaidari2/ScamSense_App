@@ -1854,6 +1854,9 @@ const OWN_SENDERS = ["karimhaidari321@gmail.com", "scamsense.karim@outlook.com"]
 // A sender name that's only a role ("Package_Tracking", "MyParcel", "Storage Warning") and no company.
 const GENERIC_NAME =
   /^(my ?)?(package|parcel|shipment|shipping|delivery|tracking|order|storage|cloud|photos?|account|security)([\s_-]*(tracking|warning|alert|notice|update|status|center|centre|team|service|confirmation))*[\s\W]*$/iu;
+// Scam stories that no "Unsubscribe" link or earlier mail from the same sender makes OK.
+const CONTENT_SCAM =
+  /job you never applied|trabajo que nunca solicitó|love or marriage|amor o matrimonio|photos or files unless|fotos o archivos si no|credit card or loan out of nowhere|tarjeta de crédito o préstamo de la nada|instead of a real store|en vez del nombre de una tienda/i;
 // Filler that scammers add to subjects to beat spam filters.
 const JUNK_TAG = /_{3,}|\w\.\.\w+\.\.\w|[*~]{1,2}[a-z0-9]{2,4}\s*$|[a-z]![a-z]{2,}/i;
 const SHORT = /^(bit\.ly|tinyurl\.com|t\.co|rb\.gy|is\.gd|cutt\.ly|ow\.ly|shorturl\.at|tiny\.cc|s\.id)$/;
@@ -2187,7 +2190,7 @@ function analyze(msg) {
     const legitBrand = !FREE_MAIL.test(dom) && Object.keys(BRANDS).some(b => legitFor(b, dom));
     if (legitBrand && /dmarc=pass|dkim=pass/.test(auth)) trusted = true;
     if (trusted) score = Math.max(0, score - 5);
-    else if (msg.listUnsub && /dmarc=pass/.test(auth) && score < 8) score = Math.max(0, score - 2);
+    else if (msg.listUnsub && /dmarc=pass/.test(auth) && score < 8 && !CONTENT_SCAM.test(reasons.join("|"))) score = Math.max(0, score - 2);
   }
   // A real sweepstakes from a signed company email (official rules, no purchase necessary) isn't a prize scam.
   if (
@@ -2244,9 +2247,11 @@ function applyEvidence(local, ev, auth) {
   // Earlier mail from this address only fully counts when this email passed the sender check (DMARC).
   // Scammers can fake any "From" address, even your own, but they can't pass that check.
   const spoofable = !signed || /dmarc=(fail|none)/i.test(auth || "");
+  // Getting the same job offer or "package update" before doesn't make it real.
+  const contentScam = r.reasons.some(x => CONTENT_SCAM.test(x));
   if (ev.history > 0) {
-    r.score = Math.max(0, r.score - (spoofable ? 2 : 6));
-    if (!spoofable) r.known = true;
+    r.score = Math.max(0, r.score - (contentScam ? 0 : spoofable ? 2 : 6));
+    if (!spoofable && !contentScam) r.known = true;
   }
   if (ev.age != null) {
     if (ev.age < 30) {
@@ -2271,7 +2276,7 @@ function applyEvidence(local, ev, auth) {
   // sorted by Gmail into Promotions/Updates/Social) can't be flagged on words alone. Only hard proof
   // (a fake link, a brand-new website, a look-alike name...) can do that.
   const established =
-    signed && !spoofable && !r.freeMail && (ev.history > 0 || ev.category || (ev.age != null && ev.age >= 365));
+    signed && !spoofable && !contentScam && !r.freeMail && (ev.history > 0 || ev.category || (ev.age != null && ev.age >= 365));
   if (established && !hardEvidence(r, auth)) {
     r.verifiedSender = true;
     r.score = Math.min(r.score, ev.history > 0 || ev.category ? 3 : 7);

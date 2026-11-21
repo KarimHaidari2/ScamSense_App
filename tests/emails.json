@@ -521,5 +521,38 @@
     "auth": "spf=fail dkim=none dmarc=fail",
     "history": 0,
     "age": null
+  },
+  {
+    "name": "Repeat job spam with unsubscribe and history",
+    "label": "scam",
+    "from": "Work in Canada <jobs@employmentboom.com>",
+    "subject": "Limited spots for Free job candidates this week",
+    "text": "Apply now.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "unsub": true,
+    "history": 2,
+    "age": null
+  },
+  {
+    "name": "Package_Tracking with unsubscribe",
+    "label": "scam",
+    "from": "Package_Tracking 📦 <package@us.lambdaaspa.com>",
+    "subject": "Your Shipment Has Been Updated",
+    "text": "See your shipment.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "unsub": true,
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Real LinkedIn job alert",
+    "label": "real",
+    "from": "LinkedIn Job Alerts <jobalerts-noreply@linkedin.com>",
+    "subject": "New jobs for you: IT Security Analyst",
+    "text": "You've been selected for a position match. Apply on LinkedIn.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "unsub": true,
+    "history": 3,
+    "age": null
   }
 ]
