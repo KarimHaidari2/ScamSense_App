@@ -37,6 +37,8 @@ function renderSettings() {
       )
       .join("")}</ul></section>
 
+  <section class="sect"><div class="group">${newsRowHTML()}</div></section>
+
   <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">
     ${emailAccountsHTML()}
     <details class="grow col fold" id="blockedfold"><summary>${lead("shield", "l-red")}<span class="gl"><b>${tr("Blocked senders", "Remitentes bloqueados")} (${S.get("blockedSenders", []).length})</b><span>${tr("Emails from these addresses skip your inbox.", "Los correos de estas direcciones no llegan a su bandeja.")}</span></span>${ic("chev", "chev")}</summary><div class="fold-body">${blockedSendersHTML()}</div></details></div></section>

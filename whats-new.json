@@ -1,0 +1,96 @@
+{
+  "note": "What's new in ScamSense. Newest first. Each item: date, kind (new | better | fixed), icon, en, es. The app shows a 'New' badge for items newer than the last time the person opened this page.",
+  "items": [
+    {
+      "date": "2026-11-20",
+      "kind": "better",
+      "icon": "shield",
+      "en": { "title": "Smarter about real companies", "text": "Verified emails from well-known companies like Amazon, Spark, your bank, and from universities and government are no longer flagged just because of words like \"act now\" or \"verify\". Only real proof of a fake can flag them." },
+      "es": { "title": "Más inteligente con empresas reales", "text": "Los correos verificados de empresas conocidas como Amazon, Spark, su banco, y de universidades y el gobierno ya no se marcan solo por palabras como \"actúe ahora\" o \"verifique\". Solo una prueba real de engaño puede marcarlos." }
+    },
+    {
+      "date": "2026-11-20",
+      "kind": "fixed",
+      "icon": "check",
+      "en": { "title": "Fewer false alarms", "text": "Store promotions that mention gift cards (like Macy's) and company partners (like Amazon Flex statements from Green Dot) are now recognized as real. We checked 500 real emails: none were wrongly flagged." },
+      "es": { "title": "Menos falsas alarmas", "text": "Las promociones de tiendas que mencionan tarjetas de regalo (como Macy's) y los socios de empresas (como los estados de Amazon Flex de Green Dot) ahora se reconocen como reales. Revisamos 500 correos reales: ninguno se marcó por error." }
+    },
+    {
+      "date": "2026-11-19",
+      "kind": "new",
+      "icon": "lock",
+      "en": { "title": "Sign in with Google or Outlook", "text": "ScamSense now starts with a secure sign-in. Google or Microsoft confirm it's you, and ScamSense never sees your password. You can change the language right on that screen." },
+      "es": { "title": "Inicie sesión con Google u Outlook", "text": "ScamSense ahora empieza con un inicio de sesión seguro. Google o Microsoft confirman que es usted y ScamSense nunca ve su contraseña. Puede cambiar el idioma en esa misma pantalla." }
+    },
+    {
+      "date": "2026-11-19",
+      "kind": "new",
+      "icon": "eyeoff",
+      "en": { "title": "New tab: My info", "text": "See if your email was in a data leak, and what's public about your phone number. Then remove yourself from people-search sites, one site at a time." },
+      "es": { "title": "Nueva pestaña: Mis datos", "text": "Vea si su correo estuvo en una filtración y qué es público sobre su teléfono. Luego quítese de los sitios de búsqueda de personas, un sitio a la vez." }
+    },
+    {
+      "date": "2026-11-19",
+      "kind": "new",
+      "icon": "phone",
+      "en": { "title": "Phone number check", "text": "ScamSense texts you a code first, so only you can check your own number. It never shows a past owner's information." },
+      "es": { "title": "Revisión del teléfono", "text": "ScamSense primero le envía un código por texto, para que solo usted pueda revisar su propio número. Nunca muestra la información de un dueño anterior." }
+    },
+    {
+      "date": "2026-11-19",
+      "kind": "new",
+      "icon": "shield",
+      "en": { "title": "Free steps against scam calls", "text": "A checklist with the Do Not Call list, your phone company's free scam blocking, stopping credit card offers in the mail, and a free credit freeze." },
+      "es": { "title": "Pasos gratis contra llamadas de estafa", "text": "Una lista con la lista No Llame, el bloqueo gratis de su compañía telefónica, detener ofertas de tarjetas por correo y congelar su crédito gratis." }
+    },
+    {
+      "date": "2026-11-19",
+      "kind": "better",
+      "icon": "spark",
+      "en": { "title": "Proof before a warning", "text": "Before calling an email a scam, ScamSense now checks proof that's hard to fake: whether you've had mail from that sender before, and how old the sender's website is." },
+      "es": { "title": "Pruebas antes de avisar", "text": "Antes de llamar estafa a un correo, ScamSense revisa pruebas difíciles de falsificar: si ya recibió correo de ese remitente y qué tan antiguo es su sitio web." }
+    },
+    {
+      "date": "2026-11-16",
+      "kind": "better",
+      "icon": "mail",
+      "en": { "title": "Safer automatic blocking", "text": "ScamSense never moves signed company mail by itself, and the AI must agree before anything is moved to Spam. If you mark an email real, it learns." },
+      "es": { "title": "Bloqueo automático más seguro", "text": "ScamSense nunca mueve por sí solo el correo firmado de una empresa, y la IA debe estar de acuerdo antes de mover algo a Spam. Si marca un correo como real, aprende." }
+    },
+    {
+      "date": "2026-11-13",
+      "kind": "new",
+      "icon": "bell",
+      "en": { "title": "Daily report and danger alerts", "text": "Every morning you get a short email with what ScamSense caught. If you say you were scammed, your trusted people get an email right away." },
+      "es": { "title": "Reporte diario y alertas de peligro", "text": "Cada mañana recibe un correo corto con lo que ScamSense detectó. Si dice que le estafaron, sus personas de confianza reciben un correo enseguida." }
+    },
+    {
+      "date": "2026-11-13",
+      "kind": "new",
+      "icon": "mail",
+      "en": { "title": "Move to Spam and Block sender", "text": "One tap moves a scam to Spam or blocks the sender, in Gmail and Outlook." },
+      "es": { "title": "Mover a Spam y bloquear remitente", "text": "Un toque mueve una estafa a Spam o bloquea al remitente, en Gmail y Outlook." }
+    },
+    {
+      "date": "2026-11-13",
+      "kind": "new",
+      "icon": "spark",
+      "en": { "title": "New look", "text": "A calm navy design, a true black dark mode, and the check box right on Home." },
+      "es": { "title": "Nuevo diseño", "text": "Un diseño azul marino tranquilo, un modo oscuro negro y la caja de revisión en Inicio." }
+    },
+    {
+      "date": "2026-11-13",
+      "kind": "new",
+      "icon": "globe",
+      "en": { "title": "More languages and Outlook", "text": "Russian, French, Haitian Creole, and Portuguese, and you can now connect Outlook and Hotmail too." },
+      "es": { "title": "Más idiomas y Outlook", "text": "Ruso, francés, criollo haitiano y portugués, y ahora también puede conectar Outlook y Hotmail." }
+    },
+    {
+      "date": "2026-11-12",
+      "kind": "new",
+      "icon": "spark",
+      "en": { "title": "Meet Mahi", "text": "Mahi, the owl, answers any question about scams, reads your emails for you, and can search the web for the latest news." },
+      "es": { "title": "Conozca a Mahi", "text": "Mahi, la lechuza, responde cualquier pregunta sobre estafas, lee sus correos y puede buscar las últimas noticias en internet." }
+    }
+  ]
+}

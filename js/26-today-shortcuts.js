@@ -128,6 +128,7 @@ function homeHTML(rep) {
     <p class="nw-greet">${esc(greeting() + (cfg().name ? ", " + cfg().name : ""))}</p>
     <h1>${esc(homeHeadline(rep))}</h1>
     ${homeStatus(rep)}
+    ${typeof newsStripHTML === "function" ? newsStripHTML() : ""}
   </section>
 
   <h2 class="home-q">${tr("What's happening?", "¿Qué está pasando?")}</h2>

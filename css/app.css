@@ -4911,3 +4911,139 @@ a.grow {
 .gate-fine a {
   color: inherit;
 }
+
+/* What's new */
+.news-strip {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  margin-top: 10px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--hero-glass);
+  border: 1px solid var(--hero-line);
+  color: var(--hero-ink);
+  text-align: start;
+}
+.news-strip:focus-visible {
+  outline: 3px solid var(--gold);
+  outline-offset: 2px;
+}
+.ns-tag {
+  flex: none;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: var(--gold);
+  color: #14213d;
+}
+.ns-t {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ns-t small {
+  color: var(--hero-muted);
+  font-weight: 600;
+}
+.newdot {
+  position: absolute;
+  top: 6px;
+  right: calc(50% - 18px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--gold);
+  box-shadow: 0 0 0 2px var(--nav-bg, #14213d);
+}
+nav.tabs [data-tab="settings"] {
+  position: relative;
+}
+.nbadge {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 12px;
+  background: var(--gold);
+  color: #14213d;
+  font-weight: 800;
+  font-size: 0.85rem;
+  display: grid;
+  place-items: center;
+  margin-inline-start: auto;
+}
+.wn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.wn-item {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 0 0 1px var(--line);
+}
+.wn-ic {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--brand-soft);
+  color: var(--ink);
+}
+.wn-ic .ic {
+  width: 22px;
+  height: 22px;
+}
+.k-new .wn-ic {
+  background: var(--brand);
+  color: var(--brand-ink);
+}
+.k-fixed .wn-ic {
+  background: var(--safe-bg);
+  color: var(--safe);
+}
+.wn-item h3 {
+  font-family: var(--display);
+  font-size: 1.08rem;
+  margin: 2px 0 4px;
+}
+.wn-item p {
+  margin: 0;
+  color: var(--muted);
+}
+.wn-top {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.wn-kind {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--ink);
+}
+.wn-new {
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 99px;
+  background: var(--gold);
+  color: #14213d;
+}
+.wn-day + .wn-day {
+  margin-top: 18px;
+}

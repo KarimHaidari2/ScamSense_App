@@ -381,6 +381,7 @@ const MAHI_SCREENS = {
   pause: "Pause before you pay",
   scammed: "I was scammed: recovery plan and reports",
   learn: "Short scam lessons",
+  whatsnew: "What's new: every update to ScamSense, newest first",
   cleanup:
     "Is my info out there?: type an email to see if it was in data leaks (what leaked, where, what to do), remove your name, address, and phone from people-search sites, and free steps that stop scam calls and mail (Do Not Call, carrier blocking, credit freeze)",
   monthly: "Monthly report",

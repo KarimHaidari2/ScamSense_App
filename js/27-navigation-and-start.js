@@ -17,6 +17,7 @@ const TAB_OF = {
   monthly: "today",
   helper: "today",
   cleanup: "cleanup",
+  whatsnew: "settings",
   family: "family",
   settings: "settings",
   plans: "settings",
@@ -196,7 +197,8 @@ function go(tab) {
       family: renderFamily,
       settings: renderSettings,
       share: renderShare,
-      cleanup: renderCleanup
+      cleanup: renderCleanup,
+      whatsnew: renderWhatsNew
     })[tab] || renderToday
   )();
   window.scrollTo(0, 0);
