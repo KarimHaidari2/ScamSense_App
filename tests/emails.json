@@ -500,5 +500,26 @@
     "auth": "spf=pass dmarc=none",
     "history": 2,
     "age": null
+  },
+  {
+    "name": "ScamSense alert to a trusted person",
+    "label": "real",
+    "from": "ScamSense Alerts <karimhaidari321@gmail.com>",
+    "subject": "ScamSense alert: Karim Haidari may need help",
+    "text": "Karim pressed 'I think I was scammed'. Please call them right away.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "replyTo": "scamsense.karim@outlook.com",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Fake ScamSense from a lookalike gmail",
+    "label": "scam",
+    "from": "ScamSense <karimhaidari321@gmail.com>",
+    "subject": "ScamSense: verify your account",
+    "text": "Confirm your password within 24 hours or your account will be locked.",
+    "auth": "spf=fail dkim=none dmarc=fail",
+    "history": 0,
+    "age": null
   }
 ]

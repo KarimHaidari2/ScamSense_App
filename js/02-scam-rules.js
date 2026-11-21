@@ -306,6 +306,8 @@ const BAD_TLD =
   /\.(xyz|top|info|click|live|shop|online|site|icu|ru|cn|buzz|cyou|rest|sbs|cfd|monster|zip|mov)$/;
 // ScamSense's own website. It's on GitHub's free hosting, but it's ours.
 const OWN_SITE = /^karimhaidari2\.github\.io$/;
+// The addresses ScamSense sends its own emails from (welcome, alerts). Only trusted when signed (DMARC pass).
+const OWN_SENDERS = ["karimhaidari321@gmail.com", "scamsense.karim@outlook.com"];
 // A sender name that's only a role ("Package_Tracking", "MyParcel", "Storage Warning") and no company.
 const GENERIC_NAME =
   /^(my ?)?(package|parcel|shipment|shipping|delivery|tracking|order|storage|cloud|photos?|account|security)([\s_-]*(tracking|warning|alert|notice|update|status|center|centre|team|service|confirmation))*[\s\W]*$/iu;
@@ -479,6 +481,23 @@ function linkSignals(links, add) {
 
 /* Score any message. msg: {text, subject, fromName, fromEmail, replyTo, auth, links, attachments, listUnsub} */
 function analyze(msg) {
+  // ScamSense's own emails (welcome, alerts), really sent by us.
+  const fromAddr = (msg.fromEmail || "").toLowerCase();
+  if (
+    OWN_SENDERS.includes(fromAddr) &&
+    /dmarc=pass/i.test(msg.auth || "") &&
+    !/dmarc=(fail|none)/i.test(msg.auth || "")
+  )
+    return {
+      score: 0,
+      reasons: [],
+      kind: "",
+      kindKey: "",
+      level: "safe",
+      trusted: true,
+      freeMail: true,
+      knownSender: "company"
+    };
   const text = [msg.subject || "", msg.text || ""].join("\n");
   const base = textSignals(text);
   let score = base.score;
