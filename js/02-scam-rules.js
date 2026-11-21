@@ -51,7 +51,7 @@ const RULES = [
     type: "pressure"
   },
   {
-    re: /suspend|suspension|will be locked|has been locked|frozen|deactivat|closed permanently|late fee|unusual (sign[- ]in|activity)/i,
+    re: /suspend|suspension|will be locked|has been locked|(has been|is|was) (limited|restricted)\b|account (limited|restricted|on hold)|frozen|deactivat|closed permanently|late fee|unusual (sign[- ]in|activity)/i,
     pts: 2,
     why: "Threatens to lock or close something, or says there was unusual activity, to scare you.",
     es: "Amenaza con bloquear o cerrar algo, o dice que hubo actividad inusual, para asustarle.",
@@ -147,6 +147,34 @@ const RULES = [
     why: "Claims a charge or renewal you may not recognize, to get you to call or click.",
     es: "Dice que hay un cargo o renovación que quizás no reconoce, para que llame o haga clic.",
     type: "callback"
+  },
+  {
+    re: /\b(save|lose|losing|keep|back ?up) your (photos|pictures|videos|files|memories)|storage (space )?(is )?(full|almost full|limit|exceeded|expir)|(cloud|photo) storage.{0,40}(locked|blocked|suspend|expir|full|deleted)|renew (it )?for free/i,
+    pts: 4,
+    why: "Warns that your photos or files will be lost unless you act. Fake storage-full messages are a common trick to get your card number.",
+    es: "Avisa que perderá sus fotos o archivos si no actúa. Los avisos falsos de almacenamiento lleno son un truco común para obtener su tarjeta.",
+    type: "storage"
+  },
+  {
+    re: /\bwe (want|would like|wish) to hire you|you('ve| have) been (selected|hired|chosen|shortlisted) for (a|the|this) (job|position|role)|\bfree job\b|(earn|make) (up to )?\$\d[\d,]* (a|per|every) (day|week|hour) (from home|online|part[- ]time)|(no experience|no interview) (needed|required).{0,40}\b(job|hire|hiring|position)/i,
+    pts: 4,
+    why: "Offers you a job you never applied for. Fake job offers end with asking for money or your personal information.",
+    es: "Le ofrece un trabajo que nunca solicitó. Las ofertas de trabajo falsas terminan pidiendo dinero o sus datos personales.",
+    type: "job"
+  },
+  {
+    re: /seeking (marr(ia|ai)ge|a (serious |long[- ]term )?relationship|a (life )?partner|a husband|a wife)|\bmarry you\b|marr(ia|ai)ge with you|(looking|searching) for (a |my )?(soul ?mate|true love|life partner)|\bi am (a )?(lonely|widow(er)?)\b|my (dear|sweet)heart/i,
+    pts: 4,
+    why: "A stranger talks about love or marriage. Romance scammers build trust for weeks, then ask for money.",
+    es: "Un desconocido habla de amor o matrimonio. Los estafadores románticos ganan su confianza por semanas y luego piden dinero.",
+    type: "romance"
+  },
+  {
+    re: /\$ ?[\d,]+\s*(credit)?[\s-]*limit|credit[\s-]*limit ?card|card could be ?yours|pre-?(approved|qualified)\b.{0,30}\b(card|loan|credit)|guaranteed (approval|loan|credit)/i,
+    pts: 4,
+    why: "Offers a credit card or loan out of nowhere. Fake offers collect your Social Security and bank details.",
+    es: "Le ofrece una tarjeta de crédito o préstamo de la nada. Las ofertas falsas recogen su Seguro Social y datos bancarios.",
+    type: "loan"
   }
 ];
 const TYPES_EN = {
@@ -161,7 +189,11 @@ const TYPES_EN = {
   toll: "fake toll or delivery scam",
   sender: "fake sender (impersonation)",
   link: "fake link (phishing)",
-  crypto: "crypto investment scam"
+  crypto: "crypto investment scam",
+  storage: "fake storage-full scam",
+  job: "fake job offer",
+  romance: "romance scam",
+  loan: "fake credit or loan offer"
 };
 const TYPES_ES = {
   payment: "estafa de pago",
@@ -175,7 +207,11 @@ const TYPES_ES = {
   toll: "peaje o entrega falsa",
   sender: "remitente falso",
   link: "enlace falso (phishing)",
-  crypto: "estafa de inversión cripto"
+  crypto: "estafa de inversión cripto",
+  storage: "falso aviso de almacenamiento",
+  job: "oferta de trabajo falsa",
+  romance: "estafa romántica",
+  loan: "oferta falsa de crédito o préstamo"
 };
 const TYPES = new Proxy({}, { get: (o, k) => (uiLang() === "es" ? TYPES_ES[k] : xl(TYPES_EN[k])) });
 
@@ -205,6 +241,7 @@ const BRANDS = {
   "geek squad": ["bestbuy.com", "geeksquad.com"],
   norton: ["norton.com", "nortonlifelock.com", "gen.digital"],
   mcafee: ["mcafee.com"],
+  mastercard: ["mastercard.com", "mastercard.us"],
   coinbase: ["coinbase.com"],
   venmo: ["venmo.com"],
   "ace hardware": ["acehardware.com"],
@@ -267,6 +304,13 @@ function knownSender(dom) {
 
 const BAD_TLD =
   /\.(xyz|top|info|click|live|shop|online|site|icu|ru|cn|buzz|cyou|rest|sbs|cfd|monster|zip|mov)$/;
+// ScamSense's own website. It's on GitHub's free hosting, but it's ours.
+const OWN_SITE = /^karimhaidari2\.github\.io$/;
+// A sender name that's only a role ("Package_Tracking", "MyParcel", "Storage Warning") and no company.
+const GENERIC_NAME =
+  /^(my ?)?(package|parcel|shipment|shipping|delivery|tracking|order|storage|cloud|photos?|account|security)([\s_-]*(tracking|warning|alert|notice|update|status|center|centre|team|service|confirmation))*[\s\W]*$/iu;
+// Filler that scammers add to subjects to beat spam filters.
+const JUNK_TAG = /_{3,}|\w\.\.\w+\.\.\w|[*~]{1,2}[a-z0-9]{2,4}\s*$|[a-z]![a-z]{2,}/i;
 const SHORT = /^(bit\.ly|tinyurl\.com|t\.co|rb\.gy|is\.gd|cutt\.ly|ow\.ly|shorturl\.at|tiny\.cc|s\.id)$/;
 const RISKY_FILE = /\.(html?|shtml|zip|rar|7z|exe|scr|iso|img|js|vbs|bat|cmd|msi|lnk|svg)$/i;
 
@@ -362,7 +406,7 @@ function linkSignals(links, add) {
   const seen = new Set();
   links.forEach(l => {
     const host = l.host || hostOf(l.href);
-    if (!host || seen.has(host)) return;
+    if (!host || seen.has(host) || OWN_SITE.test(host)) return;
     seen.add(host);
     if (FREE_HOSTING.test(host))
       add(
@@ -448,6 +492,16 @@ function analyze(msg) {
   const links = (msg.links || []).slice();
   base.urls.forEach(u => links.push({ href: u, host: hostOf(u), text: "" }));
   linkSignals(links, add);
+  // Random tags in the subject ("___ #8451735", "d!iscounted", "6u8lll..da..ll") are put there to slip past spam filters.
+  if (JUNK_TAG.test(msg.subject || ""))
+    add(
+      2,
+      tr(
+        "The subject has odd symbols or random letters mixed in. Scammers do this to slip past spam filters.",
+        "El asunto tiene símbolos raros o letras al azar. Los estafadores hacen esto para pasar los filtros de spam."
+      ),
+      "pressure"
+    );
 
   let trusted = false;
   if (msg.fromEmail) {
@@ -456,7 +510,9 @@ function analyze(msg) {
     const auth = (msg.auth || "").toLowerCase();
     for (const b of Object.keys(BRANDS)) {
       const re = new RegExp("\\b" + b.replace(/[-]/g, "[- ]?") + "\\b", "i");
-      if (re.test(name) && !legitFor(b, dom)) {
+      // Also catch names run together, like "MASTER-CARDOFFER".
+      const squashed = b.length >= 8 && !b.includes(" ") && name.replace(/[^a-z]/g, "").includes(b);
+      if ((re.test(name) || squashed) && !legitFor(b, dom)) {
         // Real companies often send through a mailing service (HelloWorld, SendGrid, Mailchimp...).
         // If the mail is signed and its links go to the company's real site, the name is fine.
         const signed = /dmarc=pass/.test(auth);
@@ -515,6 +571,27 @@ function analyze(msg) {
         ),
         "sender"
       );
+    // A made-up "role" name like "Package_Tracking" or "Storage Warning" instead of a real store's name.
+    const shownName = (msg.fromName || "").trim();
+    if (GENERIC_NAME.test(shownName) && !knownSender(dom) && !Object.keys(BRANDS).some(b => legitFor(b, dom)))
+      add(
+        4,
+        tr(
+          `The sender calls itself "${shownName}" instead of a real store or company name. Real delivery and storage emails say who they're from.`,
+          `El remitente se llama "${shownName}" en vez del nombre de una tienda o empresa real. Los correos reales de envíos y almacenamiento dicen quién los manda.`
+        ),
+        "toll"
+      );
+    const localPart = msg.fromEmail.split("@")[0] || "";
+    if (localPart.length > 40 && (localPart.match(/\./g) || []).length >= 4)
+      add(
+        2,
+        tr(
+          `The sender's address is a long jumble ("${localPart.slice(0, 30)}…") that real companies don't use.`,
+          `La dirección del remitente es una mezcla larga ("${localPart.slice(0, 30)}…") que las empresas reales no usan.`
+        ),
+        "sender"
+      );
     if (/dmarc=fail/.test(auth))
       add(
         4,
@@ -545,7 +622,8 @@ function analyze(msg) {
           "sender"
         );
     }
-    const legitBrand = Object.keys(BRANDS).some(b => legitFor(b, dom));
+    // A personal @outlook.com or @icloud.com address is anyone, not Microsoft or Apple.
+    const legitBrand = !FREE_MAIL.test(dom) && Object.keys(BRANDS).some(b => legitFor(b, dom));
     // Senders the person marked as real ("This email is real") count like a known company.
     const mySenders = typeof S !== "undefined" ? S.get("mysenders", []) : [];
     const markedReal = mySenders.includes(baseDomain(dom));
@@ -615,9 +693,12 @@ function applyEvidence(local, ev, auth) {
   const r = Object.assign({}, local, { reasons: local.reasons.slice(), evidence: ev || {} });
   if (!ev) return r;
   const signed = /dmarc=pass/i.test(auth || "");
+  // Earlier mail from this address only fully counts when this email passed the sender check (DMARC).
+  // Scammers can fake any "From" address, even your own, but they can't pass that check.
+  const spoofable = !signed || /dmarc=(fail|none)/i.test(auth || "");
   if (ev.history > 0) {
-    r.score = Math.max(0, r.score - 6);
-    r.known = true;
+    r.score = Math.max(0, r.score - (spoofable ? 2 : 6));
+    if (!spoofable) r.known = true;
   }
   if (ev.age != null) {
     if (ev.age < 30) {
@@ -642,7 +723,10 @@ function applyEvidence(local, ev, auth) {
   // sorted by Gmail into Promotions/Updates/Social) can't be flagged on words alone. Only hard proof
   // (a fake link, a brand-new website, a look-alike name...) can do that.
   const established =
-    signed && !r.freeMail && (ev.history > 0 || ev.category || (ev.age != null && ev.age >= 365));
+    signed &&
+    !spoofable &&
+    !r.freeMail &&
+    (ev.history > 0 || ev.category || (ev.age != null && ev.age >= 365));
   if (established && !hardEvidence(r, auth)) {
     r.verifiedSender = true;
     r.score = Math.min(r.score, ev.history > 0 || ev.category ? 3 : 7);

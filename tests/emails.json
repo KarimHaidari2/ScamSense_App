@@ -1,393 +1,504 @@
 [
-{
-"label": "real",
-"name": "Spark sweepstakes via HelloWorld",
-"from": "Spark Driver <sparkdriver@e.helloworlddemail.com>",
-"subject": "You're officially registered",
-"text": "You're officially registered for the Fill Your Cart Driver Sweepstakes! Winners will be notified by email. No purchase necessary. Official rules: https://sparkdriverapp.com/rules",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 2,
-"age": 3000
-},
-{
-"label": "real",
-"name": "Spark sweepstakes direct",
-"from": "Spark Driver™ Platform <noreply@email.sparkdriverapp.com>",
-"subject": "Enter the Fill Your Cart Driver Sweepstakes today!",
-"text": "Complete 10 trips this week to be entered to win a $500 Walmart gift card. No purchase necessary.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 3,
-"age": 2500
-},
-{
-"label": "real",
-"name": "Spark identity check",
-"from": "Spark Driver <noreply@sparkdriverapp.com>",
-"subject": "Action required: verify your identity to keep driving",
-"text": "Your Spark Driver account requires identity verification. Complete it within 48 hours or your account will be deactivated. https://sparkdriverapp.com/verify",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 5,
-"age": 2500
-},
-{
-"label": "real",
-"name": "Branch earnings",
-"from": "Walmart Spark <no-reply@ddiwork.com>",
-"subject": "Your earnings are ready",
-"text": "Your weekly earnings were deposited to your Branch wallet. https://branchapp.com/x",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 4,
-"age": 3500
-},
-{
-"label": "real",
-"name": "Chase statement",
-"from": "Chase <no.reply.alerts@chase.com>",
-"subject": "Your statement is ready",
-"text": "Your monthly statement is ready. Sign in at chase.com to view it.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 10,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Bank of America via SFMC",
-"from": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
-"subject": "Your payment is due soon",
-"text": "Your credit card payment of $45.00 is due on Nov 25. Pay at bankofamerica.com",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 6,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Amazon order",
-"from": "Amazon.com <shipment-tracking@amazon.com>",
-"subject": "Your package was delivered",
-"text": "Your package was delivered. Track at https://www.amazon.com/gp/your-account",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 20,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Macy's sale via ESP",
-"from": "Macy's <emails@em.macys.com>",
-"subject": "$59.99+ men's cashmere from Club Room",
-"text": "Shop the sale now. Ends tonight! https://www.macys.com/shop/x Unsubscribe",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 15,
-"age": 10000
-},
-{
-"label": "real",
-"name": "University newsletter with bit.ly",
-"from": "University of Tulsa Athletics <updates@go.tulsahurricane.com>",
-"subject": "Homecoming Saturday - Football at 2:30pm",
-"text": "Golden Hurricane fans! Homecoming Saturday. Get tickets: https://bit.ly/tuhoco Championship soccer winners!",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"replyTo": "athletics@utulsa.edu",
-"history": 4,
-"age": 5000
-},
-{
-"label": "real",
-"name": "DoorDash promo via SendGrid",
-"from": "DoorDash <no-reply@sendgrid.net>",
-"subject": "You've won $10 off your next order!",
-"text": "Congrats! You've won $10 off. Code applied automatically at checkout. Terms apply. https://www.doordash.com",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 2,
-"age": 6000
-},
-{
-"label": "real",
-"name": "Google security alert",
-"from": "Google <no-reply@accounts.google.com>",
-"subject": "Security alert",
-"text": "A new sign-in on Windows. If this was you, you don't need to do anything. If not, check activity at https://myaccount.google.com",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 8,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Microsoft new sign-in",
-"from": "Microsoft account team <account-security-noreply@accountprotection.microsoft.com>",
-"subject": "New sign-in detected for your Microsoft account",
-"text": "We detected a new sign-in. Review recent activity at https://account.live.com/activity",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 2,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Mom",
-"from": "Mom <mom@gmail.com>",
-"subject": "Dinner Sunday?",
-"text": "Are you coming for dinner on Sunday?",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 30,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Transcript order",
-"from": "Do Not Reply <noreply@parchment.com>",
-"subject": "Transcript Order #98740208: Order Confirmation",
-"text": "Thank you for your order. Your payment of $10.00 was received.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 1,
-"age": 7000
-},
-{
-"label": "real",
-"name": "New gig app first email",
-"from": "Uber <uber@uber.com>",
-"subject": "Welcome to Uber! Verify your account",
-"text": "Welcome! Please verify your email to finish setting up your account. https://www.uber.com/verify",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 6000
-},
-{
-"label": "scam",
-"name": "Fake PayPal lookalike",
-"from": "PayPal Service <service@paypa1-security.com>",
-"subject": "Your account has been limited",
-"text": "We noticed unusual activity. Verify within 24 hours or your account will be locked. https://paypa1-security.com/login",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 6
-},
-{
-"label": "scam",
-"name": "USPS fee .top",
-"from": "USPS <noreply@usps-redelivery.top>",
-"subject": "Package could not be delivered",
-"text": "Pay $1.99 redelivery fee at https://usps-redelivery.top now or your package will be returned",
-"auth": "spf=fail dkim=none dmarc=fail",
-"history": 0,
-"age": 3
-},
-{
-"label": "scam",
-"name": "Fake Walmart gift card",
-"from": "Walmart Rewards <win@walmart-gift-claims.top>",
-"subject": "You won a $500 Walmart gift card",
-"text": "Congratulations you won! Claim within 24 hours: https://walmart-gift-claims.top/claim and pay $2.99 shipping with your card",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 12
-},
-{
-"label": "scam",
-"name": "Ace Hardware YETI on free hosting",
-"from": "Ace Hardware Rewards <teamsupportcenter-373649@file-review.notice-update.infinityfree.io>",
-"subject": "Re: 2nd attempt for you , You've won a free YETI Patriotic Bundle!",
-"text": "You've won a free YETI bundle! Claim your prize now: https://storage.googleapis.com/x/claim.html",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 4000
-},
-{
-"label": "scam",
-"name": "Fake Microsoft support",
-"from": "Microsoft account team <security-noreply@micros0ft-support.xyz>",
-"subject": "Microsoft account unusual sign-in activity",
-"text": "We detected something unusual. Review recent activity within 24 hours or your account will be suspended. Call 1-888-555-0199. https://micros0ft-support.xyz/verify",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 20
-},
-{
-"label": "scam",
-"name": "Geek Squad renewal from gmail",
-"from": "Geek Squad <geeksquad.billing2026@gmail.com>",
-"subject": "Your subscription renewed for $399.99",
-"text": "Your Geek Squad plan auto-renewed for $399.99. To cancel and get a refund call 1-888-555-0142 within 24 hours.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 10000
-},
-{
-"label": "scam",
-"name": "Grandson gift cards",
-"from": "Tommy <tommy.help2026@gmail.com>",
-"subject": "Grandma please help",
-"text": "Grandma it's me, I'm in jail. Please buy Apple gift cards and send me the codes. Don't tell mom.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 10000
-},
-{
-"label": "scam",
-"name": "IRS arrest",
-"from": "IRS Tax Department <irs-notice@tax-resolve-center.com>",
-"subject": "Final notice before arrest",
-"text": "You owe back taxes. Pay today with gift cards or Bitcoin or a warrant will be issued for your arrest. Call 1-866-555-0100.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 40
-},
-{
-"label": "scam",
-"name": "Crypto doubling",
-"from": "Elon Giveaway <promo@tesla-btc-event.com>",
-"subject": "Send 0.1 BTC, get 0.2 BTC back",
-"text": "Limited time giveaway! Send Bitcoin to this wallet and we'll double it: bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 15
-},
-{
-"label": "scam",
-"name": "DocuSign phish",
-"from": "DocuSign <dse@docusign-secure-review.com>",
-"subject": "Please review and sign: Invoice_4471.pdf",
-"text": "You have a document to review. Sign in with your email password to view: https://docusign-secure-review.com/view",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 9
-},
-{
-"label": "real",
-"name": "Macy's gift card promotion",
-"from": "Macy's Star Rewards <no-reply@em.macys.com>",
-"subject": "One day only! Get $10 in Star Money for each $50 gift card purchase",
-"text": "One day only! Get $10 in Star Money for each $50 gift card purchase. Buy gift cards in store or at https://www.macys.com/giftcards. Exclusions apply.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 3,
-"age": 9000
-},
-{
-"label": "scam",
-"name": "Gift card payment demand",
-"from": "IRS Collections <irs.notice@gmail.com>",
-"subject": "Final notice: pay your tax debt today",
-"text": "You owe back taxes. To avoid arrest, buy Target gift cards worth $500 and send us the codes on the back today.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": null
-},
-{
-"label": "real",
-"name": "Bank card alert (verified)",
-"from": "Chase <no.reply.alerts@chase.com>",
-"subject": "Action required: confirm a recent purchase",
-"text": "We noticed a purchase of $482.19 at BESTBUY. If you made this purchase, no action is needed. If not, call the number on the back of your card or sign in at https://www.chase.com.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 6,
-"age": 10000
-},
-{
-"label": "real",
-"name": "Utility bill due",
-"from": "PSO <billing@psoklahoma.com>",
-"subject": "Your payment is due in 3 days",
-"text": "Your bill of $112.40 is due Nov 23. Pay now at https://www.psoklahoma.com/pay to avoid a late fee.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 0,
-"age": 8000
-},
-{
-"label": "real",
-"name": "Amazon account security (verified)",
-"from": "Amazon <account-update@amazon.com>",
-"subject": "Verify your new sign-in",
-"text": "Someone signed in to your account from a new device. If this was you, you can ignore this. If not, go to https://www.amazon.com/your-account and change your password immediately.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 10,
-"age": 11000
-},
-{
-"label": "real",
-"name": "Store promo urgent wording",
-"from": "Target <target@em.target.com>",
-"subject": "Last chance! Claim your reward before midnight",
-"text": "Act now: your Target Circle reward expires tonight. Claim it at https://www.target.com/circle. Exclusions apply.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 4,
-"age": 10000
-},
-{
-"label": "scam",
-"name": "Fake Amazon from look-alike",
-"from": "Amazon Security <support@amaz0n-security.com>",
-"subject": "Your account is locked",
-"text": "Your Amazon account has been locked. Verify your identity within 24 hours at http://amaz0n-security.com/verify or it will be closed.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 12
-},
-{
-"label": "real",
-"name": "Amazon Flex statement via Green Dot",
-"from": "Amazon Flex <amazonflex@amazonflexalerts.greendot.com>",
-"subject": "Your statement is ready to view",
-"text": "Your Amazon Flex Rewards Visa Debit Card statement is ready. Sign in at https://amazonflexalerts.greendot.com to view it.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"unsub": true,
-"history": 3,
-"age": 9000
-},
-{
-"label": "scam",
-"name": "Brand in front of a new scam site",
-"from": "Amazon <alerts@amazon.account-secure-login.com>",
-"subject": "Unusual sign-in: confirm now",
-"text": "We locked your account. Confirm your payment details within 12 hours: https://amazon.account-secure-login.com/confirm",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": 9
-},
-{
-"label": "real",
-"name": "University urgent notice",
-"from": "TU Registrar <registrar@utulsa.edu>",
-"subject": "Action required: verify your enrollment by Friday",
-"text": "Please verify your spring enrollment by Friday to avoid a hold on your account. Sign in at https://my.utulsa.edu.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": null
-},
-{
-"label": "real",
-"name": "Amazon refund (new sender address)",
-"from": "Amazon <return@amazon.com>",
-"subject": "Your refund of $49.99 has been issued",
-"text": "We've issued your refund. It may take 3-5 business days to appear on your card. Act now? No action needed. View at https://www.amazon.com/orders",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": null
-},
-{
-"label": "real",
-"name": "Spark Driver urgent account notice",
-"from": "Spark Driver <support@sparkdriverapp.com>",
-"subject": "Urgent: update your payment information",
-"text": "Your payment information needs to be updated within 48 hours or your earnings will be paused. Update in the Spark Driver app.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": null
-},
-{
-"label": "scam",
-"name": "Hacked university account phishing",
-"from": "IT Help Desk <jdoe@someuniversity.edu>",
-"subject": "Your mailbox is full",
-"text": "Your mailbox has exceeded its limit. Verify your account within 24 hours at https://mailbox-verify-portal.weebly.com or it will be deleted.",
-"auth": "spf=pass dkim=pass dmarc=pass",
-"history": 0,
-"age": null
-}
+  {
+    "label": "real",
+    "name": "Spark sweepstakes via HelloWorld",
+    "from": "Spark Driver <sparkdriver@e.helloworlddemail.com>",
+    "subject": "You're officially registered",
+    "text": "You're officially registered for the Fill Your Cart Driver Sweepstakes! Winners will be notified by email. No purchase necessary. Official rules: https://sparkdriverapp.com/rules",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 2,
+    "age": 3000
+  },
+  {
+    "label": "real",
+    "name": "Spark sweepstakes direct",
+    "from": "Spark Driver™ Platform <noreply@email.sparkdriverapp.com>",
+    "subject": "Enter the Fill Your Cart Driver Sweepstakes today!",
+    "text": "Complete 10 trips this week to be entered to win a $500 Walmart gift card. No purchase necessary.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 3,
+    "age": 2500
+  },
+  {
+    "label": "real",
+    "name": "Spark identity check",
+    "from": "Spark Driver <noreply@sparkdriverapp.com>",
+    "subject": "Action required: verify your identity to keep driving",
+    "text": "Your Spark Driver account requires identity verification. Complete it within 48 hours or your account will be deactivated. https://sparkdriverapp.com/verify",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 5,
+    "age": 2500
+  },
+  {
+    "label": "real",
+    "name": "Branch earnings",
+    "from": "Walmart Spark <no-reply@ddiwork.com>",
+    "subject": "Your earnings are ready",
+    "text": "Your weekly earnings were deposited to your Branch wallet. https://branchapp.com/x",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 4,
+    "age": 3500
+  },
+  {
+    "label": "real",
+    "name": "Chase statement",
+    "from": "Chase <no.reply.alerts@chase.com>",
+    "subject": "Your statement is ready",
+    "text": "Your monthly statement is ready. Sign in at chase.com to view it.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 10,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Bank of America via SFMC",
+    "from": "Bank of America <onlinebanking@ealerts.bankofamerica.com>",
+    "subject": "Your payment is due soon",
+    "text": "Your credit card payment of $45.00 is due on Nov 25. Pay at bankofamerica.com",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 6,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Amazon order",
+    "from": "Amazon.com <shipment-tracking@amazon.com>",
+    "subject": "Your package was delivered",
+    "text": "Your package was delivered. Track at https://www.amazon.com/gp/your-account",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 20,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Macy's sale via ESP",
+    "from": "Macy's <emails@em.macys.com>",
+    "subject": "$59.99+ men's cashmere from Club Room",
+    "text": "Shop the sale now. Ends tonight! https://www.macys.com/shop/x Unsubscribe",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 15,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "University newsletter with bit.ly",
+    "from": "University of Tulsa Athletics <updates@go.tulsahurricane.com>",
+    "subject": "Homecoming Saturday - Football at 2:30pm",
+    "text": "Golden Hurricane fans! Homecoming Saturday. Get tickets: https://bit.ly/tuhoco Championship soccer winners!",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "replyTo": "athletics@utulsa.edu",
+    "history": 4,
+    "age": 5000
+  },
+  {
+    "label": "real",
+    "name": "DoorDash promo via SendGrid",
+    "from": "DoorDash <no-reply@sendgrid.net>",
+    "subject": "You've won $10 off your next order!",
+    "text": "Congrats! You've won $10 off. Code applied automatically at checkout. Terms apply. https://www.doordash.com",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 2,
+    "age": 6000
+  },
+  {
+    "label": "real",
+    "name": "Google security alert",
+    "from": "Google <no-reply@accounts.google.com>",
+    "subject": "Security alert",
+    "text": "A new sign-in on Windows. If this was you, you don't need to do anything. If not, check activity at https://myaccount.google.com",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 8,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Microsoft new sign-in",
+    "from": "Microsoft account team <account-security-noreply@accountprotection.microsoft.com>",
+    "subject": "New sign-in detected for your Microsoft account",
+    "text": "We detected a new sign-in. Review recent activity at https://account.live.com/activity",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 2,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Mom",
+    "from": "Mom <mom@gmail.com>",
+    "subject": "Dinner Sunday?",
+    "text": "Are you coming for dinner on Sunday?",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 30,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Transcript order",
+    "from": "Do Not Reply <noreply@parchment.com>",
+    "subject": "Transcript Order #98740208: Order Confirmation",
+    "text": "Thank you for your order. Your payment of $10.00 was received.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 1,
+    "age": 7000
+  },
+  {
+    "label": "real",
+    "name": "New gig app first email",
+    "from": "Uber <uber@uber.com>",
+    "subject": "Welcome to Uber! Verify your account",
+    "text": "Welcome! Please verify your email to finish setting up your account. https://www.uber.com/verify",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 6000
+  },
+  {
+    "label": "scam",
+    "name": "Fake PayPal lookalike",
+    "from": "PayPal Service <service@paypa1-security.com>",
+    "subject": "Your account has been limited",
+    "text": "We noticed unusual activity. Verify within 24 hours or your account will be locked. https://paypa1-security.com/login",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 6
+  },
+  {
+    "label": "scam",
+    "name": "USPS fee .top",
+    "from": "USPS <noreply@usps-redelivery.top>",
+    "subject": "Package could not be delivered",
+    "text": "Pay $1.99 redelivery fee at https://usps-redelivery.top now or your package will be returned",
+    "auth": "spf=fail dkim=none dmarc=fail",
+    "history": 0,
+    "age": 3
+  },
+  {
+    "label": "scam",
+    "name": "Fake Walmart gift card",
+    "from": "Walmart Rewards <win@walmart-gift-claims.top>",
+    "subject": "You won a $500 Walmart gift card",
+    "text": "Congratulations you won! Claim within 24 hours: https://walmart-gift-claims.top/claim and pay $2.99 shipping with your card",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 12
+  },
+  {
+    "label": "scam",
+    "name": "Ace Hardware YETI on free hosting",
+    "from": "Ace Hardware Rewards <teamsupportcenter-373649@file-review.notice-update.infinityfree.io>",
+    "subject": "Re: 2nd attempt for you , You've won a free YETI Patriotic Bundle!",
+    "text": "You've won a free YETI bundle! Claim your prize now: https://storage.googleapis.com/x/claim.html",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 4000
+  },
+  {
+    "label": "scam",
+    "name": "Fake Microsoft support",
+    "from": "Microsoft account team <security-noreply@micros0ft-support.xyz>",
+    "subject": "Microsoft account unusual sign-in activity",
+    "text": "We detected something unusual. Review recent activity within 24 hours or your account will be suspended. Call 1-888-555-0199. https://micros0ft-support.xyz/verify",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 20
+  },
+  {
+    "label": "scam",
+    "name": "Geek Squad renewal from gmail",
+    "from": "Geek Squad <geeksquad.billing2026@gmail.com>",
+    "subject": "Your subscription renewed for $399.99",
+    "text": "Your Geek Squad plan auto-renewed for $399.99. To cancel and get a refund call 1-888-555-0142 within 24 hours.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 10000
+  },
+  {
+    "label": "scam",
+    "name": "Grandson gift cards",
+    "from": "Tommy <tommy.help2026@gmail.com>",
+    "subject": "Grandma please help",
+    "text": "Grandma it's me, I'm in jail. Please buy Apple gift cards and send me the codes. Don't tell mom.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 10000
+  },
+  {
+    "label": "scam",
+    "name": "IRS arrest",
+    "from": "IRS Tax Department <irs-notice@tax-resolve-center.com>",
+    "subject": "Final notice before arrest",
+    "text": "You owe back taxes. Pay today with gift cards or Bitcoin or a warrant will be issued for your arrest. Call 1-866-555-0100.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 40
+  },
+  {
+    "label": "scam",
+    "name": "Crypto doubling",
+    "from": "Elon Giveaway <promo@tesla-btc-event.com>",
+    "subject": "Send 0.1 BTC, get 0.2 BTC back",
+    "text": "Limited time giveaway! Send Bitcoin to this wallet and we'll double it: bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 15
+  },
+  {
+    "label": "scam",
+    "name": "DocuSign phish",
+    "from": "DocuSign <dse@docusign-secure-review.com>",
+    "subject": "Please review and sign: Invoice_4471.pdf",
+    "text": "You have a document to review. Sign in with your email password to view: https://docusign-secure-review.com/view",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 9
+  },
+  {
+    "label": "real",
+    "name": "Macy's gift card promotion",
+    "from": "Macy's Star Rewards <no-reply@em.macys.com>",
+    "subject": "One day only! Get $10 in Star Money for each $50 gift card purchase",
+    "text": "One day only! Get $10 in Star Money for each $50 gift card purchase. Buy gift cards in store or at https://www.macys.com/giftcards. Exclusions apply.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 3,
+    "age": 9000
+  },
+  {
+    "label": "scam",
+    "name": "Gift card payment demand",
+    "from": "IRS Collections <irs.notice@gmail.com>",
+    "subject": "Final notice: pay your tax debt today",
+    "text": "You owe back taxes. To avoid arrest, buy Target gift cards worth $500 and send us the codes on the back today.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "label": "real",
+    "name": "Bank card alert (verified)",
+    "from": "Chase <no.reply.alerts@chase.com>",
+    "subject": "Action required: confirm a recent purchase",
+    "text": "We noticed a purchase of $482.19 at BESTBUY. If you made this purchase, no action is needed. If not, call the number on the back of your card or sign in at https://www.chase.com.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 6,
+    "age": 10000
+  },
+  {
+    "label": "real",
+    "name": "Utility bill due",
+    "from": "PSO <billing@psoklahoma.com>",
+    "subject": "Your payment is due in 3 days",
+    "text": "Your bill of $112.40 is due Nov 23. Pay now at https://www.psoklahoma.com/pay to avoid a late fee.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 0,
+    "age": 8000
+  },
+  {
+    "label": "real",
+    "name": "Amazon account security (verified)",
+    "from": "Amazon <account-update@amazon.com>",
+    "subject": "Verify your new sign-in",
+    "text": "Someone signed in to your account from a new device. If this was you, you can ignore this. If not, go to https://www.amazon.com/your-account and change your password immediately.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 10,
+    "age": 11000
+  },
+  {
+    "label": "real",
+    "name": "Store promo urgent wording",
+    "from": "Target <target@em.target.com>",
+    "subject": "Last chance! Claim your reward before midnight",
+    "text": "Act now: your Target Circle reward expires tonight. Claim it at https://www.target.com/circle. Exclusions apply.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 4,
+    "age": 10000
+  },
+  {
+    "label": "scam",
+    "name": "Fake Amazon from look-alike",
+    "from": "Amazon Security <support@amaz0n-security.com>",
+    "subject": "Your account is locked",
+    "text": "Your Amazon account has been locked. Verify your identity within 24 hours at http://amaz0n-security.com/verify or it will be closed.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 12
+  },
+  {
+    "label": "real",
+    "name": "Amazon Flex statement via Green Dot",
+    "from": "Amazon Flex <amazonflex@amazonflexalerts.greendot.com>",
+    "subject": "Your statement is ready to view",
+    "text": "Your Amazon Flex Rewards Visa Debit Card statement is ready. Sign in at https://amazonflexalerts.greendot.com to view it.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "unsub": true,
+    "history": 3,
+    "age": 9000
+  },
+  {
+    "label": "scam",
+    "name": "Brand in front of a new scam site",
+    "from": "Amazon <alerts@amazon.account-secure-login.com>",
+    "subject": "Unusual sign-in: confirm now",
+    "text": "We locked your account. Confirm your payment details within 12 hours: https://amazon.account-secure-login.com/confirm",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": 9
+  },
+  {
+    "label": "real",
+    "name": "University urgent notice",
+    "from": "TU Registrar <registrar@utulsa.edu>",
+    "subject": "Action required: verify your enrollment by Friday",
+    "text": "Please verify your spring enrollment by Friday to avoid a hold on your account. Sign in at https://my.utulsa.edu.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "label": "real",
+    "name": "Amazon refund (new sender address)",
+    "from": "Amazon <return@amazon.com>",
+    "subject": "Your refund of $49.99 has been issued",
+    "text": "We've issued your refund. It may take 3-5 business days to appear on your card. Act now? No action needed. View at https://www.amazon.com/orders",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "label": "real",
+    "name": "Spark Driver urgent account notice",
+    "from": "Spark Driver <support@sparkdriverapp.com>",
+    "subject": "Urgent: update your payment information",
+    "text": "Your payment information needs to be updated within 48 hours or your earnings will be paused. Update in the Spark Driver app.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "label": "scam",
+    "name": "Hacked university account phishing",
+    "from": "IT Help Desk <jdoe@someuniversity.edu>",
+    "subject": "Your mailbox is full",
+    "text": "Your mailbox has exceeded its limit. Verify your account within 24 hours at https://mailbox-verify-portal.weebly.com or it will be deleted.",
+    "auth": "spf=pass dkim=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Spoofed own university address: account limited",
+    "label": "scam",
+    "from": "Haidari, Karim <kah3271@utulsa.edu>",
+    "subject": "Your account has been limited",
+    "text": "We noticed unusual sign-in activity. Confirm your password within 24 hours to restore access.",
+    "auth": "dkim=none dmarc=none spf=pass dmarc=pass dkim=pass",
+    "history": 1,
+    "age": null
+  },
+  {
+    "name": "Fake storage full (lambdaaspa)",
+    "label": "scam",
+    "from": "Storage Warning <package@us.lambdaaspa.com>",
+    "subject": "🔴 Urgent Warning! 🚨 Your account has been locked ⚠️ Save your photos & videos before 10-26-2026 🚫 Renew for free today",
+    "text": "Your cloud storage is full. Your photos and videos will be deleted.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Fake package tracking from role name",
+    "label": "scam",
+    "from": "Package_Tracking 📦 <package@us.lambdaaspa.com>",
+    "subject": "Your Shipment Has Been Updated",
+    "text": "See the latest status of your shipment.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Fake MyParcel order",
+    "label": "scam",
+    "from": "MyParcel <package@us.lambdaaspa.com>",
+    "subject": "Order US11806421590966: collected by the carrier",
+    "text": "Your order was collected by the carrier.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Fake credit card offer from eye-care domain",
+    "label": "scam",
+    "from": "INDIGO® [MASTER-CARDOFFER] stowe-eyecare <PHP1.pnbmail.bank.in.PHP1.pnbmail1.bank1.in.pnbmail1.bank1.PHP1@stowe-eyecare.com>",
+    "subject": "KARIMHAIDARI321 / THIS $ 1,000 CREDIT - LIMITCARD COULD BEYOURS. / APPLY TODAY!",
+    "text": "Apply today.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Romance scam from free mail",
+    "label": "scam",
+    "from": "Aisha ss <Aissjwww@outlook.com>",
+    "subject": "SEEKING MARRAIGE WITH YOU6u8lll..da..ll",
+    "text": "Hello dear, I saw your profile.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Fake job offer",
+    "label": "scam",
+    "from": "Work in Canada <jobs@employmentboom.com>",
+    "subject": "Karim, We want to Hire You for a Free job Job!",
+    "text": "Apply now, limited spots.",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "ScamSense welcome email",
+    "label": "real",
+    "from": "ScamSense <karimhaidari321@gmail.com>",
+    "subject": "Welcome to ScamSense",
+    "text": "Welcome! Open ScamSense right away to start checking your email: https://karimhaidari2.github.io/ScamSense_App/",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Real UPS delivery update",
+    "label": "real",
+    "from": "UPS <mcinfo@ups.com>",
+    "subject": "Your package is on the way",
+    "text": "Your UPS package is scheduled for delivery Thursday. Track it at https://www.ups.com/track",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Real Capital One pre-approved offer",
+    "label": "real",
+    "from": "Capital One <capitalone@notification.capitalone.com>",
+    "subject": "Karim, you're pre-approved for a credit card",
+    "text": "You're pre-approved for a Quicksilver card with a $1,000 credit limit. See terms at https://www.capitalone.com",
+    "auth": "dkim=pass spf=pass dmarc=pass",
+    "unsub": true,
+    "history": 0,
+    "age": null
+  },
+  {
+    "name": "Real friend email from unsigned small business with history",
+    "label": "real",
+    "from": "Tulsa Food Pantry <info@tulsafoodpantry.org>",
+    "subject": "Volunteer schedule this week",
+    "text": "Thanks for helping! Here is this week's schedule.",
+    "auth": "spf=pass dmarc=none",
+    "history": 2,
+    "age": null
+  }
 ]
