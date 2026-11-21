@@ -267,8 +267,23 @@ function unleet(s) {
     .replace(/vv/g, "w");
 }
 function lookalikeBrand(host) {
-  const label = unleet(host.replace(/\.[a-z.]+$/, "").replace(/[^a-z0-9.-]/g, ""));
+  // Only the part a company actually owns (paypa1-security.com), not the words in front of it.
+  const base = baseDomain(host);
+  const label = unleet(base.replace(/\.[a-z.]+$/, "").replace(/[^a-z0-9.-]/g, ""));
   const flat = label.replace(/[^a-z]/g, "");
+  for (const b of Object.keys(BRANDS)) {
+    const key = b.replace(/[^a-z]/g, "");
+    if (key.length < 4) continue;
+    if (flat.includes(key) && !legitFor(b, host)) return b;
+  }
+  return null;
+}
+// A brand name only in the front part, on another company's site (amazonflexalerts.greendot.com,
+// amazon.secure-login.com). Real partners do this; so do scammers. A warning sign, not proof.
+function subdomainBrand(host) {
+  if (lookalikeBrand(host)) return null;
+  const sub = host.slice(0, Math.max(0, host.length - baseDomain(host).length));
+  const flat = unleet(sub).replace(/[^a-z]/g, "");
   for (const b of Object.keys(BRANDS)) {
     const key = b.replace(/[^a-z]/g, "");
     if (key.length < 4) continue;
@@ -369,6 +384,15 @@ function linkSignals(links, add) {
         ),
         "link"
       );
+    else if (subdomainBrand(host))
+      add(
+        2,
+        tr(
+          `A link goes to "${host}", which uses the ${cap(subdomainBrand(host))} name on another company's website (${baseDomain(host)}).`,
+          `Un enlace va a "${host}", que usa el nombre ${cap(subdomainBrand(host))} en el sitio de otra empresa (${baseDomain(host)}).`
+        ),
+        "link"
+      );
     // link text shows one website but actually goes to another
     const shown = (l.text || "").match(/^(?:https?:\/\/)?((?:[a-z0-9-]+\.)+[a-z]{2,})(?:\/|$)/i);
     if (shown && baseDomain(shown[1]) !== baseDomain(host))
@@ -453,6 +477,15 @@ function analyze(msg) {
         tr(
           `The sender's address "${dom}" looks like ${cap(lb)}, but it's a fake copy.`,
           `La dirección "${dom}" parece de ${cap(lb)}, pero es una copia falsa.`
+        ),
+        "sender"
+      );
+    else if (!FREE_MAIL.test(dom) && subdomainBrand(dom))
+      add(
+        2,
+        tr(
+          `The sender's address "${dom}" uses the ${cap(subdomainBrand(dom))} name, but it belongs to another company (${baseDomain(dom)}).`,
+          `La dirección "${dom}" usa el nombre ${cap(subdomainBrand(dom))}, pero pertenece a otra empresa (${baseDomain(dom)}).`
         ),
         "sender"
       );

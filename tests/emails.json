@@ -328,5 +328,26 @@
 "auth": "spf=pass dkim=pass dmarc=pass",
 "history": 0,
 "age": 12
+},
+{
+"label": "real",
+"name": "Amazon Flex statement via Green Dot",
+"from": "Amazon Flex <amazonflex@amazonflexalerts.greendot.com>",
+"subject": "Your statement is ready to view",
+"text": "Your Amazon Flex Rewards Visa Debit Card statement is ready. Sign in at https://amazonflexalerts.greendot.com to view it.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"unsub": true,
+"history": 3,
+"age": 9000
+},
+{
+"label": "scam",
+"name": "Brand in front of a new scam site",
+"from": "Amazon <alerts@amazon.account-secure-login.com>",
+"subject": "Unusual sign-in: confirm now",
+"text": "We locked your account. Confirm your payment details within 12 hours: https://amazon.account-secure-login.com/confirm",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 0,
+"age": 9
 }
 ]
