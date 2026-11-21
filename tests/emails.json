@@ -349,5 +349,45 @@
 "auth": "spf=pass dkim=pass dmarc=pass",
 "history": 0,
 "age": 9
+},
+{
+"label": "real",
+"name": "University urgent notice",
+"from": "TU Registrar <registrar@utulsa.edu>",
+"subject": "Action required: verify your enrollment by Friday",
+"text": "Please verify your spring enrollment by Friday to avoid a hold on your account. Sign in at https://my.utulsa.edu.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 0,
+"age": null
+},
+{
+"label": "real",
+"name": "Amazon refund (new sender address)",
+"from": "Amazon <return@amazon.com>",
+"subject": "Your refund of $49.99 has been issued",
+"text": "We've issued your refund. It may take 3-5 business days to appear on your card. Act now? No action needed. View at https://www.amazon.com/orders",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 0,
+"age": null
+},
+{
+"label": "real",
+"name": "Spark Driver urgent account notice",
+"from": "Spark Driver <support@sparkdriverapp.com>",
+"subject": "Urgent: update your payment information",
+"text": "Your payment information needs to be updated within 48 hours or your earnings will be paused. Update in the Spark Driver app.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 0,
+"age": null
+},
+{
+"label": "scam",
+"name": "Hacked university account phishing",
+"from": "IT Help Desk <jdoe@someuniversity.edu>",
+"subject": "Your mailbox is full",
+"text": "Your mailbox has exceeded its limit. Verify your account within 24 hours at https://mailbox-verify-portal.weebly.com or it will be deleted.",
+"auth": "spf=pass dkim=pass dmarc=pass",
+"history": 0,
+"age": null
 }
 ]

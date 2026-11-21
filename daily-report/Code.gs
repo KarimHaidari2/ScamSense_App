@@ -1783,6 +1783,31 @@ const EMAIL_SERVICES =
 // Free personal email services (real companies don't send from these).
 const FREE_MAIL =
   /^(gmail|googlemail|yahoo|ymail|outlook|hotmail|live|aol|icloud|me|proton|protonmail|gmx|mail|zoho)\.(com|net|me|org)$/;
+// Well-known companies and organizations. Signed email from these (sender checks passed) is trusted:
+// only hard proof of a fake can flag it. Universities (.edu) and government (.gov, .mil) count too,
+// but their accounts sometimes get hacked, so those can still be "be careful", never "scam" on words alone.
+const KNOWN_SENDERS = new Set(
+  Object.values(BRANDS)
+    .flat()
+    .map(d => baseDomain(d))
+    .concat(
+      ("target.com macys.com bestbuy.com ebay.com etsy.com homedepot.com lowes.com kroger.com walgreens.com cvs.com " +
+        "uber.com lyft.com doordash.com instacart.com grubhub.com ubereats.com airbnb.com booking.com expedia.com " +
+        "delta.com united.com southwest.com aa.com linkedin.com github.com zoom.us spotify.com hulu.com disneyplus.com " +
+        "verizon.com att.com t-mobile.com xfinity.com spectrum.com capitalone.com citi.com discover.com americanexpress.com " +
+        "usbank.com pnc.com schwab.com fidelity.com vanguard.com intuit.com turbotax.com adobe.com dropbox.com slack.com " +
+        "canva.com greendot.com shopify.com squareup.com stripe.com x.com twitter.com tiktok.com snapchat.com pinterest.com " +
+        "reddit.com yahoo.com duolingo.com coursera.org khanacademy.org nytimes.com washingtonpost.com wsj.com"
+      ).split(" ")
+    )
+    .filter(d => !FREE_MAIL.test(d))
+);
+function knownSender(dom) {
+  dom = (dom || "").toLowerCase();
+  if (/\.(edu|gov|mil)$|\.k12\.[a-z]{2}\.us$|\.(edu|gov|ac)\.[a-z]{2}$/.test(dom)) return "org";
+  return KNOWN_SENDERS.has(baseDomain(dom)) ? "company" : "";
+}
+
 
 // Web address endings often used by scam sites.
 const BAD_TLD =
@@ -2113,9 +2138,15 @@ function analyze(msg) {
   let kindKey = ranked.length ? ranked[0][0] : types.pressure ? "pressure" : "";
   if (types.family && types.payment) kindKey = "family";
   if (types.toll) kindKey = "toll";
-  const level = score >= 8 ? "scam" : score >= 4 ? "warn" : "safe";
+  let level = score >= 8 ? "scam" : score >= 4 ? "warn" : "safe";
   const freeMail = FREE_MAIL.test(((msg.fromEmail || "").split("@")[1] || "").toLowerCase());
-  return { score, reasons: [...new Set(reasons)], kind, kindKey, level, trusted, freeMail };
+  // A verified, well-known sender (Amazon, Spark, a bank, a university...) can't be flagged on words alone.
+  const known = /dmarc=pass/i.test(msg.auth || "") && !freeMail ? knownSender((msg.fromEmail || "").split("@")[1]) : "";
+  if (known && !hardEvidence({ reasons, evidence: {} }, msg.auth)) {
+    score = Math.min(score, known === "company" ? 3 : 7);
+    level = score >= 8 ? "scam" : score >= 4 ? "warn" : "safe";
+  }
+  return { score, reasons: [...new Set(reasons)], kind, kindKey, level, trusted, freeMail, knownSender: known };
 }
 
 /* ----- Evidence that's hard for scammers to fake -----
