@@ -685,49 +685,56 @@ function blockScams() {
    ======================================================================== */
 const AUDIT_COLS = ["Date", "From", "Email address", "Subject", "Gmail folder", "Rules say", "AI says", "ScamSense would show", "Why", "Sender checks", "Seen before", "Website age (days)", "Your answer", "Open in Gmail"];
 function auditInbox() {
+  runAudit({ key: "AUDIT", title: "ScamSense Inbox Check", tab: "Flagged", query: "newer_than:90d -in:sent -in:drafts -in:chats -in:trash", all: false, limit: 500 });
+}
+// Checks your Spam folder (Gmail keeps the last 30 days) and lists EVERY email with what ScamSense would say,
+// so you can see how many scams it catches. Mark each one Scam, Just junk (ads), or Real.
+function auditSpam() {
+  runAudit({ key: "SPAM_AUDIT", title: "ScamSense Spam Check", tab: "Spam", query: "in:spam", all: true, limit: 300 });
+}
+function runAudit(o) {
   const t0 = Date.now();
   const p = props();
   const me = myEmail();
   let ss = null;
   try {
-    ss = SpreadsheetApp.openById(p.getProperty("AUDIT_SHEET") || "x");
+    ss = SpreadsheetApp.openById(p.getProperty(o.key + "_SHEET") || "x");
   } catch (e) {}
   if (!ss) {
-    ss = SpreadsheetApp.create("ScamSense Inbox Check");
-    p.setProperty("AUDIT_SHEET", ss.getId());
+    ss = SpreadsheetApp.create(o.title);
+    p.setProperty(o.key + "_SHEET", ss.getId());
     const sh = ss.getSheets()[0];
-    sh.setName("Flagged");
+    sh.setName(o.tab);
     sh.appendRow(AUDIT_COLS);
     sh.getRange(1, 1, 1, AUDIT_COLS.length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
     sh.setFrozenRows(1);
     sh.getRange("M2:M1000").setDataValidation(
-      SpreadsheetApp.newDataValidation().requireValueInList(["Real", "Scam", "Not sure"], true).build()
+      SpreadsheetApp.newDataValidation().requireValueInList(o.all ? ["Scam", "Just junk (ads)", "Real"] : ["Real", "Scam", "Not sure"], true).build()
     );
-    p.setProperty("AUDIT_START", "0");
-    p.setProperty("AUDIT_COUNT", "0");
-    p.setProperty("AUDIT_FLAGGED", "0");
+    p.setProperty(o.key + "_START", "0");
+    p.setProperty(o.key + "_COUNT", "0");
+    p.setProperty(o.key + "_FLAGGED", "0");
   }
-  const sh = ss.getSheetByName("Flagged");
-  const window = "newer_than:90d";
-  const cats = categoryThreads(window);
-  let start = +(p.getProperty("AUDIT_START") || 0);
-  let count = +(p.getProperty("AUDIT_COUNT") || 0);
-  let flagged = +(p.getProperty("AUDIT_FLAGGED") || 0);
+  const sh = ss.getSheetByName(o.tab);
+  const cats = o.all ? new Set() : categoryThreads("newer_than:90d");
+  let start = +(p.getProperty(o.key + "_START") || 0);
+  let count = +(p.getProperty(o.key + "_COUNT") || 0);
+  let flagged = +(p.getProperty(o.key + "_FLAGGED") || 0);
   const key = p.getProperty("ANTHROPIC_API_KEY");
   const ageCache = {};
   let done = false;
   while (Date.now() - t0 < 270000) {
-    const threads = GmailApp.search(`${window} -in:sent -in:drafts -in:chats -in:trash`, start, 50);
-    if (!threads.length || count >= 500) {
+    const threads = GmailApp.search(o.query, start, 50);
+    if (!threads.length || count >= o.limit) {
       done = true;
       break;
     }
     start += threads.length;
     const items = [];
     threads.forEach(th => {
-      const folder = th.isInSpam() ? "Spam" : cats.has(th.getId()) ? "Promotions/Updates/Social" : th.isInInbox() ? "Inbox" : "Archived";
+      const folder = o.all || th.isInSpam() ? "Spam" : cats.has(th.getId()) ? "Promotions/Updates/Social" : th.isInInbox() ? "Inbox" : "Archived";
       th.getMessages().forEach(m => {
-        if (m.isDraft() || count >= 500) return;
+        if (m.isDraft() || count >= o.limit) return;
         const from = parseFrom(m.getFrom());
         if (!from.email || (me && from.email.toLowerCase() === me.toLowerCase())) return;
         count++;
@@ -738,13 +745,17 @@ function auditInbox() {
           category: cats.has(th.getId()),
           link: `https://mail.google.com/mail/u/0/#all/${th.getId()}`
         });
-        if (it.level !== "safe") items.push(it);
+        if (o.all || it.level !== "safe") items.push(it);
       });
     });
     // The same proof the report uses: sender history, website age, Gmail's sorting.
     const doms = items.map(i => baseDomain((i.fromEmail.split("@")[1] || "").toLowerCase())).filter(d => !(d in ageCache));
     if (doms.length) Object.assign(ageCache, domainAges([...new Set(doms)].slice(0, 40)));
     items.forEach(it => {
+      if (it.level === "safe") {
+        it.rules = "safe";
+        return;
+      }
       let history = 0;
       try {
         history = GmailApp.search(`from:${it.fromEmail} older_than:14d`, 0, 3).length;
@@ -769,7 +780,7 @@ function auditInbox() {
       }
     });
     const rows = items
-      .filter(it => it.rules !== "safe" || it.level !== "safe")
+      .filter(it => o.all || it.rules !== "safe" || it.level !== "safe")
       .map(it => [
         it.date,
         it.fromName,
@@ -787,20 +798,24 @@ function auditInbox() {
         it.link
       ]);
     if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, AUDIT_COLS.length).setValues(rows);
-    flagged += rows.length;
-    p.setProperty("AUDIT_START", String(start));
-    p.setProperty("AUDIT_COUNT", String(count));
-    p.setProperty("AUDIT_FLAGGED", String(flagged));
+    flagged += o.all ? items.filter(it => it.level !== "safe").length : rows.length;
+    p.setProperty(o.key + "_START", String(start));
+    p.setProperty(o.key + "_COUNT", String(count));
+    p.setProperty(o.key + "_FLAGGED", String(flagged));
   }
+  const fn = o.all ? "auditSpam" : "auditInbox";
   console.log(
-    `${done ? "Finished." : "Paused (Google's time limit). Run auditInbox again to continue."} Checked ${count} emails, ${flagged} flagged.\n` +
-      `Open the sheet, mark each one Real or Scam in "Your answer": ${ss.getUrl()}`
+    o.all
+      ? `${done ? "Finished." : `Paused (Google's time limit). Run ${fn} again to continue.`} Checked ${count} spam emails: ScamSense flagged ${flagged} (${count ? Math.round((flagged / count) * 100) : 0}%) as scam or "be careful".\n` +
+          `Some spam is just ads, not scams. Mark each one Scam, Just junk (ads), or Real: ${ss.getUrl()}`
+      : `${done ? "Finished." : `Paused (Google's time limit). Run ${fn} again to continue.`} Checked ${count} emails, ${flagged} flagged.\n` +
+          `Open the sheet, mark each one Real or Scam in "Your answer": ${ss.getUrl()}`
   );
 }
 // Start the inbox check over from the beginning (keeps the old sheet's rows, adds a fresh tab).
 function auditReset() {
   const p = props();
-  ["AUDIT_SHEET", "AUDIT_START", "AUDIT_COUNT", "AUDIT_FLAGGED"].forEach(k => p.deleteProperty(k));
+  ["AUDIT", "SPAM_AUDIT"].forEach(a => ["_SHEET", "_START", "_COUNT", "_FLAGGED"].forEach(k => p.deleteProperty(a + k)));
   console.log("Reset. Run auditInbox to start a new check (it makes a new sheet).");
 }
 
