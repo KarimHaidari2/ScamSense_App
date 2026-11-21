@@ -687,7 +687,7 @@ const AUDIT_COLS = ["Date", "From", "Email address", "Subject", "Gmail folder", 
 function auditInbox() {
   runAudit({ key: "AUDIT", title: "ScamSense Inbox Check", tab: "Flagged", query: "newer_than:90d -in:sent -in:drafts -in:chats -in:trash", all: false, limit: 500 });
 }
-// Checks your Spam folder (Gmail keeps the last 30 days) and lists EVERY email with what ScamSense would say,
+// Checks your Spam folder (Gmail keeps the last 30 days) and Outlook's Junk folder and lists EVERY email with what ScamSense would say,
 // so you can see how many scams it catches. Mark each one Scam, Just junk (ads), or Real.
 function auditSpam() {
   runAudit({ key: "SPAM_AUDIT", title: "ScamSense Spam Check", tab: "Spam", query: "in:spam", all: true, limit: 300 });
@@ -696,126 +696,205 @@ function runAudit(o) {
   const t0 = Date.now();
   const p = props();
   const me = myEmail();
+  const K = k => o.key + "_" + k;
   let ss = null;
   try {
-    ss = SpreadsheetApp.openById(p.getProperty(o.key + "_SHEET") || "x");
+    ss = SpreadsheetApp.openById(p.getProperty(K("SHEET")) || "x");
   } catch (e) {}
   if (!ss) {
     ss = SpreadsheetApp.create(o.title);
-    p.setProperty(o.key + "_SHEET", ss.getId());
-    const sh = ss.getSheets()[0];
-    sh.setName(o.tab);
-    sh.appendRow(AUDIT_COLS);
-    sh.getRange(1, 1, 1, AUDIT_COLS.length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
-    sh.setFrozenRows(1);
-    sh.getRange("M2:M1000").setDataValidation(
-      SpreadsheetApp.newDataValidation().requireValueInList(o.all ? ["Scam", "Just junk (ads)", "Real"] : ["Real", "Scam", "Not sure"], true).build()
-    );
-    p.setProperty(o.key + "_START", "0");
-    p.setProperty(o.key + "_COUNT", "0");
-    p.setProperty(o.key + "_FLAGGED", "0");
+    p.setProperty(K("SHEET"), ss.getId());
+    const sh0 = ss.getSheets()[0];
+    sh0.setName(o.tab);
+    sh0.appendRow(AUDIT_COLS);
+    sh0.getRange(1, 1, 1, AUDIT_COLS.length).setFontWeight("bold").setBackground("#14213D").setFontColor("#FFFFFF");
+    sh0.setFrozenRows(1);
+    sh0
+      .getRange("M2:M2000")
+      .setDataValidation(
+        SpreadsheetApp.newDataValidation()
+          .requireValueInList(o.all ? ["Scam", "Just junk (ads)", "Real"] : ["Real", "Scam", "Not sure"], true)
+          .build()
+      );
+    ["START", "G_COUNT", "G_FLAG", "M_COUNT", "M_FLAG"].forEach(k => p.setProperty(K(k), "0"));
+    p.setProperty(K("PHASE"), "gmail");
+    p.deleteProperty(K("MS_NEXT"));
   }
   const sh = ss.getSheetByName(o.tab);
-  const cats = o.all ? new Set() : categoryThreads("newer_than:90d");
-  let start = +(p.getProperty(o.key + "_START") || 0);
-  let count = +(p.getProperty(o.key + "_COUNT") || 0);
-  let flagged = +(p.getProperty(o.key + "_FLAGGED") || 0);
-  const key = p.getProperty("ANTHROPIC_API_KEY");
-  const ageCache = {};
-  let done = false;
-  while (Date.now() - t0 < 270000) {
-    const threads = GmailApp.search(o.query, start, 50);
-    if (!threads.length || count >= o.limit) {
-      done = true;
-      break;
-    }
-    start += threads.length;
-    const items = [];
-    threads.forEach(th => {
-      const folder = o.all || th.isInSpam() ? "Spam" : cats.has(th.getId()) ? "Promotions/Updates/Social" : th.isInInbox() ? "Inbox" : "Archived";
-      th.getMessages().forEach(m => {
-        if (m.isDraft() || count >= o.limit) return;
-        const from = parseFrom(m.getFrom());
-        if (!from.email || (me && from.email.toLowerCase() === me.toLowerCase())) return;
-        count++;
-        const it = checkEmail(toMsg(m, from), {
-          source: "gmail",
-          date: m.getDate(),
-          folder,
-          category: cats.has(th.getId()),
-          link: `https://mail.google.com/mail/u/0/#all/${th.getId()}`
-        });
-        if (o.all || it.level !== "safe") items.push(it);
-      });
-    });
-    // The same proof the report uses: sender history, website age, Gmail's sorting.
-    const doms = items.map(i => baseDomain((i.fromEmail.split("@")[1] || "").toLowerCase())).filter(d => !(d in ageCache));
-    if (doms.length) Object.assign(ageCache, domainAges([...new Set(doms)].slice(0, 40)));
-    items.forEach(it => {
-      if (it.level === "safe") {
-        it.rules = "safe";
-        return;
+  const num = k => +(p.getProperty(K(k)) || 0);
+  const ctx = { o, t0, key: p.getProperty("ANTHROPIC_API_KEY"), ageCache: {}, sh };
+  let phase = p.getProperty(K("PHASE")) || "gmail";
+
+  // 1) Gmail
+  if (phase === "gmail") {
+    const cats = o.all ? new Set() : categoryThreads("newer_than:90d");
+    let start = num("START"),
+      count = num("G_COUNT"),
+      flagged = num("G_FLAG");
+    while (Date.now() - t0 < 250000) {
+      const threads = GmailApp.search(o.query, start, 50);
+      if (!threads.length || count >= o.limit) {
+        phase = outlookConnected() ? "outlook" : "done";
+        break;
       }
-      let history = 0;
+      start += threads.length;
+      const items = [];
+      threads.forEach(th => {
+        const folder = o.all || th.isInSpam() ? "Spam" : cats.has(th.getId()) ? "Promotions/Updates/Social" : th.isInInbox() ? "Inbox" : "Archived";
+        th.getMessages().forEach(m => {
+          if (m.isDraft() || count >= o.limit) return;
+          const from = parseFrom(m.getFrom());
+          if (!from.email || (me && from.email.toLowerCase() === me.toLowerCase())) return;
+          count++;
+          items.push(
+            checkEmail(toMsg(m, from), {
+              source: "gmail",
+              date: m.getDate(),
+              folder: "Gmail · " + folder,
+              category: cats.has(th.getId()),
+              link: `https://mail.google.com/mail/u/0/#all/${th.getId()}`
+            })
+          );
+        });
+      });
+      flagged += auditBatch(items, ctx);
+      p.setProperty(K("START"), String(start));
+      p.setProperty(K("G_COUNT"), String(count));
+      p.setProperty(K("G_FLAG"), String(flagged));
+    }
+    p.setProperty(K("PHASE"), phase);
+  }
+
+  // 2) Outlook (when it's connected): the Junk folder for the spam check, every other folder otherwise
+  if (phase === "outlook" && Date.now() - t0 < 250000) {
+    try {
+      const tok = msToken();
+      const g = q => msGraph(q, tok);
+      const folders = {},
+        skip = {};
+      (g("me/mailFolders?$top=100&$select=id,displayName").value || []).forEach(f => (folders[f.id] = f.displayName));
+      ["sentitems", "drafts", "outbox", "deleteditems", "junkemail"].forEach(wk => {
+        try {
+          const id = g(`me/mailFolders/${wk}?$select=id`).id;
+          if (wk === "junkemail") folders[id] = "Junk";
+          if (!(o.all && wk === "junkemail")) skip[id] = true;
+        } catch (e) {}
+      });
+      const sel = "id,subject,from,replyTo,receivedDateTime,body,bodyPreview,hasAttachments,parentFolderId,webLink,internetMessageHeaders";
+      const since = new Date(Date.now() - (o.all ? 30 : 90) * 864e5).toISOString();
+      const first = o.all
+        ? `me/mailFolders/junkemail/messages?$top=25&$select=${sel}`
+        : `me/messages?$top=25&$orderby=receivedDateTime%20desc&$filter=${encodeURIComponent("receivedDateTime ge " + since)}&$select=${sel}`;
+      let next = p.getProperty(K("MS_NEXT")) || first;
+      let count = num("M_COUNT"),
+        flagged = num("M_FLAG");
+      const mine = (props().getProperty("MS_EMAIL") || "").toLowerCase();
+      while (next && count < o.limit && Date.now() - t0 < 250000) {
+        const page = g(next);
+        next = page["@odata.nextLink"] || "";
+        const items = (page.value || [])
+          .filter(m => !skip[m.parentFolderId])
+          .slice(0, o.limit - count)
+          .map(m => outlookItem(m, folders, g))
+          .filter(it => it.fromEmail && it.fromEmail !== mine);
+        items.forEach(it => (it.folder = "Outlook · " + it.folder));
+        count += items.length;
+        flagged += auditBatch(items, ctx);
+        p.setProperty(K("MS_NEXT"), next);
+        p.setProperty(K("M_COUNT"), String(count));
+        p.setProperty(K("M_FLAG"), String(flagged));
+      }
+      if (!next || count >= o.limit) phase = "done";
+    } catch (e) {
+      console.log("Outlook couldn't be checked: " + e.message);
+      phase = "done";
+    }
+    p.setProperty(K("PHASE"), phase);
+  }
+
+  const fn = o.all ? "auditSpam" : "auditInbox";
+  const gc = num("G_COUNT"),
+    gf = num("G_FLAG"),
+    mc = num("M_COUNT"),
+    mf = num("M_FLAG");
+  const pct = (f, c) => (c ? Math.round((f / c) * 100) : 0) + "%";
+  const head = phase === "done" ? "Finished." : `Paused (Google's time limit). Run ${fn} again to continue.`;
+  const outLine = outlookConnected() ? `Outlook: checked ${mc}, flagged ${mf}${o.all ? " (" + pct(mf, mc) + ")" : ""}.` : "Outlook: not connected (run connectOutlook to include it).";
+  console.log(
+    `${head}\nGmail: checked ${gc}, flagged ${gf}${o.all ? " (" + pct(gf, gc) + ")" : ""}.\n${outLine}\n` +
+      (o.all
+        ? `Some spam is just ads, not scams. Mark each one Scam, Just junk (ads), or Real: ${ss.getUrl()}`
+        : `Open the sheet, mark each flagged one Real or Scam in "Your answer": ${ss.getUrl()}`)
+  );
+}
+
+// Adds sender history, website age, and the AI's opinion to a batch, and writes the sheet rows.
+// Returns how many were flagged (scam or "be careful").
+function auditBatch(items, ctx) {
+  const o = ctx.o;
+  const dom = it => baseDomain((it.fromEmail.split("@")[1] || "").toLowerCase());
+  const risky = items.filter(it => it.level !== "safe");
+  const doms = [...new Set(risky.map(dom).filter(d => !(d in ctx.ageCache)))];
+  if (doms.length) Object.assign(ctx.ageCache, domainAges(doms.slice(0, 40)));
+  items.forEach(it => {
+    if (it.level === "safe") {
+      it.rules = "safe";
+      return;
+    }
+    let history = 0;
+    if (it.source === "gmail") {
       try {
         history = GmailApp.search(`from:${it.fromEmail} older_than:14d`, 0, 3).length;
       } catch (e) {}
-      const age = ageCache[baseDomain((it.fromEmail.split("@")[1] || "").toLowerCase())];
-      const local = applyEvidence(
-        { score: it.score, reasons: it.reasons, level: it.level, trusted: it.trusted, freeMail: it.freeMail },
-        { history, age: age === undefined ? null : age, category: !!it.category },
-        it.msg.auth
-      );
-      Object.assign(it, { score: local.score, reasons: local.reasons, evidence: local.evidence, known: local.known });
-      it.rules = finalVerdict(it, null);
-      it.level = it.rules;
-      if (it.level !== "safe" && (key || CONFIG.MAHI_URL) && Date.now() - t0 < 250000) {
-        try {
-          const a = aiExplain(key, it);
-          if (a) {
-            it.ai = a;
-            it.level = finalVerdict(it, a.verdict);
-          }
-        } catch (e) {}
-      }
-    });
-    const rows = items
-      .filter(it => o.all || it.rules !== "safe" || it.level !== "safe")
-      .map(it => [
-        it.date,
-        it.fromName,
-        it.fromEmail,
-        it.subject,
-        it.folder,
-        { scam: "Scam", warn: "Be careful", safe: "Safe" }[it.rules],
-        it.ai ? `${it.ai.verdict} (${it.ai.confidence || "?"}%)` : "not asked",
-        { scam: "SCAM", warn: "Be careful", safe: "Safe" }[it.level],
-        it.reasons.slice(0, 3).join(" | "),
-        (it.msg.auth.match(/(spf|dkim|dmarc)=\w+/gi) || []).join(" ") || "unknown",
-        it.evidence && it.evidence.history ? "yes" : "no",
-        it.evidence && it.evidence.age != null ? it.evidence.age : "",
-        "",
-        it.link
-      ]);
-    if (rows.length) sh.getRange(sh.getLastRow() + 1, 1, rows.length, AUDIT_COLS.length).setValues(rows);
-    flagged += o.all ? items.filter(it => it.level !== "safe").length : rows.length;
-    p.setProperty(o.key + "_START", String(start));
-    p.setProperty(o.key + "_COUNT", String(count));
-    p.setProperty(o.key + "_FLAGGED", String(flagged));
-  }
-  const fn = o.all ? "auditSpam" : "auditInbox";
-  console.log(
-    o.all
-      ? `${done ? "Finished." : `Paused (Google's time limit). Run ${fn} again to continue.`} Checked ${count} spam emails: ScamSense flagged ${flagged} (${count ? Math.round((flagged / count) * 100) : 0}%) as scam or "be careful".\n` +
-          `Some spam is just ads, not scams. Mark each one Scam, Just junk (ads), or Real: ${ss.getUrl()}`
-      : `${done ? "Finished." : `Paused (Google's time limit). Run ${fn} again to continue.`} Checked ${count} emails, ${flagged} flagged.\n` +
-          `Open the sheet, mark each one Real or Scam in "Your answer": ${ss.getUrl()}`
-  );
+    }
+    const age = ctx.ageCache[dom(it)];
+    const local = applyEvidence(
+      { score: it.score, reasons: it.reasons, level: it.level, trusted: it.trusted, freeMail: it.freeMail },
+      { history, age: age === undefined ? null : age, category: !!it.category },
+      it.msg.auth
+    );
+    Object.assign(it, { score: local.score, reasons: local.reasons, evidence: local.evidence, known: local.known });
+    it.rules = finalVerdict(it, null);
+    it.level = it.rules;
+    if (it.level !== "safe" && (ctx.key || CONFIG.MAHI_URL) && Date.now() - ctx.t0 < 240000) {
+      try {
+        const a = aiExplain(ctx.key, it);
+        if (a) {
+          it.ai = a;
+          it.level = finalVerdict(it, a.verdict);
+        }
+      } catch (e) {}
+    }
+  });
+  const rows = items
+    .filter(it => o.all || it.rules !== "safe" || it.level !== "safe")
+    .map(it => [
+      it.date,
+      it.fromName,
+      it.fromEmail,
+      it.subject,
+      it.folder,
+      { scam: "Scam", warn: "Be careful", safe: "Safe" }[it.rules],
+      it.ai ? `${it.ai.verdict} (${it.ai.confidence || "?"}%)` : "not asked",
+      { scam: "SCAM", warn: "Be careful", safe: "Safe" }[it.level],
+      it.reasons.slice(0, 3).join(" | "),
+      (it.msg.auth.match(/(spf|dkim|dmarc)=\w+/gi) || []).join(" ") || "unknown",
+      it.evidence && it.evidence.history ? "yes" : "no",
+      it.evidence && it.evidence.age != null ? it.evidence.age : "",
+      "",
+      it.link
+    ]);
+  if (rows.length) ctx.sh.getRange(ctx.sh.getLastRow() + 1, 1, rows.length, AUDIT_COLS.length).setValues(rows);
+  return items.filter(it => it.level !== "safe").length;
 }
 // Start the inbox check over from the beginning (keeps the old sheet's rows, adds a fresh tab).
 function auditReset() {
   const p = props();
-  ["AUDIT", "SPAM_AUDIT"].forEach(a => ["_SHEET", "_START", "_COUNT", "_FLAGGED"].forEach(k => p.deleteProperty(a + k)));
+  ["AUDIT", "SPAM_AUDIT"].forEach(a =>
+    ["_SHEET", "_START", "_G_COUNT", "_G_FLAG", "_M_COUNT", "_M_FLAG", "_PHASE", "_MS_NEXT", "_COUNT", "_FLAGGED"].forEach(k =>
+      p.deleteProperty(a + k)
+    )
+  );
   console.log("Reset. Run auditInbox to start a new check (it makes a new sheet).");
 }
 
