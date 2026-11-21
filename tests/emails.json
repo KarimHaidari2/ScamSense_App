@@ -446,9 +446,9 @@
     "from": "Aisha ss <Aissjwww@outlook.com>",
     "subject": "SEEKING MARRAIGE WITH YOU6u8lll..da..ll",
     "text": "Hello dear, I saw your profile.",
-    "auth": "dkim=pass spf=pass dmarc=pass",
+    "auth": "dkim=pass spf=pass dmarc=pass spf=none dmarc=none dkim=none",
     "history": 0,
-    "age": null
+    "age": 11783
   },
   {
     "name": "Fake job offer",
@@ -531,7 +531,7 @@
     "auth": "dkim=pass spf=pass dmarc=pass",
     "unsub": true,
     "history": 2,
-    "age": null
+    "age": 4598
   },
   {
     "name": "Package_Tracking with unsubscribe",
