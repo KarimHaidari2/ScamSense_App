@@ -742,7 +742,7 @@ function applyEvidence(local, ev, auth) {
           `La dirección web del remitente es nueva (${ev.age} días).`
         )
       );
-    } else if (ev.age >= 365 && signed && !r.freeMail && !contentScam) r.score = Math.max(0, r.score - 3); // an old outlook.com or gmail.com says nothing about the person
+    } else if (ev.age >= 365 && signed && !contentScam) r.score = Math.max(0, r.score - 3);
   }
   // A verified sender (signed mail, a company domain, and either years old, mail you've had before, or
   // sorted by Gmail into Promotions/Updates/Social) can't be flagged on words alone. Only hard proof
