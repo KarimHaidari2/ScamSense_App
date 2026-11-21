@@ -1343,6 +1343,8 @@ const RULES = [
   {
     // Only when it asks you to PAY with gift cards (winning one in a contest is a different sign)
     re: /\b(pay|paying|payment|buy|buying|purchase|send|sending|pick up|go (to|get)[^.]{0,20}(store|walmart|target|cvs))\b[^.]{0,50}\bgift ?cards?|\bgift ?cards?\b[^.]{0,50}\b(codes?|numbers?|pin|back of|scratch|read (me|us|them))\b|\b(in|with) (\$?\d[\d,]* (in|of) )?gift ?cards\b|itunes card|google play card|steam card|apple card balance/i,
+    // Not a store selling its own gift cards ("get $10 for each $50 gift card purchase")
+    not: /\b(for (each|every)|with (each|every)|when you (buy|purchase)|bonus|rewards?|star money|promo(tion)?|% off|get \$\d+)\b[^.]{0,60}\bgift ?cards?|\bgift ?cards?\b[^.]{0,30}\b(purchases?|bonus|promo(tion)?|sale|deal|special)\b/i,
     pts: 5,
     why: "Asks for payment by gift card. Real companies, police, and the government never ask for gift cards.",
     type: "payment"
@@ -1620,7 +1622,7 @@ function textSignals(t) {
     types = {};
   let score = 0;
   RULES.forEach(r => {
-    if (r.re.test(t)) {
+    if (r.re.test(t) && !(r.not && r.not.test(t))) {
       score += r.pts;
       reasons.push(tr(r.why, r.es));
       types[r.type] = (types[r.type] || 0) + r.pts;
@@ -1842,7 +1844,8 @@ function analyze(msg) {
   if (types.family && types.payment) kindKey = "family";
   if (types.toll) kindKey = "toll";
   const level = score >= 8 ? "scam" : score >= 4 ? "warn" : "safe";
-  return { score, reasons: [...new Set(reasons)], kind, kindKey, level, trusted };
+  const freeMail = FREE_MAIL.test(((msg.fromEmail || "").split("@")[1] || "").toLowerCase());
+  return { score, reasons: [...new Set(reasons)], kind, kindKey, level, trusted, freeMail };
 }
 
 /* ----- Evidence that's hard for scammers to fake -----
@@ -1885,8 +1888,13 @@ function hardEvidence(local, auth) {
   if (/dmarc=fail/i.test(auth || "") && local.reasons.some(x => /Says it's from|Dice ser de/.test(x))) return true;
   const ev = local.evidence || {};
   if (ev.age != null && ev.age < 30 && !local.known) return true;
+  // Asking for gift cards is hard proof, unless it's a signed email from a long-standing company domain
+  // (then the AI decides: stores sell their own gift cards).
+  const giftAsk = local.reasons.some(x => /gift cards?\b.*never ask|tarjetas de regalo/i.test(x));
+  const established = /dmarc=pass/i.test(auth || "") && !local.freeMail && (local.known || (ev.age != null && ev.age >= 365));
+  if (giftAsk && !established) return true;
   return local.reasons.some(x =>
-    /fake copy|copia falsa|free website-hosting|alojamiento web gratuito|temporary \(throwaway\)|correo temporal|personal .* address|cuenta personal|gift cards?\b.*never ask|tarjetas de regalo|It looks like .* but it isn't|Parece .* pero no es/i.test(x)
+    /fake copy|copia falsa|free website-hosting|alojamiento web gratuito|temporary \(throwaway\)|correo temporal|personal .* address|cuenta personal|It looks like .* but it isn't|Parece .* pero no es/i.test(x)
   );
 }
 
