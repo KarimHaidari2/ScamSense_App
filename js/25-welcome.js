@@ -82,7 +82,7 @@ function showOnboarding(step, note) {
       "text",
       'inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" class="codein"'
     );
-  const err = `<p class="gate-err" id="ob-err" role="alert">${esc(st.note)}</p>`;
+  const err = () => `<p class="gate-err" id="ob-err" role="alert">${esc(st.note)}</p>`;
   const back = `<button class="gate-back" id="ob-back">‹ ${tr("Back", "Atrás")}</button>`;
   const fine = `<p class="gate-fine">${tr("By continuing, you confirm you're 13 or older and agree to the", "Al continuar, confirma que tiene 13 años o más y acepta los")} <a href="terms.html" target="_blank" rel="noopener">${tr("Terms", "Términos")}</a> ${tr("and", "y la")} <a href="privacy.html" target="_blank" rel="noopener">${tr("Privacy Policy", "Política de privacidad")}</a>.</p>`;
 
@@ -95,7 +95,7 @@ function showOnboarding(step, note) {
           "ScamSense vigila su correo y le ayuda a estar seguro."
         )
       ) +
-      `<section class="gate-body">${err}
+      `<section class="gate-body">${err()}
         <button class="gate-btn primary-btn" id="ob-create">${tr("Create an account", "Crear una cuenta")}</button>
         <button class="gate-btn" id="ob-signin">${tr("I already have an account", "Ya tengo una cuenta")}</button>
         <p class="gate-note">${ic("lock")}<span>${tr("ScamSense never sells your information and will never ask for your password by phone or text.", "ScamSense nunca vende su información y nunca le pedirá su contraseña por teléfono o texto.")}</span></p>
@@ -103,7 +103,7 @@ function showOnboarding(step, note) {
         ${fine}</section>`,
     create: () =>
       hero(tr("Create your account", "Cree su cuenta"), "") +
-      `<section class="gate-body">${back}${sso()}${err}
+      `<section class="gate-body">${back}${sso()}${err()}
         <form id="ob-form" novalidate>
           ${field("ob-email", tr("Your email", "Su correo"), "email", 'autocomplete="email" inputmode="email" maxlength="100"')}
           <button class="gate-btn primary-btn" type="submit">${tr("Send me a code", "Envíenme un código")}</button>
@@ -118,7 +118,7 @@ function showOnboarding(step, note) {
           `Enviamos un código de 6 dígitos a <b>${esc(st.email)}</b>. Escríbalo aquí.`
         )
       ) +
-      `<section class="gate-body">${back}${err}
+      `<section class="gate-body">${back}${err()}
         <form id="ob-form" novalidate>
           ${codeField()}
           <button class="gate-btn primary-btn" type="submit">${tr("Verify my email", "Verificar mi correo")}</button>
@@ -134,7 +134,7 @@ function showOnboarding(step, note) {
           `✓ Su correo <b>${esc(st.email)}</b> está verificado.`
         )
       ) +
-      `<section class="gate-body">${err}
+      `<section class="gate-body">${err()}
         <form id="ob-form" novalidate>
           ${pwField("ob-pw", tr("Password", "Contraseña"), "new-password")}
           ${rules()}
@@ -143,7 +143,7 @@ function showOnboarding(step, note) {
         </form></section>`,
     signin: () =>
       hero(tr("Welcome back", "Bienvenido de nuevo"), "") +
-      `<section class="gate-body">${back}${sso()}${err}
+      `<section class="gate-body">${back}${sso()}${err()}
         <form id="ob-form" novalidate>
           ${field("ob-email", tr("Email", "Correo"), "email", `autocomplete="username" inputmode="email" maxlength="100" value="${esc(st.email)}"`)}
           ${pwField("ob-pw", tr("Password", "Contraseña"), "current-password")}
@@ -160,7 +160,7 @@ function showOnboarding(step, note) {
           `Por su seguridad, enviamos un código de 6 dígitos a <b>${esc(st.email)}</b>.`
         )
       ) +
-      `<section class="gate-body">${back}${err}
+      `<section class="gate-body">${back}${err()}
         <form id="ob-form" novalidate>${codeField()}
           <button class="gate-btn primary-btn" type="submit">${tr("Finish signing in", "Terminar de iniciar sesión")}</button>
         </form>
@@ -170,7 +170,7 @@ function showOnboarding(step, note) {
         tr("Reset your password", "Restablecer su contraseña"),
         tr("We'll email you a code.", "Le enviaremos un código por correo.")
       ) +
-      `<section class="gate-body">${back}${err}
+      `<section class="gate-body">${back}${err()}
         <form id="ob-form" novalidate>
           ${field("ob-email", tr("Your email", "Su correo"), "email", `autocomplete="email" inputmode="email" maxlength="100" value="${esc(st.email)}"`)}
           <button class="gate-btn primary-btn" type="submit">${tr("Send me a code", "Envíenme un código")}</button>
@@ -183,7 +183,7 @@ function showOnboarding(step, note) {
           `Si <b>${esc(st.email)}</b> tiene una cuenta, le enviamos un código de 6 dígitos.`
         )
       ) +
-      `<section class="gate-body">${back}${err}
+      `<section class="gate-body">${back}${err()}
         <form id="ob-form" novalidate>
           ${codeField()}
           <button class="gate-btn primary-btn" type="submit">${tr("Continue", "Continuar")}</button>
@@ -198,7 +198,7 @@ function showOnboarding(step, note) {
           `✓ Su correo <b>${esc(st.email)}</b> está verificado.`
         )
       ) +
-      `<section class="gate-body">${err}
+      `<section class="gate-body">${err()}
         <form id="ob-form" novalidate>
           ${pwField("ob-pw", tr("New password", "Nueva contraseña"), "new-password")}
           ${rules()}
@@ -252,6 +252,7 @@ function showOnboarding(step, note) {
           tr("Accounts need the ScamSense server.", "Las cuentas necesitan el servidor de ScamSense.")
         );
       j = await serverPost(Object.assign({ mode: "auth", device: deviceLabel() }, body));
+      st.last = j;
       if (!j || j.error) throw new Error((j && j.error) || "");
     } catch (e) {
       say(
@@ -377,8 +378,21 @@ function showOnboarding(step, note) {
       st.email = email;
       st.pw = p;
       st.keep = m.querySelector("#ob-keep").checked;
+      st.last = null;
       const j = await call({ action: "login", email, password: p, keep: st.keep });
-      if (j && j.needCode) go2("signin_code");
+      if (j && j.needCode) return go2("signin_code");
+      // An account made with Google or Outlook has no password yet: send a code right away so they can make one.
+      if (!j && st.last && st.last.noPassword) {
+        const r = await call({ action: "reset_start", email });
+        if (r)
+          go2(
+            "forgot_code",
+            tr(
+              `This account doesn't have a password yet. We sent a 6-digit code to ${email}. Type it here, then choose your password.`,
+              `Esta cuenta aún no tiene contraseña. Enviamos un código de 6 dígitos a ${email}. Escríbalo aquí y luego elija su contraseña.`
+            )
+          );
+      }
       return;
     }
     const code = val("#ob-code").replace(/\D/g, "");
