@@ -2140,6 +2140,11 @@ function setupPush() {
 }
 
 /* ----- P-256 math (only for signing; keys never leave Script Properties) ----- */
+// Big numbers are written as BigInt(1) instead of 1n so the Apps Script editor can read the file.
+const B0 = BigInt(0),
+  B1 = BigInt(1),
+  B2 = BigInt(2),
+  B3 = BigInt(3);
 const P256 = {
   p: BigInt("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
   n: BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"),
@@ -2164,13 +2169,13 @@ const hmac256 = (key, msg) =>
   u8(Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, s8(msg), s8(key)));
 const modp = a => {
   a %= P256.p;
-  return a < 0n ? a + P256.p : a;
+  return a < B0 ? a + P256.p : a;
 };
 function inv(a, m) {
   let r0 = ((a % m) + m) % m,
     r1 = m,
-    s0 = 1n,
-    s1 = 0n;
+    s0 = B1,
+    s1 = B0;
   while (r1) {
     const q = r0 / r1;
     [r0, r1] = [r1, r0 - q * r1];
@@ -2183,8 +2188,8 @@ function ecAdd(P, Q) {
   if (!Q) return P;
   let l;
   if (P[0] === Q[0]) {
-    if (modp(P[1] + Q[1]) === 0n) return null;
-    l = modp((3n * P[0] * P[0] - 3n) * inv(2n * P[1], P256.p));
+    if (modp(P[1] + Q[1]) === B0) return null;
+    l = modp((B3 * P[0] * P[0] - B3) * inv(B2 * P[1], P256.p));
   } else l = modp((Q[1] - P[1]) * inv(Q[0] - P[0], P256.p));
   const x = modp(l * l - P[0] - Q[0]);
   return [x, modp(l * (P[0] - x) - P[1])];
@@ -2192,10 +2197,10 @@ function ecAdd(P, Q) {
 function ecMul(k, P) {
   let R = null,
     A = P;
-  while (k > 0n) {
-    if (k & 1n) R = ecAdd(R, A);
+  while (k > B0) {
+    if (k & B1) R = ecAdd(R, A);
     A = ecAdd(A, A);
-    k >>= 1n;
+    k >>= B1;
   }
   return R;
 }
@@ -2213,7 +2218,7 @@ function rfc6979(d, h) {
   for (;;) {
     V = hmac256(K, V);
     const k = bigOf(V);
-    if (k >= 1n && k < n) return k;
+    if (k >= B1 && k < n) return k;
     K = hmac256(K, V.concat([0]));
     V = hmac256(K, V);
   }
@@ -2232,7 +2237,7 @@ function vapidKeys() {
     pub = p.getProperty("VAPID_PUBLIC");
   if (!d || !pub) {
     const seed = strBytes([1, 2, 3, 4].map(() => Utilities.getUuid()).join("") + Date.now());
-    const k = (bigOf(sha256(seed)) % (P256.n - 1n)) + 1n;
+    const k = (bigOf(sha256(seed)) % (P256.n - B1)) + B1;
     const Q = ecMul(k, P256.G);
     d = k.toString(16);
     pub = b64u([4].concat(bytesOf(Q[0], 32), bytesOf(Q[1], 32)));
