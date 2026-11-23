@@ -594,6 +594,26 @@ const MAHI_TOOLS = [
     }
   },
   {
+    name: "talk_to_team",
+    description:
+      "Connect the person with a real person on the ScamSense team (a live chat in the app; the team gets a phone alert right away). Call it RIGHT AWAY, without trying to answer first, whenever they ask for a real person, a human, a live agent, customer service or support, Karim, the owner, or the ScamSense team, or say they want someone to help them personally. Also offer it when they were scammed or are scared. Do NOT call it when they ask how to reach their bank, a company, or an agency, or ask whether a caller is a real person.",
+    input_schema: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description:
+            "One or two sentences for the team, in English: what the person needs help with, from this conversation."
+        },
+        urgent: {
+          type: "boolean",
+          description: "True if they say they were scammed, already paid, or shared a code or password."
+        }
+      },
+      required: ["summary"]
+    }
+  },
+  {
     name: "open_screen",
     description:
       "Open a screen in the ScamSense app for the person. Screens: " + JSON.stringify(MAHI_SCREENS),
@@ -881,6 +901,34 @@ async function runMahiTool(name, input, ui) {
       ui.after = () => go("lesson");
       ui.actions.push({ label: tr("Start the lesson", "Empezar la lección"), primary: true, run: ui.after });
       return { opening: i.topic };
+    case "talk_to_team": {
+      if (!serverOn())
+        return { error: "Talking to the team needs the ScamSense server, which is off on this device." };
+      const asked = mahiHistory.filter(m => m.role === "user" && typeof m.content === "string").slice(-3);
+      const text =
+        "(From Ask Mahi) " +
+        String(i.summary || "").slice(0, 600) +
+        (asked.length
+          ? "\n\nThey wrote to Mahi:\n" + asked.map(m => "• " + m.content.slice(0, 300)).join("\n")
+          : "");
+      const j = await serverPost({
+        mode: "support",
+        action: "send",
+        reason: i.urgent ? "scammed" : "person",
+        text,
+        name: cfg().name || ""
+      });
+      if (!j || !j.ok) return { error: (j && j.error) || "Couldn't reach the team." };
+      ui.after = () => openSupport("person");
+      ui.actions.push({
+        label: tr("Open the chat with the team", "Abrir el chat con el equipo"),
+        primary: true,
+        run: ui.after
+      });
+      return {
+        done: "Connected. The ScamSense team got a phone alert with what they need, and the team chat opens right after this reply. Tell them a real person will answer in that chat, and they can add a photo or screenshot there."
+      };
+    }
     case "open_screen":
       if (!MAHI_SCREENS[i.screen]) return { error: "Unknown screen" };
       ui.after = () => go(i.screen);
