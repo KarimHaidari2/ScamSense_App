@@ -164,7 +164,7 @@ function aboutYouCheck(j) {
 
 function showAboutYou(editing) {
   if (document.querySelector(".onb-about")) return;
-  if (!editing && document.querySelector(".onb")) return setTimeout(() => showAboutYou(false), 3000);
+  if (!editing && document.querySelector(".onb")) return setTimeout(() => aboutYouMissing() && showAboutYou(false), 3000);
   // Never interrupt someone who is getting help: ask after they leave the chat.
   if (
     !editing &&

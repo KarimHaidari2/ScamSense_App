@@ -1299,3 +1299,30 @@ button.kind:focus-visible {
 .kinddetail .fl small {
   display: block;
 }
+/* Team requests */
+.askrow {
+  flex-wrap: wrap;
+}
+.askrow .row {
+  margin-left: auto;
+  align-items: center;
+}
+.askrow select {
+  font: inherit;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+.gate textarea {
+  width: 100%;
+  max-width: 420px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin: 6px 0 12px;
+}

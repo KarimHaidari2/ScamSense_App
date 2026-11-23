@@ -141,7 +141,11 @@ async function api(body) {
   }
   if (j && j.notOwner) {
     showNotOwner(j.email);
-    throw new Error(j.error);
+    throw new Error("");
+  }
+  if (j && j.pending) {
+    showPending(j.email, j.error);
+    throw new Error("");
   }
   if (!j || !j.ok) throw new Error((j && j.error) || "The server didn't answer.");
   return j;
@@ -163,10 +167,43 @@ function showSignIn(msg) {
   $("signin").onclick = signIn;
   $("signinms").onclick = signInMs;
 }
+// Not on the team yet: ask the owner for access (the owner approves and picks Admin or Viewer).
 function showNotOwner(email) {
-  showSignIn(
-    `${email} isn't an owner account. Sign in with scamsense.karim@outlook.com, or add this email to OWNER_LOGINS in the ScamSense Server's Script Properties.`
-  );
+  $("nav").hidden = true;
+  main.innerHTML = `<section class="gate">
+    <div class="gate-owl">${OWL}</div>
+    <h1>Ask to join the team</h1>
+    <p>You're signed in as <b>${esc(email)}</b>, which isn't on the ScamSense team yet. Ask the owner for access. You can't see anything until they approve you.</p>
+    <label class="sr" for="reqnote">A note for the owner</label>
+    <textarea id="reqnote" rows="3" maxlength="200" placeholder="Optional: who you are and why you need access"></textarea>
+    <button class="btn primary big" id="reqgo">Ask for access</button>
+    <p class="small"><button class="linkbtn" id="reqout">Use a different account</button></p>
+  </section>`;
+  $("reqout").onclick = () => signOut();
+  $("reqgo").onclick = async () => {
+    $("reqgo").disabled = true;
+    try {
+      await api({ action: "team_request", note: $("reqnote").value });
+    } catch (e) {
+      if (e.message) {
+        toast(e.message);
+        $("reqgo").disabled = false;
+      }
+    }
+  };
+}
+function showPending(email, msg) {
+  $("nav").hidden = true;
+  main.innerHTML = `<section class="gate">
+    <div class="gate-owl">${OWL}</div>
+    <h1>Waiting for approval</h1>
+    <p>${esc(msg || "Your request is waiting for the owner's approval.")}</p>
+    <p class="muted">Signed in as <b>${esc(email)}</b>. You'll get an email when the owner answers, then come back here.</p>
+    <button class="btn big" id="pendagain">Check again</button>
+    <p class="small"><button class="linkbtn" id="pendout">Use a different account</button></p>
+  </section>`;
+  $("pendout").onclick = () => signOut();
+  $("pendagain").onclick = () => location.reload();
 }
 function showCode(email, msg) {
   $("nav").hidden = true;
@@ -551,6 +588,12 @@ function overview() {
     ${stat(data.alerts.length, "Danger alerts", `${U.filter(needsFollow).length} need follow-up`)}
   </div>
   ${data.support && data.support.open ? `<section class="card ${data.support.urgent ? "warn" : ""}"><h2>Open cases</h2><p>${data.support.open} open${data.support.urgent ? ` · <b>${data.support.urgent} urgent</b>` : ""}${data.support.unread ? ` · ${data.support.unread} waiting for your answer` : ""}</p><button class="btn primary" data-go="cases">Open cases</button></section>` : ""}
+  ${(() => {
+    const asks = (data.team || []).filter(m => m.status === "requested");
+    return asks.length
+      ? `<section class="card warn"><h2>Team requests</h2><p>${asks.map(m => esc(m.email)).join(", ")} ${asks.length === 1 ? "is" : "are"} asking to join the team.</p><button class="btn primary" data-go="team">Review</button></section>`
+      : "";
+  })()}
   ${attention.length ? `<section class="card warn"><h2>Needs your attention</h2>${list(attention)}</section>` : ""}
   <div class="cols">${connectChart(U)}${checksChart(data.activity)}</div>
   ${kindsHTML(data.activity, "What people checked (recent activity)")}
@@ -839,8 +882,21 @@ function costsTab() {
 function teamTab() {
   if (data.role !== "owner") return overview();
   const team = data.team || [];
+  const asks = team.filter(m => m.status === "requested");
   main.innerHTML = `<h1>Team</h1>
-  <p class="muted">Add people who can use this dashboard. They get an email with a code, sign in with that email (Outlook or Google), and enter the code once.</p>
+  <p class="muted">Add people who can use this dashboard. They get an email with a code, sign in with that email (Outlook or Google), and enter the code once. People can also ask for access themselves; they wait until you approve them.</p>
+  ${
+    asks.length
+      ? `<section class="card warn"><h2>Waiting for your approval <small>${asks.length}</small></h2><ul class="svc">${asks
+          .map(
+            m =>
+              `<li class="askrow"><span class="av sm">${esc((m.email[0] || "?").toUpperCase())}</span><span class="fl"><b>${esc(m.email)}</b><small>asked ${ago(m.added)}${m.note ? ` · "${esc(m.note)}"` : ""}</small></span><span class="row"><select data-role="${esc(m.email)}" aria-label="Role for ${esc(m.email)}"><option value="Viewer">Viewer</option><option value="Admin">Admin</option></select><button class="btn primary sm" data-ok="${esc(m.email)}">Approve</button><button class="btn sm" data-no="${esc(m.email)}">Decline</button></span></li>`
+          )
+          .join(
+            ""
+          )}</ul><p class="muted small">Google or Microsoft already confirmed this email belongs to them. Only approve people you know.</p></section>`
+      : ""
+  }
   <section class="card"><h2>Add someone</h2>
     <div class="addrow">
       <label class="sr" for="tmail">Their email</label><input id="tmail" type="email" placeholder="Their email" autocomplete="off">
@@ -848,11 +904,12 @@ function teamTab() {
       <button class="btn primary" id="tadd">Send invite</button>
     </div>
   </section>
-  <section class="card"><h2>People on the team <small>${team.length}</small></h2>
+  <section class="card"><h2>People on the team <small>${team.length - asks.length}</small></h2>
     <ul class="svc">${team
+      .filter(m => m.status !== "requested")
       .map(
         m =>
-          `<li><span class="av sm">${esc((m.email[0] || "?").toUpperCase())}</span><span class="fl"><b>${esc(m.email)}</b><small>${esc(m.role)} · ${m.status === "active" ? "active" : "invited, waiting for their code"}</small></span>${m.role === "Owner" ? "" : `<button class="linkbtn danger" data-rm="${esc(m.email)}">Remove</button>`}</li>`
+          `<li><span class="av sm">${esc((m.email[0] || "?").toUpperCase())}</span><span class="fl"><b>${esc(m.email)}</b><small>${esc(m.role || "no role yet")} · ${m.status === "active" ? "active" : m.status === "requested" ? "asked to join, waiting for you" : "invited, waiting for their code"}</small></span>${m.role === "Owner" ? "" : `<button class="linkbtn danger" data-rm="${esc(m.email)}">Remove</button>`}</li>`
       )
       .join("")}</ul>
   </section>
@@ -874,6 +931,21 @@ function teamTab() {
   main
     .querySelectorAll("[data-rm]")
     .forEach(b => (b.onclick = () => send({ action: "team_remove", email: b.dataset.rm }, b)));
+  main.querySelectorAll("[data-ok]").forEach(
+    b =>
+      (b.onclick = () =>
+        send(
+          {
+            action: "team_approve",
+            email: b.dataset.ok,
+            role: main.querySelector(`[data-role="${CSS.escape(b.dataset.ok)}"]`).value
+          },
+          b
+        ))
+  );
+  main
+    .querySelectorAll("[data-no]")
+    .forEach(b => (b.onclick = () => send({ action: "team_deny", email: b.dataset.no }, b)));
 }
 
 /* ----- Owner log ----- */

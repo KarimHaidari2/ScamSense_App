@@ -25,6 +25,9 @@ async function serverPost(body) {
     body: JSON.stringify(Object.assign({ uid: myUid() }, body))
   });
   const j = await r.json();
+  // This device was signed out (or its 60 days ran out): back to the welcome screen.
+  if (j && j.signin && body.mode !== "auth" && S.get("acct", null) && typeof signOutLocal === "function")
+    signOutLocal("expired");
   if (j && j.blocked) showBlocked(j.error);
   else if (j && j.ok) hideBlocked();
   return j;
@@ -85,7 +88,14 @@ async function registerUser() {
   try {
     const j = await serverPost(body);
     if (j && j.ok && !j.waiting) {
-      S.set("acct", { email: j.email, verified: j.verified, owner: !!j.owner, at: Date.now() });
+      S.set("acct", {
+        email: j.email,
+        verified: j.verified,
+        owner: !!j.owner,
+        hasPassword: !!j.hasPassword,
+        at: Date.now()
+      });
+      if (j.expires) S.set("session", { exp: j.expires, email: j.email || "" });
       flushServerEvents();
       if (typeof aboutYouCheck === "function") aboutYouCheck(j);
     }

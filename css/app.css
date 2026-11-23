@@ -5344,3 +5344,153 @@ nav.tabs [data-tab="settings"] {
 .onb-about {
   z-index: 90;
 }
+
+/* ----- Sign in, create an account ----- */
+.gate-btn.primary-btn {
+  background: var(--brand);
+  color: var(--brand-ink);
+  box-shadow: none;
+}
+.gate-btn.danger-btn {
+  background: var(--scam);
+  color: #fff;
+  box-shadow: none;
+}
+.gate-btn[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}
+.gate-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--muted);
+  margin: 4px 0 0;
+  font-size: 0.95rem;
+}
+.gate-or::before,
+.gate-or::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+.gate-body form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.gate-field,
+.about-box form > label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.gate-field input,
+.pwwrap input {
+  font: 400 1.1rem var(--body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+  min-height: 54px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.gate-field input:focus-visible,
+.pwwrap input:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 1px;
+}
+.codein {
+  letter-spacing: 0.35em;
+  font-size: 1.4rem !important;
+  font-weight: 800 !important;
+  text-align: center;
+}
+.pwwrap {
+  position: relative;
+  display: block;
+}
+.pwwrap input {
+  padding-right: 86px;
+}
+.pwshow {
+  all: unset;
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pwshow:focus-visible {
+  outline: 3px solid var(--amber);
+}
+.pwrules {
+  list-style: none;
+  margin: -4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+.pwrules li::before {
+  content: "○ ";
+  font-weight: 800;
+}
+.pwrules li.met {
+  color: var(--safe);
+}
+.pwrules li.met::before {
+  content: "✓ ";
+}
+.gate-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.gate-check input {
+  width: 24px;
+  height: 24px;
+  accent-color: var(--brand);
+}
+.gate-err {
+  color: var(--scam);
+  font-weight: 700;
+  margin: 0;
+  min-height: 0;
+}
+.gate-err:empty {
+  display: none;
+}
+.gate-back {
+  all: unset;
+  cursor: pointer;
+  align-self: flex-start;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 4px 2px;
+}
+.gate-back:focus-visible {
+  outline: 3px solid var(--amber);
+}
+.gate-swap {
+  text-align: center;
+  color: var(--muted);
+  margin: 0;
+}
+.gate-hero p b {
+  color: #fff;
+}

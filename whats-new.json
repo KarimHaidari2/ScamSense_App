@@ -2,6 +2,32 @@
   "note": "What's new in ScamSense. Newest first. Each item: date, kind (new | better | fixed), icon, en, es. The app shows a 'New' badge for items newer than the last time the person opened this page.",
   "items": [
     {
+      "date": "2026-11-22",
+      "kind": "new",
+      "icon": "lock",
+      "en": {
+        "title": "Accounts, passwords, and sign out",
+        "text": "Create an account with your email and a password, or keep using Google or Outlook. New devices need a code from your email, you stay signed in for 60 days, and you can reset your password, sign out, or delete your account in Settings."
+      },
+      "es": {
+        "title": "Cuentas, contraseñas y cerrar sesión",
+        "text": "Cree una cuenta con su correo y una contraseña, o siga usando Google u Outlook. Los dispositivos nuevos necesitan un código de su correo, su sesión dura 60 días, y puede restablecer su contraseña, cerrar sesión o eliminar su cuenta en Ajustes."
+      }
+    },
+    {
+      "date": "2026-11-22",
+      "kind": "new",
+      "icon": "user",
+      "en": {
+        "title": "About you",
+        "text": "After signing in, add your name, date of birth, and your state and ZIP code, so the ScamSense team knows who you are and can warn you about scams near you."
+      },
+      "es": {
+        "title": "Sobre usted",
+        "text": "Después de iniciar sesión, agregue su nombre, fecha de nacimiento, estado y código postal, para que el equipo de ScamSense sepa quién es y le avise de estafas cerca de usted."
+      }
+    },
+    {
       "date": "2026-11-21",
       "kind": "new",
       "icon": "msg",

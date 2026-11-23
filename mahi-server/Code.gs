@@ -60,6 +60,10 @@ function doPost(e) {
   try {
     const req = JSON.parse((e && e.postData && e.postData.contents) || "{}");
     if (isBlocked(req.uid)) return json(BLOCKED);
+    if (req.mode === "auth") return json(authApi(req));
+    // A device that signed out (or whose 60 days ran out) must sign in again before using the account.
+    if (/^(events|support|email_me)$/.test(req.mode) && okUid(req.uid) && sessionState(req.uid) === false)
+      return json({ error: "Please sign in again.", signin: true });
     if (req.mode === "check") return json(checkMessage(req));
     if (req.mode === "intel") return json({ ok: true, ages: domainAges(req.domains) });
     if (req.mode === "register") return json(registerUser(req));
@@ -302,7 +306,8 @@ const USER_COLS = [
   "Follow-up", // "needs follow-up" after a danger alert; type "done" when you've reached them
   "Blocked", // type "yes" to stop ScamSense for this person
   "Status", // "active" or "quiet 7+ days", updated every morning
-  "Owner notes" // your own notes about this person (from the Owner dashboard)
+  "Owner notes", // your own notes about this person (from the Owner dashboard)
+  "Password" // never the password itself: a salted, scrambled fingerprint (see 13. Accounts)
 ];
 const ACT_COLS = ["Time", "User ID", "Name", "What", "Channel", "Result", "Scam type", "Details"];
 const ALERT_COLS = ["Time", "Name", "Email", "What happened", "Emailed to"];
@@ -547,12 +552,20 @@ function registerUser(req) {
           [cleanText(f.name, 40), cleanText(f.email, 80), cleanText(f.phone, 30)].filter(Boolean).join(" | ")
         )
         .join("\n");
+    // A signed-out device can only come back with a real sign-in (Google, Outlook, or email + password).
+    if (!ve && sessionState(req.uid) === false) return { error: "Please sign in again.", signin: true };
     u["Last active"] = now;
     u.Status = "active";
     const welcome = u._welcome;
     delete u._welcome;
     writeUser(u);
     if (welcome) sendWelcome(u);
+    const fresh = findUser(req.uid) || u;
+    if (ve && sessionState(req.uid) !== true) {
+      sessionStart(fresh, req.uid, true, cleanText(req.device, 60) || "Google or Outlook sign-in");
+      if (!welcome) acctEvent(fresh, req.uid, "Signed in with " + (req.gtoken ? "Google" : "Outlook"), false);
+      else acctEvent(fresh, req.uid, "Created an account with " + (req.gtoken ? "Google" : "Outlook"), true);
+    } else if (fresh.row) sessionAdopt(fresh, req.uid);
     const isOwner = u["Email verified"] === "yes" && ownerEmails().indexOf(String(u.Email).toLowerCase()) >= 0;
     const dobOut = dobText(u["Date of birth"]);
     return {
@@ -560,6 +573,8 @@ function registerUser(req) {
       verified: u["Email verified"] === "yes",
       email: u.Email || "",
       owner: isOwner,
+      expires: sessionExpires(req.uid),
+      hasPassword: !!u.Password,
       // So a second device doesn't have to ask again.
       profile: {
         first: u["First name"] || "",
@@ -1040,7 +1055,12 @@ function ownerApi(req) {
   let role = ownerEmails().indexOf(who) >= 0 ? "owner" : "";
   if (!role) {
     const m = teamFind(who);
-    if (!m) return { error: "This account isn't on the ScamSense team: " + who, notOwner: true, email: who };
+    if (!m) {
+      if (a === "team_request") return teamRequest(who, req.note);
+      return { error: "This account isn't on the ScamSense team: " + who, notOwner: true, email: who };
+    }
+    if (m.Status === "requested")
+      return { ok: false, pending: true, email: who, error: "Your request is waiting for the owner's approval." };
     if (m.Status !== "active") {
       if (a !== "join") return { ok: false, needCode: true, email: who, error: "Enter the code from your invite email." };
       return teamJoin(m, req.code, who);
@@ -1050,8 +1070,10 @@ function ownerApi(req) {
   if (a === "join") return { ok: true, joined: true };
   if (a === "overview") return Object.assign(ownerOverview(who), { role, team: role === "owner" ? teamList() : [] });
   if (a === "person") return Object.assign(ownerPerson(req.uid), { role });
-  if (a === "team_add" || a === "team_remove") {
+  if (/^team_(add|remove|approve|deny)$/.test(a)) {
     if (role !== "owner") return { error: "Only the owner can change the team." };
+    if (a === "team_approve") return teamApprove(who, req.email, req.role);
+    if (a === "team_deny") return teamDeny(who, req.email);
     return a === "team_add" ? teamAdd(who, req.email, req.role) : teamRemove(who, req.email);
   }
   if (/^(cases|case|case_photo|quick_list|reply|case_note|case_status|case_priority|case_email)$/.test(a))
@@ -1135,7 +1157,9 @@ function rowsOf(name, max) {
 const iso = v => (v instanceof Date ? v.toISOString() : v);
 function userObj(head, r) {
   const o = {};
-  head.forEach((c, i) => (o[c] = iso(r[i])));
+  head.forEach((c, i) => {
+    if (c !== "Password") o[c] = iso(r[i]); // the password fingerprint never leaves the server
+  });
   return o;
 }
 
@@ -1243,7 +1267,14 @@ function teamSave(m) {
 }
 function teamList() {
   return [{ email: OWNER.EMAIL, role: "Owner", status: "active" }].concat(
-    teamRows().map(m => ({ email: m.Email, role: m.Role, status: m.Status, added: iso(m.Added), joined: iso(m.Joined) }))
+    teamRows().map(m => ({
+      email: m.Email,
+      role: m.Role,
+      status: m.Status,
+      added: iso(m.Added),
+      joined: iso(m.Joined),
+      note: String(m["Added by"] || "").indexOf("asked: ") === 0 ? String(m["Added by"]).slice(7) : ""
+    }))
   );
 }
 const sha = t =>
@@ -1281,6 +1312,55 @@ function teamAdd(who, email, role) {
   });
   ownerLog(who, "Invited " + email + " as " + role, null);
   return { ok: true, done: "Invite sent to " + email, team: teamList() };
+}
+// Someone signed in to the Owner page (Google or Outlook already proved their email) asks to join.
+function teamRequest(email, note) {
+  if (!takeQuota("teamreq:" + email, 3)) return { error: "You already asked today. The owner will get back to you." };
+  const now = new Date();
+  teamSheet().appendRow(
+    TEAM_COLS.map(c => ({ Email: email, Role: "", Status: "requested", Added: now, "Added by": "asked: " + cleanText(note, 200) })[c] || "")
+  );
+  const link = OWNER.APP_URL + "owner.html#team";
+  ownerEmails()
+    .slice(0, 5)
+    .forEach(to =>
+      acctMail(
+        to,
+        "Approve " + email + " for the ScamSense team?",
+        `${email} signed in to the ScamSense team dashboard and asked for access.${note ? ' They wrote: "' + cleanText(note, 200) + '"' : ""} Open the Team tab to approve them as Admin or Viewer, or decline. They can't see anything until you approve.`,
+        `<div style="text-align:center;margin-top:16px"><a href="${link}" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Review the request</a></div>`
+      )
+    );
+  ownerPush("Team request · " + email, "Wants access to the ScamSense dashboard. Tap to approve or decline.", "owner.html#team");
+  ownerLog(email, "Asked to join the team", null);
+  return { ok: false, pending: true, email, error: "Your request was sent. You'll get an email when the owner answers." };
+}
+function teamApprove(who, email, role) {
+  email = String(email || "").trim().toLowerCase();
+  const m = teamFind(email);
+  if (!m || m.Status !== "requested") return { error: "There's no request from that email." };
+  m.Role = role === "Admin" ? "Admin" : "Viewer";
+  m.Status = "active";
+  m.Joined = new Date();
+  m["Added by"] = who;
+  teamSave(m);
+  acctMail(
+    email,
+    "You're on the ScamSense team",
+    `The owner approved you as ${m.Role}. Open the dashboard and sign in with this email.`,
+    `<div style="text-align:center;margin-top:16px"><a href="${OWNER.APP_URL}owner.html" style="display:inline-block;background:#14213D;color:#fff;text-decoration:none;font-weight:800;padding:13px 26px;border-radius:12px">Open the dashboard</a></div>`
+  );
+  ownerLog(who, "Approved " + email + " as " + m.Role, null);
+  return { ok: true, done: "Approved " + email + " as " + m.Role, team: teamList() };
+}
+function teamDeny(who, email) {
+  email = String(email || "").trim().toLowerCase();
+  const m = teamFind(email);
+  if (!m || m.Status !== "requested") return { error: "There's no request from that email." };
+  teamSheet().deleteRow(m.row);
+  acctMail(email, "About your ScamSense team request", "The owner didn't approve access to the ScamSense team dashboard this time. If you think this is a mistake, reply to this email.");
+  ownerLog(who, "Declined " + email + "'s team request", null);
+  return { ok: true, done: "Declined " + email, team: teamList() };
 }
 function teamRemove(who, email) {
   email = String(email || "").trim().toLowerCase();
@@ -2497,12 +2577,14 @@ function pushRemove(who, ep) {
 function pushPeek(req) {
   const key = String(req.device || "");
   if (!/^[a-f0-9]{64}$/.test(key)) return { error: "bad device" };
+  const note = CacheService.getScriptCache().get("pushmsg"); // an account alert, not a case
   const dev = pushDevices().find(x => x.key === key);
   if (!dev) return { error: "This phone isn't signed up for alerts." };
   const email = String(dev.email).toLowerCase();
   const isOwner = ownerEmails().indexOf(email) >= 0;
   const t = isOwner ? null : teamFind(email);
   if (!isOwner && !(t && t.Status === "active")) return { error: "Not on the team." };
+  if (note) return Object.assign({ ok: true }, JSON.parse(note));
   const waiting = allCases()
     .filter(c => c.Status !== "closed" && +c["Team unread"] > 0)
     .sort((a, b) => new Date(b["Last update"]) - new Date(a["Last update"]));
@@ -2517,4 +2599,474 @@ function pushPeek(req) {
     url: "owner.html#case/" + encodeURIComponent(c["Case ID"]),
     tag: c["Case ID"]
   };
+}
+
+/* ========================================================================
+   13. ACCOUNTS — create an account, sign in, sign out, forgot password
+   - Create an account: email → 6-digit code by email → password → About you.
+   - Sign in: email + password, then a code by email on a new device or after 60 days.
+     "Keep me signed in" keeps a device signed in for 60 days; otherwise 1 day.
+   - Passwords: at least 10 characters, one capital letter, one number. Passwords that showed up
+     in data leaks are refused (checked without sending the password anywhere).
+   - Passwords are never saved: only a salted, scrambled fingerprint, mixed with a secret kept in
+     Script Properties (PW_PEPPER), so the spreadsheet alone can't reveal them.
+   - 5 wrong passwords lock the account for 15 minutes.
+   - The person gets an email for a new sign-in, a password change, an email change, and deletion.
+   - The owner sees every account event in the Owner app, and a phone alert for the important ones.
+   "Continue with Google / Outlook" still works and needs no password.
+   ======================================================================== */
+
+const ACCT = {
+  CODE_MIN: 10, // a code works for 10 minutes
+  CODE_TRIES: 5,
+  CODES_PER_DAY: 8, // per email
+  LOCK_AFTER: 5, // wrong passwords
+  LOCK_MIN: 15,
+  KEEP_DAYS: 60, // "Keep me signed in"
+  SHORT_DAYS: 1,
+  PW_ITER: 2000 // scrambling rounds (raise later; old passwords keep their own number)
+};
+const SESSION_COLS = ["Device", "User ID", "Started", "Expires", "Kept signed in", "Device name", "Last used"];
+const sessionSheet = () => supportSheet("Sessions", SESSION_COLS);
+
+/* ----- sessions: which device is signed in to which person, until when ----- */
+let SESS = null; // read once per request
+function sessionRows() {
+  if (SESS) return SESS;
+  const sh = sessionSheet();
+  const n = sh.getLastRow() - 1;
+  SESS =
+    n < 1
+      ? []
+      : sh
+          .getRange(2, 1, n, SESSION_COLS.length)
+          .getValues()
+          .map((r, i) => ({ row: i + 2, device: r[0], uid: r[1], expires: r[3] }));
+  return SESS;
+}
+// null: never had a session (older devices) · true: signed in · false: signed out or expired
+function sessionState(device) {
+  const s = sessionRows().find(x => x.device === device);
+  if (!s) return null;
+  return new Date(s.expires) > new Date();
+}
+function sessionStart(u, device, keep, label) {
+  const sh = sessionSheet();
+  const now = new Date();
+  const exp = new Date(now.getTime() + (keep ? ACCT.KEEP_DAYS : ACCT.SHORT_DAYS) * 864e5);
+  const row = [device, u["User ID"], now, exp, keep ? "yes" : "no", cleanText(label, 60), now];
+  const old = sessionRows().find(x => x.device === device);
+  if (old) sh.getRange(old.row, 1, 1, SESSION_COLS.length).setValues([row]);
+  else sh.appendRow(row);
+  SESS = null;
+  // This device now belongs to this person. If it had its own (unnamed) row before, that row goes.
+  if (device !== u["User ID"]) {
+    const sh2 = sheet("Users");
+    const own = sh2.getRange("A:A").createTextFinder(device).matchEntireCell(true).findNext();
+    if (own && own.getRow() > 1 && own.getRow() !== u.row) {
+      sh2.deleteRow(own.getRow());
+      if (u.row > own.getRow()) u.row--;
+    }
+    const devs = String(u.Devices || "")
+      .split(/\s+/)
+      .filter(Boolean);
+    if (devs.indexOf(device) < 0) devs.push(device);
+    u.Devices = devs.join(" ");
+    writeUser(u);
+  }
+  return exp.toISOString();
+}
+function sessionEnd(device) {
+  const s = sessionRows().find(x => x.device === device);
+  if (s) sessionSheet().getRange(s.row, 4).setValue(new Date(Date.now() - 1000));
+  SESS = null;
+}
+function sessionEndAll(userId) {
+  const sh = sessionSheet();
+  const past = new Date(Date.now() - 1000);
+  sessionRows()
+    .filter(x => x.uid === userId)
+    .forEach(x => sh.getRange(x.row, 4).setValue(past));
+  SESS = null;
+}
+// Devices that signed in before accounts had sessions get one now, so nobody is thrown out.
+function sessionAdopt(u, device) {
+  if (sessionState(device) === null) sessionStart(u, device, true, "signed in before sessions");
+}
+
+/* ----- passwords ----- */
+function pwRules(pw) {
+  pw = String(pw || "");
+  if (pw.length < 10) return "Your password needs at least 10 characters.";
+  if (pw.length > 128) return "That password is too long.";
+  if (!/[A-Z]/.test(pw)) return "Your password needs at least one capital letter.";
+  if (!/[0-9]/.test(pw)) return "Your password needs at least one number.";
+  return "";
+}
+// Has this password shown up in a data leak? Only the first 5 characters of its SHA-1 fingerprint
+// are sent (Have I Been Pwned "range" check), so the password itself never leaves this server.
+function pwLeaked(pw) {
+  try {
+    const h = u8(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_1, s8(strBytes(pw))))
+      .map(x => x.toString(16).padStart(2, "0"))
+      .join("")
+      .toUpperCase();
+    const r = UrlFetchApp.fetch("https://api.pwnedpasswords.com/range/" + h.slice(0, 5), {
+      headers: { "Add-Padding": "true" },
+      muteHttpExceptions: true
+    });
+    if (r.getResponseCode() !== 200) return false;
+    return r
+      .getContentText()
+      .split("\n")
+      .some(line => {
+        const [suf, n] = line.trim().split(":");
+        return suf === h.slice(5) && +n > 0;
+      });
+  } catch (e) {
+    return false; // if the check can't run, don't stop the person
+  }
+}
+function pwPepper() {
+  const p = PropertiesService.getScriptProperties();
+  let v = p.getProperty("PW_PEPPER");
+  if (!v) {
+    v = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+    p.setProperty("PW_PEPPER", v);
+  }
+  return v;
+}
+const hexOf = b => u8(b).map(x => x.toString(16).padStart(2, "0")).join("");
+const bytesOfHex = h => (String(h).match(/../g) || []).map(x => parseInt(x, 16));
+// PBKDF2-HMAC-SHA256 (one block), keyed with the secret pepper + the password.
+function pwHash(pw, saltHex, iter) {
+  const P = strBytes(pwPepper() + "\u0000" + String(pw));
+  let u = hmac256(P, bytesOfHex(saltHex).concat([0, 0, 0, 1]));
+  const t = u.slice();
+  for (let i = 1; i < iter; i++) {
+    u = hmac256(P, u);
+    for (let j = 0; j < t.length; j++) t[j] ^= u[j];
+  }
+  return hexOf(t);
+}
+function pwMake(pw) {
+  const salt = Utilities.getUuid().replace(/-/g, "");
+  return "v1$" + ACCT.PW_ITER + "$" + salt + "$" + pwHash(pw, salt, ACCT.PW_ITER);
+}
+function pwCheck(pw, stored) {
+  const p = String(stored || "").split("$");
+  if (p.length !== 4 || p[0] !== "v1") return false;
+  const a = pwHash(pw, p[2], +p[1]),
+    b = p[3];
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/* ----- 6-digit codes by email ----- */
+const PURPOSE_WORDS = {
+  signup: ["Your ScamSense code", "Use this code to create your ScamSense account."],
+  login: ["Your ScamSense sign-in code", "Use this code to finish signing in to ScamSense."],
+  reset: ["Reset your ScamSense password", "Use this code to set a new password."],
+  delete: ["Confirm deleting your ScamSense account", "Use this code only if you want to delete your account."],
+  email_change: ["Confirm your new email for ScamSense", "Use this code to change your ScamSense email to this address."]
+};
+const cleanEmail = e => {
+  const v = String(e || "")
+    .trim()
+    .toLowerCase()
+    .slice(0, 100);
+  return /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(v) ? v : "";
+};
+function codeSend(email, purpose, extra) {
+  if (!takeQuota("acode:" + email, ACCT.CODES_PER_DAY))
+    return { error: "We've sent a lot of codes to this email today. Please try again tomorrow." };
+  const code = String(parseInt(Utilities.getUuid().replace(/-/g, "").slice(0, 12), 16) % 1000000).padStart(6, "0");
+  CacheService.getScriptCache().put(
+    "acode:" + purpose + ":" + email,
+    JSON.stringify(Object.assign({ h: hexOf(sha256(strBytes(code + "|" + email))), tries: 0 }, extra || {})),
+    ACCT.CODE_MIN * 60
+  );
+  const [subject, line] = PURPOSE_WORDS[purpose];
+  MailApp.sendEmail({
+    to: email,
+    subject: subject + ": " + code,
+    body: `${line}\n\n${code}\n\nIt works for ${ACCT.CODE_MIN} minutes. If you didn't ask for this, you can ignore this email.`,
+    htmlBody: mailShell(
+      `<div style="padding:24px;text-align:center">
+        <div style="font-size:18px;font-weight:800;color:#111827">${esc(subject)}</div>
+        <p style="font-size:15px;color:#5F6673;margin:8px 0 18px">${esc(line)}</p>
+        <div style="display:inline-block;font-size:34px;font-weight:800;letter-spacing:8px;color:#14213D;background:#F4F5F8;border-radius:14px;padding:14px 22px">${code}</div>
+        <p style="font-size:14px;color:#5F6673;margin-top:18px">It works for ${ACCT.CODE_MIN} minutes. ScamSense will never call you or text you to ask for this code. If you didn't ask for it, ignore this email.</p>
+      </div>`
+    ),
+    name: "ScamSense"
+  });
+  return { ok: true, sent: true };
+}
+// Checks a code. Returns its saved extras, or { error }.
+function codeCheck(email, purpose, code) {
+  const c = CacheService.getScriptCache();
+  const k = "acode:" + purpose + ":" + email;
+  const v = c.get(k);
+  if (!v) return { error: "That code expired. Tap \"Send a new code\"." };
+  const o = JSON.parse(v);
+  if (o.tries >= ACCT.CODE_TRIES) return { error: "Too many wrong codes. Tap \"Send a new code\"." };
+  if (hexOf(sha256(strBytes(String(code || "").trim() + "|" + email))) !== o.h) {
+    o.tries++;
+    c.put(k, JSON.stringify(o), ACCT.CODE_MIN * 60);
+    return { error: "That code isn't right. Please check the email and try again." };
+  }
+  c.remove(k);
+  return { ok: true, extra: o };
+}
+
+/* ----- telling the person and the owner ----- */
+function acctMail(to, subject, line, button) {
+  try {
+    MailApp.sendEmail({
+      to,
+      replyTo: OWNER.EMAIL,
+      subject,
+      body: line,
+      htmlBody: mailShell(
+        `<div style="padding:22px"><div style="font-size:19px;font-weight:800;color:#111827">${esc(subject)}</div>
+        <p style="font-size:15px;line-height:1.55;color:#111827">${esc(line)}</p>${button || ""}</div>`
+      ),
+      name: "ScamSense"
+    });
+  } catch (e) {}
+}
+// One line in the Activity tab (the Owner app shows it); a phone alert for important ones.
+function acctEvent(u, uid, what, important) {
+  try {
+    sheet("Activity").appendRow([new Date(), uid || (u && u["User ID"]) || "", (u && fullName(u)) || "", "Account", "", what, "", ""]);
+    if (important) ownerPush("ScamSense · " + ((u && fullName(u)) || "Someone"), what, "owner.html#overview");
+  } catch (e) {}
+}
+// A phone alert that isn't about a case (the phone shows it for 2 minutes after the tap).
+function ownerPush(title, body, url) {
+  try {
+    CacheService.getScriptCache().put("pushmsg", JSON.stringify({ title, body, url, tag: "ss-acct" }), 120);
+    pushTeam();
+  } catch (e) {}
+}
+const deviceName = req => cleanText(req.device, 60) || "a device";
+
+/* ----- the account actions the app sends (mode "auth") ----- */
+function authApi(req) {
+  if (!okUid(req.uid)) return { error: "bad id" };
+  const a = String(req.action || "");
+  const email = cleanEmail(req.email);
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    // Create an account, step 1: email a code.
+    if (a === "signup_start") {
+      if (!email) return { error: "Please type a real email address." };
+      const u = findUserByEmail(email);
+      if (u && u.Password) return { error: "You already have an account with this email. Tap \"I already have an account\".", existing: true };
+      return codeSend(email, "signup");
+    }
+    // Create an account, step 2: the code and a password.
+    if (a === "signup_finish") {
+      if (!email) return { error: "Please type a real email address." };
+      const bad = pwRules(req.password);
+      if (bad) return { error: bad };
+      if (pwLeaked(req.password))
+        return { error: "That password has shown up in a data leak, so scammers may know it. Please choose a different one." };
+      const ok = codeCheck(email, "signup", req.code);
+      if (ok.error) return ok;
+      let u = findUserByEmail(email) || findUser(req.uid);
+      const isNew = !u;
+      if (!u) {
+        u = {
+          "User ID": req.uid,
+          "First seen": new Date(),
+          "Emails scanned": 0,
+          "Scams caught": 0,
+          Checks: 0,
+          Alerts: 0
+        };
+      }
+      u.Email = email;
+      const firstTime = u["Email verified"] !== "yes";
+      u["Email verified"] = "yes";
+      u.Password = pwMake(req.password);
+      u["Last active"] = new Date();
+      u.Status = "active";
+      writeUser(u);
+      u = findUserByEmail(email);
+      const exp = sessionStart(u, req.uid, req.keep !== false, deviceName(req));
+      if (firstTime) sendWelcome(u);
+      acctEvent(u, req.uid, isNew ? "Created an account" : "Added a password to their account", isNew);
+      return { ok: true, signedIn: true, expires: exp, email, profile: profileOf(u) };
+    }
+    // Sign in, step 1: email + password.
+    if (a === "login") {
+      if (!email) return { error: "Please type your email address." };
+      const lockKey = "alock:" + email;
+      const cache = CacheService.getScriptCache();
+      if (cache.get(lockKey))
+        return { error: `This account is locked for ${ACCT.LOCK_MIN} minutes after too many wrong passwords. You can also tap "Forgot password".` };
+      const u = findUserByEmail(email);
+      if (!u) return { error: "We couldn't find an account with that email. Tap \"Create an account\".", noAccount: true };
+      if (!u.Password)
+        return { error: "This account signs in with Google or Outlook. Use that button, or tap \"Forgot password\" to make a password.", noPassword: true };
+      if (isYes(u.Blocked)) return BLOCKED;
+      if (!pwCheck(req.password, u.Password)) {
+        const n = +(cache.get("afail:" + email) || 0) + 1;
+        cache.put("afail:" + email, String(n), ACCT.LOCK_MIN * 60);
+        if (n >= ACCT.LOCK_AFTER) {
+          cache.put(lockKey, "1", ACCT.LOCK_MIN * 60);
+          cache.remove("afail:" + email);
+          acctMail(u.Email, "Someone tried to sign in to your ScamSense account", `There were ${ACCT.LOCK_AFTER} wrong passwords for your account, so we locked it for ${ACCT.LOCK_MIN} minutes. If this was you, wait and try again, or reset your password. If it wasn't you, nobody got in, and you don't need to do anything.`);
+          acctEvent(u, req.uid, `Locked out after ${ACCT.LOCK_AFTER} wrong passwords`, true);
+          return { error: `Too many wrong passwords. The account is locked for ${ACCT.LOCK_MIN} minutes. You can tap "Forgot password".` };
+        }
+        return { error: `That password isn't right. ${ACCT.LOCK_AFTER - n} ${ACCT.LOCK_AFTER - n === 1 ? "try" : "tries"} left before a ${ACCT.LOCK_MIN}-minute lock.` };
+      }
+      cache.remove("afail:" + email);
+      // Right password. A code by email proves it's really them on this device.
+      const sent = codeSend(email, "login", { keep: req.keep !== false });
+      if (sent.error) return sent;
+      return { ok: true, needCode: true };
+    }
+    // Sign in, step 2: the code.
+    if (a === "login_finish") {
+      const ok = codeCheck(email, "login", req.code);
+      if (ok.error) return ok;
+      const u = findUserByEmail(email);
+      if (!u) return { error: "We couldn't find that account." };
+      const exp = sessionStart(u, req.uid, ok.extra.keep !== false, deviceName(req));
+      u["Last active"] = new Date();
+      writeUser(findUserByEmail(email) || u);
+      acctMail(u.Email, "New sign-in to your ScamSense account", `Your account was just signed in on ${deviceName(req)}, ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM d 'at' h:mm a")}. If this was you, you're all set. If it wasn't, open ScamSense, tap Forgot password to set a new one, and we'll sign out every device.`);
+      acctEvent(u, req.uid, "Signed in on " + deviceName(req), false);
+      return { ok: true, signedIn: true, expires: exp, email, profile: profileOf(u) };
+    }
+    // Forgot password, step 1.
+    if (a === "reset_start") {
+      if (!email) return { error: "Please type your email address." };
+      if (!findUserByEmail(email)) return { ok: true, sent: true }; // don't tell strangers who has an account
+      return codeSend(email, "reset");
+    }
+    // Forgot password, step 2: code + new password. Every device is signed out, then this one signs in.
+    if (a === "reset_finish") {
+      const bad = pwRules(req.password);
+      if (bad) return { error: bad };
+      if (pwLeaked(req.password))
+        return { error: "That password has shown up in a data leak, so scammers may know it. Please choose a different one." };
+      const ok = codeCheck(email, "reset", req.code);
+      if (ok.error) return ok;
+      const u = findUserByEmail(email);
+      if (!u) return { error: "We couldn't find that account." };
+      u.Password = pwMake(req.password);
+      u["Email verified"] = "yes";
+      writeUser(u);
+      CacheService.getScriptCache().remove("alock:" + email);
+      sessionEndAll(u["User ID"]);
+      const exp = sessionStart(findUserByEmail(email), req.uid, req.keep !== false, deviceName(req));
+      acctMail(u.Email, "Your ScamSense password was changed", "Your password was just changed, and every other device was signed out. If this wasn't you, reply to this email right away.");
+      acctEvent(u, req.uid, "Reset their password (all devices signed out)", true);
+      return { ok: true, signedIn: true, expires: exp, email, profile: profileOf(u) };
+    }
+
+    // Everything below needs a signed-in device.
+    const u = findUser(req.uid);
+    const st = sessionState(req.uid);
+    if (!u || st === false) return { error: "Please sign in again.", signin: true };
+    if (st === null) sessionAdopt(u, req.uid); // signed in before sessions existed
+    if (a === "status")
+      return { ok: true, email: u.Email || "", hasPassword: !!u.Password, expires: sessionExpires(req.uid), profile: profileOf(u) };
+    if (a === "logout") {
+      sessionEnd(req.uid);
+      acctEvent(u, req.uid, "Signed out", false);
+      return { ok: true };
+    }
+    if (a === "logout_all") {
+      sessionEndAll(u["User ID"]);
+      acctEvent(u, req.uid, "Signed out of all devices", false);
+      return { ok: true };
+    }
+    if (a === "change_password") {
+      if (u.Password && !pwCheck(req.old, u.Password)) return { error: "Your current password isn't right." };
+      const bad = pwRules(req.password);
+      if (bad) return { error: bad };
+      if (pwLeaked(req.password))
+        return { error: "That password has shown up in a data leak, so scammers may know it. Please choose a different one." };
+      u.Password = pwMake(req.password);
+      writeUser(u);
+      acctMail(u.Email, "Your ScamSense password was changed", "Your password was just changed in ScamSense. If this wasn't you, reply to this email right away.");
+      acctEvent(u, req.uid, u.Password ? "Changed their password" : "Made a password", false);
+      return { ok: true };
+    }
+    if (a === "email_change_start") {
+      if (!email) return { error: "Please type a real email address." };
+      if (findUserByEmail(email)) return { error: "Another account already uses that email." };
+      return codeSend(email, "email_change", { uid: u["User ID"] });
+    }
+    if (a === "email_change_finish") {
+      const ok = codeCheck(email, "email_change", req.code);
+      if (ok.error) return ok;
+      if (ok.extra.uid !== u["User ID"]) return { error: "Please start again." };
+      const old = u.Email;
+      u.Email = email;
+      u["Email verified"] = "yes";
+      writeUser(u);
+      if (old) acctMail(old, "Your ScamSense email was changed", `Your ScamSense account now uses ${email}. If this wasn't you, reply to this email right away.`);
+      acctEvent(u, req.uid, "Changed their email to " + email, true);
+      return { ok: true, email };
+    }
+    if (a === "delete_start") {
+      if (!u.Email) return { error: "This account has no email to confirm with. Please email us to delete it." };
+      return codeSend(String(u.Email).toLowerCase(), "delete");
+    }
+    if (a === "delete_finish") {
+      const ok = codeCheck(String(u.Email).toLowerCase(), "delete", req.code);
+      if (ok.error) return ok;
+      deleteAccount(u);
+      acctMail(u.Email, "Your ScamSense account was deleted", "Your ScamSense account and its information were deleted. You're welcome back anytime.");
+      acctEvent(null, req.uid, `${fullName(u) || u.Email} deleted their account`, true);
+      return { ok: true, deleted: true };
+    }
+    return { error: "Unknown action." };
+  } finally {
+    lock.releaseLock();
+  }
+}
+function sessionExpires(device) {
+  const s = sessionRows().find(x => x.device === device);
+  return s ? iso(s.expires) : "";
+}
+function profileOf(u) {
+  return {
+    first: u["First name"] || "",
+    last: u["Last name"] || "",
+    dob: dobText(u["Date of birth"]),
+    country: u.Country || "",
+    state: u.State || "",
+    zip: String(u.ZIP || "").replace(/^'/, "")
+  };
+}
+// Removes the person's row, their activity, their help cases, and their sessions.
+function deleteAccount(u) {
+  const id = u["User ID"];
+  const devs = [id].concat(String(u.Devices || "").split(/\s+/).filter(Boolean));
+  const wipe = (name, col, match) => {
+    const sh = sheet(name);
+    if (!sh || sh.getLastRow() < 2) return;
+    const vals = sh.getRange(2, col, sh.getLastRow() - 1, 1).getValues();
+    for (let i = vals.length - 1; i >= 0; i--) if (match(vals[i][0])) sh.deleteRow(i + 2);
+  };
+  const caseIds = allCases()
+    .filter(c => devs.indexOf(c["User ID"]) >= 0)
+    .map(c => c["Case ID"]);
+  wipe("Activity", 2, v => devs.indexOf(v) >= 0);
+  wipe("Messages", 2, v => caseIds.indexOf(v) >= 0);
+  wipe("Cases", 1, v => caseIds.indexOf(v) >= 0);
+  wipe("Sessions", 2, v => v === id);
+  SESS = null;
+  const again = findUserByEmail(u.Email) || u;
+  if (again.row) sheet("Users").deleteRow(again.row);
 }

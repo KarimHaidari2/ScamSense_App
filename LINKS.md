@@ -33,6 +33,7 @@ Where to paste the code: https://script.google.com (open the script with the mat
 | `sendWeeklyNow` | Sends you this week's owner summary right now (it also comes every Monday at 8 AM) |
 | `setupSupport` | Run once (asks for Google Drive). Makes the **Cases**, **Messages**, and **Quick replies** tabs and the private photo folder for live help |
 | `setupPush` | Optional. Makes the phone-alert keys and the **Phone alerts** tab (it also happens by itself the first time you tap Turn on phone alerts) |
+| (no setup needed) | Accounts: the server makes its own `PW_PEPPER` Script Property the first time someone makes a password. **Never delete or change PW_PEPPER**, or every password stops working (people would need Forgot password). Signed-in devices are in the **Sessions** tab. |
 | `writeServicesTab` | Adds or refreshes the **Services** tab in the dashboard: every outside service, why we use it, and what it costs |
 
 ## Daily Report: what to run
