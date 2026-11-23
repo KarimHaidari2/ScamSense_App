@@ -1113,6 +1113,23 @@ function drawThread() {
           ${e.text ? `<details><summary>Read the email</summary><pre>${esc(e.text)}</pre></details>` : ""}
           ${time(m)}</div>`;
       }
+      // Mahi handed this person over: show Mahi's summary and their chat with Mahi.
+      if (m.from === "user" && /^\(From Ask Mahi\)/.test(m.text || "")) {
+        const [sum, chat] = String(m.text)
+          .replace(/^\(From Ask Mahi\)\s*/, "")
+          .split(/\n\nTheir chat with Mahi:\n/);
+        return `<div class="temail"><b>🦉 Mahi connected ${esc(name1)} to you</b><span>${esc(sum)}</span>${
+          chat
+            ? `<details open><summary>Their chat with Mahi</summary><div class="tscript">${chat
+                .split("\n")
+                .map(l => {
+                  const them = /^Them: /.test(l);
+                  return `<p class="${them ? "them" : "mahi"}"><b>${them ? esc(name1) : "Mahi"}</b> ${esc(l.replace(/^(Them|Mahi): /, ""))}</p>`;
+                })
+                .join("")}</div></details>`
+            : ""
+        }${time(m)}</div>`;
+      }
       const mine = m.from === "owner";
       return `<div class="tmsg ${mine ? "mine" : ""}"><b>${mine ? "You" + (m.who ? " · " + esc(m.who) : "") : esc(name1)}</b>${m.text ? `<span>${esc(m.text)}</span>` : ""}${photo(m)}${time(m)}</div>`;
     })

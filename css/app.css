@@ -5169,3 +5169,39 @@ nav.tabs [data-tab="settings"] {
 .supbanner:focus-visible {
   outline: 3px solid var(--amber);
 }
+
+/* A real person in the Mahi chat */
+.teamb {
+  border: 1.5px solid var(--safe);
+}
+.livebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  border-radius: 14px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.livebar > span:nth-child(2) {
+  flex: 1 1 200px;
+}
+.livebar .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+}
+.livedot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--amber);
+  flex: none;
+}
+.livedot.on {
+  background: var(--safe);
+  box-shadow: 0 0 0 4px rgba(46, 157, 90, 0.2);
+}

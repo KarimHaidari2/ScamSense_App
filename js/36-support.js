@@ -322,6 +322,8 @@ function shrinkPhoto(file) {
 /* When the team answers while the person is somewhere else in the app, a banner says so. */
 async function supportCheck() {
   if (!serverOn() || !S.get("sup_on", false) || document.hidden || document.getElementById("suplog")) return;
+  const inMahi = !!S.get("mahi_live", null); // the team is talking inside the Mahi chat
+  if (inMahi && document.getElementById("chatlog")) return; // the Mahi chat shows it already
   try {
     const j = await serverPost({ mode: "support", action: "poll" });
     if (!j.ok || !j.case) return;
@@ -337,7 +339,7 @@ async function supportCheck() {
     b.innerHTML = `${ic("msg")}<span><b>${tr("The ScamSense team answered you", "El equipo de ScamSense le respondió")}</b><span>${esc(String(last.text || tr("They sent a photo.", "Le enviaron una foto.")).slice(0, 90))}</span></span>`;
     b.onclick = () => {
       b.remove();
-      go("support");
+      go(inMahi ? "helper" : "support");
     };
   } catch (e) {}
 }

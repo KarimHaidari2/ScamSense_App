@@ -1156,3 +1156,22 @@ body[data-role="viewer"] .actions {
 .pushask p {
   margin: 4px 0 10px;
 }
+.tscript {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 8px 10px;
+  background: var(--bg);
+  border-radius: 10px;
+  font-size: 0.9rem;
+}
+.tscript p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tscript p.mahi {
+  color: var(--muted);
+}

@@ -205,19 +205,93 @@ const AGENT_GO = {
   family: () => tr("Open Family", "Abrir Familia"),
   settings: () => tr("Turn on Mahi's AI in Settings", "Activar la IA de Mahi en Ajustes")
 };
+/* ----- A real person joins the Mahi chat (like "talk to a live agent" at a bank) -----
+   While mahiLive is set, the person's messages go to the ScamSense team instead of the AI,
+   and the team's answers show up right here in the same chat. Closing the case hands back to Mahi. */
+let mahiLive = S.get("mahi_live", null); // { caseId, since, joined, seen: [times] }
+let helperLive = null; // hooks into the open Mahi screen
+const saveLive = () => S.set("mahi_live", mahiLive);
+
+/* What the team reads first: Mahi's summary and the chat so far (so nobody has to repeat themselves). */
+function liveHandoffText(summary) {
+  const lines = chatLog
+    .filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .slice(-16)
+    .map(m => (m.role === "user" ? "Them: " : "Mahi: ") + m.content.replace(/\s+/g, " ").slice(0, 300));
+  return (
+    "(From Ask Mahi) " +
+    String(summary || "Asked to talk to a person.").slice(0, 600) +
+    (lines.length ? "\n\nTheir chat with Mahi:\n" + lines.join("\n") : "")
+  ).slice(0, 3900);
+}
+async function liveConnect(summary, urgent) {
+  const j = await serverPost({
+    mode: "support",
+    action: "send",
+    reason: urgent ? "scammed" : "person",
+    text: liveHandoffText(summary),
+    name: cfg().name || ""
+  });
+  if (!j || !j.ok)
+    throw new Error((j && j.error) || tr("Couldn't reach the team.", "No se pudo contactar al equipo."));
+  const already = (j.messages || []).filter(m => m.from === "owner").map(m => m.t);
+  mahiLive = { caseId: j.case && j.case.id, since: new Date().toISOString(), joined: false, seen: already };
+  saveLive();
+  return j;
+}
+async function livePoll() {
+  if (!mahiLive) return [];
+  const j = await serverPost({ mode: "support", action: "poll" });
+  if (!j || !j.ok || !j.case) return [];
+  const out = [];
+  (j.messages || [])
+    .filter(m => m.from === "owner" && mahiLive.seen.indexOf(m.t) < 0)
+    .forEach(m => {
+      mahiLive.seen.push(m.t);
+      if (!mahiLive.joined) {
+        mahiLive.joined = true;
+        out.push({
+          role: "sys",
+          content: tr(
+            "A person from the ScamSense team joined the chat.",
+            "Una persona del equipo de ScamSense se unió al chat."
+          )
+        });
+      }
+      out.push({ role: "team", content: m.text || "", photo: m.photo || "", t: m.t });
+      S.set("sup_seen", m.t);
+    });
+  if (j.case.status === "closed" && (!mahiLive.caseId || j.case.id === mahiLive.caseId)) {
+    out.push({
+      role: "sys",
+      content: tr(
+        "The ScamSense team ended the chat. Mahi is back to help.",
+        "El equipo de ScamSense terminó el chat. Mahi vuelve a ayudarle."
+      )
+    });
+    mahiLive = null;
+  } else if (mahiLive && !mahiLive.caseId) mahiLive.caseId = j.case.id;
+  saveLive();
+  return out;
+}
+
 function renderHelper() {
   const c0 = cfg();
   const viaServer = !!c0.mahiUrl;
   const has = viaServer || (!!c0.apiKey && c0.aiMode !== "off");
   const bubble = m =>
-    `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${m.role === "user" ? esc(m.content) : fmtMahi(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}${(
-      m.actions || []
-    )
-      .map(
-        (a, k) =>
-          `<button class="btn ${a.primary ? "primary" : "ghost"} sm bgo" data-act="${m.aid}:${k}">${esc(a.label)} ${ic("chev", "chev")}</button>`
-      )
-      .join("")}</div>`;
+    m.role === "sys"
+      ? `<p class="sysmsg" dir="auto">${esc(m.content)}</p>`
+      : m.role === "team"
+        ? `<div class="bubble ai teamb" dir="auto"><b class="who">${tr("ScamSense team · a real person", "Equipo de ScamSense · una persona real")}</b>${esc(m.content)}${m.photo ? `<img class="chatimg" data-photo="${esc(m.photo)}" alt="${esc(tr("Photo", "Foto"))}">` : ""}</div>`
+        : `<div class="bubble ${m.role === "user" ? "me" : "ai"}" dir="auto">${m.role === "user" ? esc(m.content) : fmtMahi(m.content)}${m.go && AGENT_GO[m.go] ? `<button class="btn ghost sm bgo" data-go="${m.go}">${esc(AGENT_GO[m.go]())} ${ic("chev", "chev")}</button>` : ""}${(
+            m.actions || []
+          )
+            .map(
+              (a, k) =>
+                `<button class="btn ${a.primary ? "primary" : "ghost"} sm bgo" data-act="${m.aid}:${k}">${esc(a.label)} ${ic("chev", "chev")}</button>`
+            )
+            .join("")}</div>`;
   const hello = {
     role: "assistant",
     content: tr(
@@ -228,6 +302,7 @@ function renderHelper() {
   view.innerHTML = `${pageHead(tr("Ask Mahi", "Pregúntele a Mahi"), "", "today")}
   <section class="chat card"><div class="chatlog" id="chatlog" aria-live="polite">${[hello, ...chatLog].map(bubble).join("")}</div>
     <div class="samples" id="chatsamples" ${chatLog.length ? "hidden" : ""}>${[tr("Is a text about an unpaid toll real?", "¿Es real un texto sobre un peaje sin pagar?"), tr("Someone wants me to pay with gift cards", "Alguien quiere que pague con tarjetas de regalo"), tr("How do I know if a website is real?", "¿Cómo sé si un sitio web es real?")].map(q => `<button class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div>
+    <div id="livebar"></div>
     <div class="composer"><textarea id="chatin" dir="auto" rows="1" placeholder="${esc(tr("Type or tap the mic to talk…", "Escriba o toque el micrófono para hablar…"))}"></textarea>${canListenHere() ? `<button class="btn ghost micbtn" id="chatmic" aria-pressed="false" title="${esc(tr("Talk to Mahi", "Hablar con Mahi"))}">${ic("mic")}<span class="sr">${tr("Talk to Mahi", "Hablar con Mahi")}</span></button>` : ""}<button class="btn primary sendbtn" id="chatgo" aria-label="${esc(tr("Send", "Enviar"))}">${ic("send")}</button></div>
     <div class="chattools"><button class="ctool" id="chatread">${ic("speaker")}<span>${t("read_aloud").replace(/^\S*🔊\S*\s*/u, "")}</span></button><button class="ctool" id="chatsave" ${chatLog.length ? "" : "disabled"}>${ic("download")}<span>${tr("Save this chat", "Guardar este chat")}</span></button><button class="ctool" id="chatclear" ${chatLog.length ? "" : "disabled"}>${tr("Start over", "Empezar de nuevo")}</button>${serverOn() ? `<button class="ctool" id="chatperson">${ic("user")}<span>${tr("Talk to a person", "Hablar con una persona")}</span></button>` : ""}</div>
     <p class="footnote small">${ic(has ? "lock" : "info")}<span>${has ? tr("Answers come from Anthropic's AI. Your chat stays on this device until you close the app.", "Las respuestas vienen de la IA de Anthropic. Su chat se queda en este dispositivo hasta que cierre la app.") : tr("Quick answers work right away, even offline. Add an AI key in Settings for longer, smarter answers.", "Las respuestas rápidas funcionan al instante, incluso sin internet. Agregue una clave de IA en Ajustes para respuestas más completas.")}</span></p></section>`;
@@ -260,8 +335,73 @@ function renderHelper() {
     log.insertAdjacentHTML("beforeend", bubble(m));
     bindGo(log);
     bindActs();
+    log.querySelectorAll("img[data-photo]:not([src])").forEach(loadSupportPhoto);
     scroll();
   };
+  const liveBar = () => {
+    const bar = document.getElementById("livebar");
+    if (!bar) return;
+    bar.innerHTML = mahiLive
+      ? `<div class="livebar"><span class="livedot ${mahiLive.joined ? "on" : ""}"></span><span>${mahiLive.joined ? tr("You're talking to a real person on the ScamSense team.", "Está hablando con una persona real del equipo de ScamSense.") : tr("Waiting for a person from the ScamSense team… You can leave this screen. We'll let you know when they answer.", "Esperando a una persona del equipo de ScamSense… Puede salir de esta pantalla. Le avisaremos cuando respondan.")}</span><span class="row"><button class="ctool" id="livephoto">${ic("camera")}<span>${tr("Send a photo", "Enviar una foto")}</span></button><button class="ctool" id="liveend">${tr("Back to Mahi", "Volver con Mahi")}</button></span></div>`
+      : "";
+    inp.placeholder = mahiLive
+      ? tr("Write to the ScamSense team…", "Escriba al equipo de ScamSense…")
+      : tr("Type or tap the mic to talk…", "Escriba o toque el micrófono para hablar…");
+    if (!mahiLive) return;
+    document.getElementById("livephoto").onclick = () => openSupport("person");
+    document.getElementById("liveend").onclick = () => {
+      mahiLive = null;
+      saveLive();
+      const m = {
+        role: "sys",
+        content: tr(
+          "You're back with Mahi. The team can still answer you in Settings → Talk to the ScamSense team.",
+          "Volvió con Mahi. El equipo aún puede responderle en Ajustes → Hable con el equipo de ScamSense."
+        )
+      };
+      chatLog.push(m);
+      add(m);
+      liveBar();
+    };
+  };
+  const liveTick = async () => {
+    if (!mahiLive || !document.getElementById("chatlog")) return;
+    try {
+      (await livePoll()).forEach(m => {
+        chatLog.push(m);
+        add(m);
+      });
+    } catch (e) {}
+    liveBar();
+  };
+  const liveStart = async (summary, quiet) => {
+    const wait = {
+      role: "sys",
+      content: tr(
+        "Connecting you to a person on the ScamSense team… They'll answer right here.",
+        "Conectándole con una persona del equipo de ScamSense… Le responderán aquí mismo."
+      )
+    };
+    try {
+      if (!mahiLive) await liveConnect(summary);
+      if (!quiet) {
+        chatLog.push(wait);
+        add(wait);
+      }
+    } catch (e) {
+      const m = { role: "sys", content: e.message };
+      chatLog.push(m);
+      add(m);
+    }
+    liveBar();
+    tools();
+  };
+  helperLive = { start: liveStart };
+  clearInterval(renderHelper.timer);
+  renderHelper.timer = setInterval(() => {
+    if (!document.getElementById("chatlog")) return clearInterval(renderHelper.timer);
+    if (!document.hidden) liveTick();
+  }, 6000);
   let busy = false;
   let spoke = false; // asked by voice? then Mahi answers out loud too
   const send = async q => {
@@ -276,6 +416,27 @@ function renderHelper() {
     chatLog.push(um);
     add(um);
     tools();
+    if (mahiLive) {
+      try {
+        const j = await serverPost({ mode: "support", action: "send", text: q, name: cfg().name || "" });
+        if (!j || !j.ok) throw new Error((j && j.error) || "");
+      } catch (e) {
+        const m = {
+          role: "sys",
+          content:
+            e.message ||
+            tr(
+              "That didn't send. Check your internet and try again.",
+              "No se envió. Revise su internet e intente de nuevo."
+            )
+        };
+        chatLog.push(m);
+        add(m);
+      }
+      busy = false;
+      inp.focus();
+      return;
+    }
     log.insertAdjacentHTML(
       "beforeend",
       `<div class="bubble ai typing" id="typing" aria-label="${esc(tr("Mahi is typing", "Mahi está escribiendo"))}"><i></i><i></i><i></i></div>`
@@ -350,16 +511,25 @@ function renderHelper() {
     if (last) speak(last.content);
   };
   const person = document.getElementById("chatperson");
-  if (person) person.onclick = () => openSupport("person");
+  if (person)
+    person.onclick = () =>
+      liveStart(tr("Tapped Talk to a person in Ask Mahi.", "Tapped Talk to a person in Ask Mahi."));
   document.getElementById("chatclear").onclick = () => {
     chatLog = [];
     mahiHistory = [];
+    mahiLive = null;
+    saveLive();
     renderHelper();
   };
   document.getElementById("chatsave").onclick = () => {
     const txt =
       `ScamSense chat · ${new Date().toLocaleString()}\n\n` +
-      chatLog.map(m => `${m.role === "user" ? tr("Me", "Yo") : "Mahi"}: ${m.content}`).join("\n\n");
+      chatLog
+        .map(
+          m =>
+            `${m.role === "user" ? tr("Me", "Yo") : m.role === "team" ? tr("ScamSense team", "Equipo de ScamSense") : m.role === "sys" ? "—" : "Mahi"}: ${m.content}`
+        )
+        .join("\n\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
     a.download = `ScamSense-chat-${new Date().toISOString().slice(0, 10)}.txt`;
@@ -367,6 +537,8 @@ function renderHelper() {
     a.click();
     a.remove();
   };
+  liveBar();
+  if (mahiLive) liveTick();
   if (matchMedia("(pointer:fine)").matches) inp.focus();
 }
 
@@ -904,29 +1076,14 @@ async function runMahiTool(name, input, ui) {
     case "talk_to_team": {
       if (!serverOn())
         return { error: "Talking to the team needs the ScamSense server, which is off on this device." };
-      const asked = mahiHistory.filter(m => m.role === "user" && typeof m.content === "string").slice(-3);
-      const text =
-        "(From Ask Mahi) " +
-        String(i.summary || "").slice(0, 600) +
-        (asked.length
-          ? "\n\nThey wrote to Mahi:\n" + asked.map(m => "• " + m.content.slice(0, 300)).join("\n")
-          : "");
-      const j = await serverPost({
-        mode: "support",
-        action: "send",
-        reason: i.urgent ? "scammed" : "person",
-        text,
-        name: cfg().name || ""
-      });
-      if (!j || !j.ok) return { error: (j && j.error) || "Couldn't reach the team." };
-      ui.after = () => openSupport("person");
-      ui.actions.push({
-        label: tr("Open the chat with the team", "Abrir el chat con el equipo"),
-        primary: true,
-        run: ui.after
-      });
+      try {
+        if (!mahiLive) await liveConnect(i.summary, i.urgent);
+      } catch (e) {
+        return { error: e.message };
+      }
+      ui.after = () => helperLive && helperLive.start(i.summary, true); // Mahi already says it's connecting
       return {
-        done: "Connected. The ScamSense team got a phone alert with what they need, and the team chat opens right after this reply. Tell them a real person will answer in that chat, and they can add a photo or screenshot there."
+        done: "Connected. The ScamSense team got a phone alert with a summary and this whole chat. A real person will join THIS chat soon and answer right here; until then, messages they type go to the team. Tell them that in one or two short sentences, and that they can tap Send a photo to share a screenshot."
       };
     }
     case "open_screen":
