@@ -2821,6 +2821,27 @@ function codeCheck(email, purpose, code) {
   return { ok: true, extra: o };
 }
 
+// After the code is right, the app gets a one-time pass (15 minutes) for the next screen: the password.
+function ticketMake(purpose, email) {
+  const t = (Utilities.getUuid() + Utilities.getUuid()).replace(/-/g, "");
+  CacheService.getScriptCache().put("aticket:" + purpose + ":" + email, hexOf(sha256(strBytes(t))), 900);
+  return t;
+}
+function ticketCheck(purpose, email, ticket) {
+  const c = CacheService.getScriptCache();
+  const k = "aticket:" + purpose + ":" + email;
+  const v = c.get(k);
+  if (!v || !ticket || hexOf(sha256(strBytes(String(ticket)))) !== v)
+    return { error: "That took too long. Please start again and we'll send a new code.", restart: true };
+  return { ok: true, done: () => c.remove(k) };
+}
+// The code alone (step 2), or the pass from step 2 with the password (step 3).
+function codeOrTicket(req, email, purpose) {
+  if (req.ticket) return ticketCheck(purpose, email, req.ticket);
+  const ok = codeCheck(email, purpose, req.code);
+  return ok.error ? ok : { ok: true, done: () => {} };
+}
+
 /* ----- telling the person and the owner ----- */
 function acctMail(to, subject, line, button) {
   try {
@@ -2868,15 +2889,24 @@ function authApi(req) {
       if (u && u.Password) return { error: "You already have an account with this email. Tap \"I already have an account\".", existing: true };
       return codeSend(email, "signup");
     }
-    // Create an account, step 2: the code and a password.
+    // Create an account, step 2: the code (the password comes on the next screen).
+    if (a === "signup_verify" || a === "reset_verify") {
+      if (!email) return { error: "Please type a real email address." };
+      const purpose = a === "signup_verify" ? "signup" : "reset";
+      const ok = codeCheck(email, purpose, req.code);
+      if (ok.error) return ok;
+      return { ok: true, verified: true, ticket: ticketMake(purpose, email) };
+    }
+    // Create an account, step 3: the password.
     if (a === "signup_finish") {
       if (!email) return { error: "Please type a real email address." };
       const bad = pwRules(req.password);
       if (bad) return { error: bad };
       if (pwLeaked(req.password))
         return { error: "That password has shown up in a data leak, so scammers may know it. Please choose a different one." };
-      const ok = codeCheck(email, "signup", req.code);
+      const ok = codeOrTicket(req, email, "signup");
       if (ok.error) return ok;
+      ok.done();
       let u = findUserByEmail(email) || findUser(req.uid);
       const isNew = !u;
       if (!u) {
@@ -2957,10 +2987,11 @@ function authApi(req) {
       if (bad) return { error: bad };
       if (pwLeaked(req.password))
         return { error: "That password has shown up in a data leak, so scammers may know it. Please choose a different one." };
-      const ok = codeCheck(email, "reset", req.code);
+      const ok = codeOrTicket(req, email, "reset");
       if (ok.error) return ok;
       const u = findUserByEmail(email);
       if (!u) return { error: "We couldn't find that account." };
+      ok.done();
       u.Password = pwMake(req.password);
       u["Email verified"] = "yes";
       writeUser(u);

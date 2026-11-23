@@ -112,21 +112,35 @@ function showOnboarding(step, note) {
         ${fine}</section>`,
     create_code: () =>
       hero(
-        tr("Check your email", "Revise su correo"),
+        tr("Verify your email", "Verifique su correo"),
         tr(
-          `We sent a 6-digit code to <b>${esc(st.email)}</b>.`,
-          `Enviamos un código de 6 dígitos a <b>${esc(st.email)}</b>.`
+          `We sent a 6-digit code to <b>${esc(st.email)}</b>. Type it here.`,
+          `Enviamos un código de 6 dígitos a <b>${esc(st.email)}</b>. Escríbalo aquí.`
         )
       ) +
       `<section class="gate-body">${back}${err}
         <form id="ob-form" novalidate>
           ${codeField()}
-          ${pwField("ob-pw", tr("Make a password", "Cree una contraseña"), "new-password")}
+          <button class="gate-btn primary-btn" type="submit">${tr("Verify my email", "Verificar mi correo")}</button>
+        </form>
+        <p class="small muted">${tr("Can't find it? Check your Spam or Junk folder.", "¿No lo encuentra? Revise su carpeta de Spam o correo no deseado.")}</p>
+        <button class="gate-demo" id="ob-resend">${tr("Send a new code", "Enviar un código nuevo")}</button></section>`,
+    // Step 3: the email is verified; now the password.
+    create_pw: () =>
+      hero(
+        tr("Create a password", "Cree una contraseña"),
+        tr(
+          `✓ Your email <b>${esc(st.email)}</b> is verified.`,
+          `✓ Su correo <b>${esc(st.email)}</b> está verificado.`
+        )
+      ) +
+      `<section class="gate-body">${err}
+        <form id="ob-form" novalidate>
+          ${pwField("ob-pw", tr("Password", "Contraseña"), "new-password")}
           ${rules()}
           ${keepBox()}
           <button class="gate-btn primary-btn" type="submit">${tr("Create my account", "Crear mi cuenta")}</button>
-        </form>
-        <button class="gate-demo" id="ob-resend">${tr("Send a new code", "Enviar un código nuevo")}</button></section>`,
+        </form></section>`,
     signin: () =>
       hero(tr("Welcome back", "Bienvenido de nuevo"), "") +
       `<section class="gate-body">${back}${sso()}${err}
@@ -172,13 +186,26 @@ function showOnboarding(step, note) {
       `<section class="gate-body">${back}${err}
         <form id="ob-form" novalidate>
           ${codeField()}
+          <button class="gate-btn primary-btn" type="submit">${tr("Continue", "Continuar")}</button>
+        </form>
+        <p class="small muted">${tr("Can't find it? Check your Spam or Junk folder.", "¿No lo encuentra? Revise su carpeta de Spam o correo no deseado.")}</p>
+        <button class="gate-demo" id="ob-resend">${tr("Send a new code", "Enviar un código nuevo")}</button></section>`,
+    forgot_pw: () =>
+      hero(
+        tr("Choose a new password", "Elija una nueva contraseña"),
+        tr(
+          `✓ Your email <b>${esc(st.email)}</b> is verified.`,
+          `✓ Su correo <b>${esc(st.email)}</b> está verificado.`
+        )
+      ) +
+      `<section class="gate-body">${err}
+        <form id="ob-form" novalidate>
           ${pwField("ob-pw", tr("New password", "Nueva contraseña"), "new-password")}
           ${rules()}
           ${keepBox()}
           <button class="gate-btn primary-btn" type="submit">${tr("Save new password", "Guardar nueva contraseña")}</button>
         </form>
-        <p class="small muted">${tr("Every other device will be signed out, to keep your account safe.", "Se cerrará la sesión en los demás dispositivos, para proteger su cuenta.")}</p>
-        <button class="gate-demo" id="ob-resend">${tr("Send a new code", "Enviar un código nuevo")}</button></section>`
+        <p class="small muted">${tr("Every other device will be signed out, to keep your account safe.", "Se cerrará la sesión en los demás dispositivos, para proteger su cuenta.")}</p></section>`
   };
   const BACK_TO = {
     create: "home",
@@ -298,8 +325,10 @@ function showOnboarding(step, note) {
     const pw = m.querySelector("#ob-pw");
     const list = m.querySelector("#pwrules");
     if (pw && list)
-      pw.oninput = () =>
+      pw.oninput = () => {
+        say("");
         PW_RULES().forEach(([test], i) => list.children[i].classList.toggle("met", test(pw.value)));
+      };
     const keep = m.querySelector("#ob-keep");
     if (keep) keep.onchange = () => (st.keep = keep.checked);
     on("#ob-resend", async e => {
@@ -322,6 +351,7 @@ function showOnboarding(step, note) {
   };
   async function submit(e) {
     e.preventDefault();
+    if (st.step === "create_pw" || st.step === "forgot_pw") return savePassword();
     if (st.step === "create" || st.step === "forgot") {
       const email = val("#ob-email").toLowerCase();
       if (!/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(email))
@@ -361,18 +391,33 @@ function showOnboarding(step, note) {
       if (j) finish(j);
       return;
     }
+    // Step 2: check the code; the password comes on the next screen.
+    const j = await call({
+      action: st.step === "create_code" ? "signup_verify" : "reset_verify",
+      email: st.email,
+      code
+    });
+    if (j) {
+      st.ticket = j.ticket;
+      go2(st.step === "create_code" ? "create_pw" : "forgot_pw");
+    }
+  }
+  // Step 3: the password.
+  async function savePassword() {
     const p = m.querySelector("#ob-pw").value;
     const bad = pwProblem(p);
     if (bad) return say(bad);
     st.keep = m.querySelector("#ob-keep").checked;
     const j = await call({
-      action: st.step === "create_code" ? "signup_finish" : "reset_finish",
+      action: st.step === "create_pw" ? "signup_finish" : "reset_finish",
       email: st.email,
-      code,
+      ticket: st.ticket,
       password: p,
       keep: st.keep
     });
-    if (j) finish(j);
+    if (j) return finish(j);
+    if (/start again/.test(m.querySelector("#ob-err").textContent))
+      go2(st.step === "create_pw" ? "create" : "forgot", m.querySelector("#ob-err").textContent);
   }
 
   draw();
