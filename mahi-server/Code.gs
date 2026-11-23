@@ -438,6 +438,11 @@ function findUser(uid) {
   if (!hit) return null;
   return userAt(hit.getRow());
 }
+// The Owner app and cases name a person by their account ID: look that up exactly (no device rules).
+function userById(id) {
+  const hit = sheet("Users").getRange("A:A").createTextFinder(String(id || "")).matchEntireCell(true).findNext();
+  return hit && hit.getRow() > 1 ? userAt(hit.getRow()) : findUser(id);
+}
 function findUserByEmail(email) {
   if (!email) return null;
   const sh = sheet("Users");
@@ -544,6 +549,11 @@ function registerUser(req) {
         Alerts: 0
       };
     }
+    // Remember what they had, so a change shows up in the Owner app's activity (old → new).
+    const PROFILE = ["First name", "Last name", "Date of birth", "Country", "State", "ZIP"];
+    const before = {};
+    const norm = v => (v instanceof Date ? dobText(v) : String(v || "").replace(/^'/, ""));
+    PROFILE.forEach(k => (before[k] = norm(u[k])));
     if (cleanText(req.name, 40)) u["First name"] = cleanText(req.name, 40);
     if (cleanText(req.lastName, 40)) u["Last name"] = cleanText(req.lastName, 40);
     // About you: date of birth, country, state, ZIP (never a street address).
@@ -579,6 +589,15 @@ function registerUser(req) {
     if (!ve && sessionState(req.uid) === false) return { error: "Please sign in again.", signin: true };
     u["Last active"] = now;
     u.Status = "active";
+    if (u.row && !u._welcome) {
+      const changes = PROFILE.map(k => {
+        const now2 = norm(u[k]);
+        if (now2 === before[k]) return "";
+        const label = k === "Date of birth" ? "date of birth" : k === "ZIP" ? "ZIP" : k.toLowerCase();
+        return before[k] ? label + " " + before[k] + " → " + now2 : label + " " + now2;
+      }).filter(Boolean);
+      if (changes.length) acctEvent(u, req.uid, "Updated their details: " + changes.join("; "), false);
+    }
     const welcome = u._welcome;
     delete u._welcome;
     writeUser(u);
@@ -1110,7 +1129,7 @@ function ownerApi(req) {
   }
   if (a === "quick_save") return role === "viewer" ? { error: "Viewers can't change quick replies." } : quickSave(req.quick);
   if (role === "viewer") return { error: "Viewers can look, but can't make changes." };
-  const u = findUser(req.uid);
+  const u = userById(req.uid);
   if (!u) return { error: "Couldn't find that person." };
   let did = "";
   if (a === "block") {
@@ -1183,6 +1202,16 @@ function userObj(head, r) {
   head.forEach((c, i) => {
     if (c !== "Password") o[c] = iso(r[i]); // the password fingerprint never leaves the server
   });
+  // Instead, just say how they sign in.
+  const pi = head.indexOf("Password");
+  if (head.indexOf("User ID") >= 0 && pi >= 0) {
+    const ways = [];
+    if (r[pi]) ways.push("email + password");
+    if (/^connected/i.test(String(o.Gmail || ""))) ways.push("Google");
+    if (/^connected/i.test(String(o.Outlook || ""))) ways.push("Outlook");
+    if (!ways.length && o["Email verified"] === "yes") ways.push("Google or Outlook");
+    o["Signs in with"] = ways.join(", ");
+  }
   return o;
 }
 
@@ -1235,7 +1264,7 @@ function ownerOverview(who) {
 }
 
 function ownerPerson(uid) {
-  const u = findUser(uid);
+  const u = userById(uid);
   if (!u) return { error: "Couldn't find that person." };
   const ids = devicesOf(u);
   const A = rowsOf("Activity", 3000);
@@ -1251,7 +1280,10 @@ function ownerPerson(uid) {
     .filter(x => (u.Email && x.Email === u.Email) || (fullName(u) && x.Name === fullName(u)))
     .reverse();
   const person = {};
-  USER_COLS.forEach(c => (person[c] = iso(u[c])));
+  USER_COLS.forEach(c => {
+    if (c !== "Password") person[c] = iso(u[c]);
+  });
+  person["Signs in with"] = userObj(USER_COLS, USER_COLS.map(c => u[c]))["Signs in with"];
   const used = ids.reduce((n, id) => n + (PHONE_LOOKUPS_PER_MONTH - lookupsLeft(id)), 0);
   return { ok: true, person, activity, alerts, phoneChecksUsed: used, phoneChecksMax: PHONE_LOOKUPS_PER_MONTH };
 }
@@ -2176,7 +2208,7 @@ function textOwner(msg) {
 }
 function notifyPerson(c, preview) {
   if (!c.Email) return;
-  const u = findUser(c["User ID"]);
+  const u = userById(c["User ID"]);
   if (!u || u["Email verified"] !== "yes") return;
   const cache = CacheService.getScriptCache();
   const k = "supperson:" + c["Case ID"];
@@ -2216,7 +2248,7 @@ function ownerSupport(who, role, req) {
     allCases()
       .filter(c => !c.Name || c.Name === "Someone (not signed in)")
       .forEach(c => {
-        const u = findUser(c["User ID"]);
+        const u = userById(c["User ID"]);
         if (u && fullName(u)) {
           c.Name = fullName(u);
           c.Email = c.Email || u.Email || "";
@@ -2305,7 +2337,7 @@ function ownerSupport(who, role, req) {
   } finally {
     lock.releaseLock();
   }
-  ownerLog(who, did, findUser(c["User ID"]) || { "First name": c.Name, Email: c.Email });
+  ownerLog(who, did, userById(c["User ID"]) || { "First name": c.Name, Email: c.Email });
   return Object.assign({ done: did }, caseView(caseById(c["Case ID"])));
 }
 // Emails the whole conversation. To the team: with team notes. To the person: without notes.
@@ -2313,7 +2345,7 @@ function emailCase(c, to, who) {
   const forPerson = to === "person";
   let addr = who;
   if (forPerson) {
-    const u = findUser(c["User ID"]);
+    const u = userById(c["User ID"]);
     if (!u || u["Email verified"] !== "yes" || !u.Email) return { error: "This person has no confirmed email." };
     addr = u.Email;
   }
@@ -2361,7 +2393,7 @@ function emailCase(c, to, who) {
 function caseView(c) {
   const o = {};
   CASE_COLS.forEach(k => (o[k] = iso(c[k])));
-  const u = findUser(c["User ID"]);
+  const u = userById(c["User ID"]);
   const person = u
     ? {
         uid: u["User ID"],

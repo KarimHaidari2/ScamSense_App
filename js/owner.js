@@ -350,6 +350,7 @@ async function load(quiet) {
   if (!quiet) main.innerHTML = `<p class="loading">Loading…</p>`;
   try {
     data = await api({ action: "overview" });
+    Object.keys(people).forEach(k => delete people[k]); // so a person's page shows their newest details
     $("nav").hidden = false;
     $("teamtab").hidden = data.role !== "owner";
     document.body.dataset.role = data.role || "owner";
@@ -708,17 +709,26 @@ function peopleTab() {
 /* ----- One person: their profile, like a document ----- */
 async function personPage(uid) {
   const base = data.users.find(u => u["User ID"] === uid);
-  if (!people[uid]) {
+  // Show what we have right away, then always ask the server for their newest details.
+  if (people[uid]) drawPerson(people[uid]);
+  else {
     main.innerHTML = `<button class="back" id="back">‹ People</button><p class="loading">Loading ${esc(base ? name(base) : "")}…</p>`;
     $("back").onclick = () => go("people");
-    try {
-      people[uid] = await api({ action: "person", uid });
-    } catch (e) {
-      main.innerHTML += `<p class="err">${esc(e.message)}</p>`;
-      return;
-    }
   }
-  drawPerson(people[uid]);
+  try {
+    const fresh = await api({ action: "person", uid });
+    if (location.hash !== "#person/" + uid) return; // they moved on
+    const changed = JSON.stringify(fresh) !== JSON.stringify(people[uid]);
+    people[uid] = fresh;
+    if (changed) {
+      const note = $("note");
+      const typing = note && document.activeElement === note ? note.value : null;
+      drawPerson(fresh);
+      if (typing !== null && $("note")) $("note").value = typing;
+    }
+  } catch (e) {
+    if (!people[uid]) main.innerHTML += `<p class="err">${esc(e.message)}</p>`;
+  }
 }
 function drawPerson(d) {
   const u = d.person;
@@ -763,7 +773,12 @@ function drawPerson(d) {
 
     <div class="cols">
       <section class="card"><h2>Account</h2>
-        ${row("First name", esc(u["First name"]))}${row("Last name", esc(u["Last name"]))}${row("Email", esc(u.Email))}
+        ${row("First name", esc(u["First name"]))}${row("Last name", esc(u["Last name"]))}
+        ${row("Date of birth", esc(bornText(dobOf(u))))}
+        ${row("Country", esc(u.Country))}${row("State", esc(u.State))}${row("ZIP", esc(String(u.ZIP || "").replace(/^'/, "")))}
+        ${row("Email", esc(u.Email) + (u.Email ? (u["Email verified"] === "yes" ? " (confirmed)" : " (not confirmed)") : ""))}
+        ${row("Signs in with", esc(u["Signs in with"]))}
+        ${row("Joined", u["First seen"] ? when(u["First seen"]) : "")}${row("Last active", u["Last active"] ? ago(u["Last active"]) : "")}
         ${row("Gmail", esc(u.Gmail))}${row("Outlook", esc(u.Outlook))}${row("Language", esc(u.Language))}
         ${row("Daily report email", esc(u["Daily report"]))}${row("Danger alerts", esc(u["Danger alerts"]))}
         ${row("Devices", devices.length + (devices.length === 1 ? " device" : " devices"))}${row("Follow-up", esc(u["Follow-up"]))}
