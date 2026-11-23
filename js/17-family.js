@@ -45,6 +45,7 @@ function renderFamily() {
             .join("")}</div>`
         : `<div class="emptybox">${ic("user")}<b>${tr("No one added yet", "Aún no hay nadie")}</b><span>${tr("Add a family member or friend you'd call before sending money.", "Agregue a un familiar o amigo a quien llamaría antes de enviar dinero.")}</span></div>`
     }</section>
+  ${teamHelpHTML(helpers.length)}
   <section class="sect"><h2 class="sect-h">${tr("Call before you pay", "Llame antes de pagar")}</h2>
     <div class="group"><div class="grow"><span class="gl"><b>${tr('Show a "Call" button when a payment is paused', 'Mostrar botón "Llamar" al pausar un pago')}</b><span>${tr("When ScamSense stops a payment, you can call your trusted person with one tap.", "Cuando ScamSense detiene un pago, puede llamar a su persona de confianza con un toque.")}</span></span>${switchHTML("pcbp", p.callBeforePay, "")}</div></div></section>
   <section class="sect"><h2 class="sect-h">${tr("What they'll be told", "Qué se les avisará")}</h2>
@@ -59,7 +60,17 @@ function renderFamily() {
           `<div class="grow"><span class="gl"><b>${l}</b></span>${switchHTML("pf_" + k, p[k], l)}</div>`
       )
       .join("")}</div>
-    <p class="footnote">${ic("bell")}${tr("Automatic alerts start when the ScamSense server is ready. For now, use Call or Invite.", "Las alertas automáticas empiezan cuando el servidor esté listo. Por ahora use Llamar o Invitar.")}</p></section>
+    <p class="footnote">${ic("bell")}${
+      serverOn()
+        ? tr(
+            "Trusted people with an email address get an email when ScamSense sees danger.",
+            "Las personas de confianza con correo reciben un aviso cuando ScamSense ve peligro."
+          )
+        : tr(
+            "Automatic alerts start when the ScamSense server is ready. For now, use Call or Invite.",
+            "Las alertas automáticas empiezan cuando el servidor esté listo. Por ahora use Llamar o Invitar."
+          )
+    }</p></section>
   <section class="sect"><h2 class="sect-h">${tr("What your trusted person will see", "Lo que verá su persona de confianza")}</h2>
     <div class="lockscreen" aria-label="${esc(tr("Sample alerts on their phone", "Alertas de ejemplo en su teléfono"))}">
       <p class="ls-time" aria-hidden="true">9:41</p>
@@ -128,6 +139,66 @@ function renderFamily() {
     toast(tr("Saved.", "Guardado."));
   };
   view.querySelectorAll(".switch input").forEach(x => (x.onchange = save));
+  bindTeamHelp();
+}
+
+/* ----- No one to ask? The ScamSense team can be their helper (only if they turn it on). ----- */
+const teamHelp = () => S.get("teamHelp", null) || { on: false, phone: "", time: "" };
+const HELP_TIMES = () => [
+  ["", tr("Any time", "Cualquier hora")],
+  ["morning", tr("Mornings", "Mañanas")],
+  ["afternoon", tr("Afternoons", "Tardes")],
+  ["evening", tr("Evenings", "Noches")]
+];
+function teamHelpHTML(hasHelpers) {
+  const th = teamHelp();
+  const line = (name, num, note) =>
+    `<div class="grow"><span class="lead-ic l-blue">${ic("phone")}</span><span class="gl"><b>${name}</b><span>${note}</span></span><a class="btn sm ghost" href="tel:${num.replace(/[^\d+]/g, "")}">${esc(num)}</a></div>`;
+  return `<section class="sect" id="teamhelp"><h2 class="sect-h">${hasHelpers ? tr("More help", "Más ayuda") : tr("No one to ask?", "¿No tiene a quién preguntar?")}</h2>
+    <div class="group">
+      <div class="grow"><span class="lead-ic l-green">${ic("shield")}</span><span class="gl"><b>${tr("Let the ScamSense team be my helper", "Que el equipo de ScamSense sea mi ayuda")}</b><span>${tr("If ScamSense sees danger, like you say you were scammed or you stop a payment, a real person from the team reaches out to you. They see alerts, never your messages.", "Si ScamSense ve peligro, como cuando dice que lo estafaron o detiene un pago, una persona del equipo se comunica con usted. Ven alertas, nunca sus mensajes.")}</span></span>${switchHTML("tmh", th.on, tr("Let the ScamSense team be my helper", "Que el equipo de ScamSense sea mi ayuda"))}</div>
+      <div class="tmhform" id="tmhform" ${th.on ? "" : "hidden"}>
+        <div class="two"><div class="field"><label for="tmhp">${tr("A phone number we can call (optional)", "Un número al que podamos llamar (opcional)")}</label><input id="tmhp" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" value="${esc(th.phone)}" placeholder="(918) 555-0100"></div>
+        <div class="field"><label for="tmht">${tr("Best time to reach you", "Mejor hora para llamarle")}</label><select id="tmht">${HELP_TIMES()
+          .map(([k, l]) => `<option value="${k}" ${th.time === k ? "selected" : ""}>${l}</option>`)
+          .join("")}</select></div></div>
+        <button class="btn primary" id="tmhsave">${tr("Save", "Guardar")}</button>
+        <p class="small muted" style="margin:0">${tr("Without a number, the team writes to you in the app and by email.", "Sin número, el equipo le escribe en la app y por correo.")}</p>
+      </div>
+    </div>
+    <p class="sect-h small" style="margin-top:14px">${tr("Free helplines with real people", "Líneas de ayuda gratis con personas reales")}</p>
+    <div class="group">
+      ${line(tr("National Elder Fraud Hotline", "Línea Nacional de Fraude contra Mayores"), "1-833-372-8311", tr("Ages 60+. Mon–Fri, 10 AM–6 PM Eastern. English, Spanish and more.", "Mayores de 60. Lun–Vie, 10 AM–6 PM hora del Este. Inglés, español y más."))}
+      ${line(tr("AARP Fraud Watch Helpline", "Línea de Fraude de AARP"), "877-908-3360", tr("Anyone. Mon–Fri, 8 AM–8 PM Eastern.", "Cualquier persona. Lun–Vie, 8 AM–8 PM hora del Este."))}
+    </div></section>`;
+}
+function bindTeamHelp() {
+  const sw = document.getElementById("tmh");
+  if (!sw) return;
+  const form = document.getElementById("tmhform");
+  const store = on => {
+    const phone = (document.getElementById("tmhp").value || "").trim();
+    if (phone && phone.replace(/\D/g, "").length < 7)
+      return toast(tr("Please check the phone number.", "Revise el número de teléfono."));
+    S.set("teamHelp", { on, phone: on ? phone : "", time: on ? document.getElementById("tmht").value : "" });
+    if (typeof registerSoon === "function") registerSoon();
+    return true;
+  };
+  sw.onchange = () => {
+    form.hidden = !sw.checked;
+    store(sw.checked);
+    toast(
+      sw.checked
+        ? tr(
+            "The ScamSense team will reach out if you're in danger.",
+            "El equipo de ScamSense se comunicará si está en peligro."
+          )
+        : tr("Turned off.", "Desactivado.")
+    );
+  };
+  document.getElementById("tmhsave").onclick = () => {
+    if (store(true)) toast(tr("Saved. Thank you.", "Guardado. Gracias."));
+  };
 }
 function showAddForm() {
   const f = document.getElementById("addform");

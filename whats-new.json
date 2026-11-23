@@ -4,6 +4,19 @@
     {
       "date": "2026-11-23",
       "kind": "new",
+      "icon": "user",
+      "en": {
+        "title": "Ads folded away, and help if you have no one to ask",
+        "text": "Safe ads and newsletters are still checked, but grouped at the bottom of your email list so real mail stands out. No family to call? On the Family screen you can let the ScamSense team be your helper, and see free helplines with real people."
+      },
+      "es": {
+        "title": "Anuncios agrupados, y ayuda si no tiene a quién preguntar",
+        "text": "Los anuncios y boletines seguros se siguen revisando, pero se agrupan al final de la lista para que el correo real se destaque. ¿No tiene familia a quien llamar? En Familia puede pedir que el equipo de ScamSense sea su ayuda, y ver líneas gratuitas con personas reales."
+      }
+    },
+    {
+      "date": "2026-11-23",
+      "kind": "new",
       "icon": "mail",
       "en": {
         "title": "Check all your email addresses",

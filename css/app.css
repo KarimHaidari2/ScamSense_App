@@ -5581,3 +5581,59 @@ nav.tabs [data-tab="settings"] {
   gap: 6px;
   justify-content: flex-end;
 }
+
+/* Email list: safe ads and newsletters folded into one group */
+.adgroup {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--surface);
+}
+.adgroup > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.adgroup > summary::-webkit-details-marker {
+  display: none;
+}
+.adgroup > summary .gl {
+  flex: 1;
+  min-width: 0;
+}
+.adgroup > summary .gl span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.adgroup > summary .chev {
+  transition: transform 0.2s;
+}
+.adgroup[open] > summary .chev {
+  transform: rotate(90deg);
+}
+.adgroup > .list {
+  padding: 0 10px 10px;
+}
+.adg-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--safe-bg);
+  color: var(--safe);
+}
+.adg-ic svg {
+  width: 18px;
+  height: 18px;
+}
+/* Family: the team as helper */
+.tmhform {
+  display: grid;
+  gap: 10px;
+  padding: 4px 16px 16px;
+}

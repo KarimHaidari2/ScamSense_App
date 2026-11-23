@@ -26,6 +26,13 @@ function cachedResults(source, box) {
   });
   return map;
 }
+/* Ads and newsletters: still checked (fake "you won" ads are a common scam), but the safe ones are
+   grouped out of the way so real mail and real dangers stand out. Bills, receipts and bank notices
+   ("Updates") are not ads. */
+function isAdMail(it) {
+  if (it.level !== "safe") return false;
+  return ["Promotions", "Social", "Forums"].includes(it.folder) || !!it.listUnsub;
+}
 /* Progress shows at most a few times a second; redrawing for every email slows phones down. */
 let lastProgress = 0;
 function showProgress(label, pct, force) {
@@ -166,6 +173,7 @@ async function finishScan(items, source) {
   });
   fresh.forEach(it => {
     it.level = finalLevel(it);
+    it.ad = isAdMail(it);
   });
   const order = { scam: 0, warn: 1, safe: 2 };
   items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);

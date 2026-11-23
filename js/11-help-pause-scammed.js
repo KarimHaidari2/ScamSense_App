@@ -180,8 +180,12 @@ async function runPause() {
     <div><p class="label">${t("p_before")}</p><ol><li>${t("p_b1")}</li><li>${t("p_b2")}</li><li>${t("p_b3")}</li><li>${t("p_b4")}</li></ol></div>
     ${(() => {
       const h = S.get("helpers", []).find(x => x.phone);
-      return h && famPrefs().callBeforePay && level !== "safe"
-        ? `<a class="btn callhelper" href="tel:${esc(h.phone.replace(/[^\d+]/g, ""))}">${ic("phone")}<span>${tr(`Call ${h.name} before you pay`, `Llame a ${h.name} antes de pagar`)}</span></a>`
+      if (h && famPrefs().callBeforePay && level !== "safe")
+        return `<a class="btn callhelper" href="tel:${esc(h.phone.replace(/[^\d+]/g, ""))}">${ic("phone")}<span>${tr(`Call ${h.name} before you pay`, `Llame a ${h.name} antes de pagar`)}</span></a>`;
+      // No trusted person, but the ScamSense team is their helper: one tap to a real person.
+      const th = S.get("teamHelp", null);
+      return !h && th && th.on && level !== "safe"
+        ? `<button class="btn callhelper" data-go="support">${ic("msg")}<span>${tr("Ask the ScamSense team before you pay", "Pregunte al equipo de ScamSense antes de pagar")}</span></button>`
         : "";
     })()}
     <div class="row"><button class="btn primary" id="pwont">${t("p_wont")}</button><button class="btn ghost" id="ppaid">${t("p_paid")}</button></div>
@@ -189,6 +193,7 @@ async function runPause() {
     <p id="pmsg" class="small" style="margin:0" hidden></p>
     <button class="btn ghost" id="pread">${t("read_aloud")}</button></div>`;
   const pmsg = document.getElementById("pmsg");
+  bindGo(); // "Ask the ScamSense team" button
   document.getElementById("pwont").onclick = () => {
     pmsg.hidden = false;
     pmsg.textContent = t("p_good");

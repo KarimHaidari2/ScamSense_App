@@ -117,7 +117,9 @@ function statusOf(u) {
 }
 const chip = u => {
   const [c, t] = statusOf(u);
-  return `<span class="chip c-${c}">${t}</span>`;
+  // People who asked the ScamSense team to be their helper (no family to call).
+  const helps = /^yes/.test(String(u["Team helper"] || "")) ? `<span class="chip c-helper">We're their helper</span>` : "";
+  return `<span class="chip c-${c}">${t}</span>${helps}`;
 };
 
 /* ----- talking to the server ----- */
@@ -730,6 +732,20 @@ async function personPage(uid) {
     if (!people[uid]) main.innerHTML += `<p class="err">${esc(e.message)}</p>`;
   }
 }
+/* "yes | (918) 555-0100 | morning" → "Yes · call (918) 555-0100 · mornings" with a tap-to-call link. */
+function teamHelperText(u) {
+  const p = String(u["Team helper"] || "").split(" | ");
+  if (p[0] !== "yes") return "";
+  const phone = p[1] && /^\+?[\d\s().-]{7,}$/.test(p[1]) ? p[1] : "";
+  const when = { morning: "mornings", afternoon: "afternoons", evening: "evenings" }[p[2]] || "";
+  return (
+    "<b>Yes</b>" +
+    (phone
+      ? ` · <a href="tel:${esc(phone.replace(/[^\d+]/g, ""))}">call ${esc(phone)}</a>`
+      : " · reach them in the app") +
+    (when ? " · " + when : "")
+  );
+}
 function drawPerson(d) {
   const u = d.person;
   const uid = u["User ID"];
@@ -779,6 +795,7 @@ function drawPerson(d) {
         ${row("Email", esc(u.Email) + (u.Email ? (u["Email verified"] === "yes" ? " (confirmed)" : " (not confirmed)") : ""))}
         ${row("Signs in with", esc(u["Signs in with"]))}
         ${row("Joined", u["First seen"] ? when(u["First seen"]) : "")}${row("Last active", u["Last active"] ? ago(u["Last active"]) : "")}
+        ${row("ScamSense as helper", teamHelperText(u))}
         ${row("Gmail", esc(u.Gmail))}${row("Outlook", esc(u.Outlook))}${row("Language", esc(u.Language))}
         ${row("Daily report email", esc(u["Daily report"]))}${row("Danger alerts", esc(u["Danger alerts"]))}
         ${row("Devices", devices.length + (devices.length === 1 ? " device" : " devices"))}${row("Follow-up", esc(u["Follow-up"]))}

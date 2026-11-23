@@ -187,6 +187,7 @@ function slimItem(it) {
     subject: it.subject,
     date: it.date,
     level: it.level,
+    ad: it.ad, // a safe ad or newsletter (grouped in the email list)
     checkedAt: it.checkedAt,
     attachments: it.attachments,
     link: it.link,

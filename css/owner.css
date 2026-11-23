@@ -503,6 +503,11 @@ p.big {
   background: var(--scam-bg);
   color: var(--scam);
 }
+.c-helper {
+  background: var(--brand-soft);
+  color: var(--brand-ink-strong, var(--text, inherit));
+  margin-left: 4px;
+}
 
 /* tools */
 .tools {

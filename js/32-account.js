@@ -73,7 +73,8 @@ async function registerUser() {
     lang: langCode(),
     reports: c.dailyReport !== false,
     alerts: c.dangerAlerts !== false,
-    family: S.get("helpers", []).map(h => ({ name: h.name, email: h.email, phone: h.phone }))
+    family: S.get("helpers", []).map(h => ({ name: h.name, email: h.email, phone: h.phone })),
+    teamHelp: S.get("teamHelp", null) || undefined
   };
   try {
     if (typeof token !== "undefined" && token && Date.now() < tokenExp - 60000) body.gtoken = token;

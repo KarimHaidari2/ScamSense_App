@@ -296,6 +296,7 @@ const USER_COLS = [
   "Daily report",
   "Danger alerts",
   "Trusted people",
+  "Team helper", // "yes | phone | best time" when they asked the ScamSense team to be their helper
   "First seen",
   "Last active",
   "Emails scanned",
@@ -585,6 +586,23 @@ function registerUser(req) {
           [cleanText(f.name, 40), cleanText(f.email, 80), cleanText(f.phone, 30)].filter(Boolean).join(" | ")
         )
         .join("\n");
+    // No one to ask? They can ask the ScamSense team to be their helper (Family screen).
+    if (req.teamHelp !== undefined) {
+      const th = req.teamHelp;
+      const was = String(u["Team helper"] || "").indexOf("yes") === 0;
+      u["Team helper"] =
+        th && th.on
+          ? ["yes", cleanText(th.phone, 25), cleanText(th.time, 20)].filter(Boolean).join(" | ")
+          : "";
+      const now2 = String(u["Team helper"]).indexOf("yes") === 0;
+      if (u.row && now2 !== was)
+        acctEvent(
+          u,
+          req.uid,
+          now2 ? "Asked the ScamSense team to be their helper" : "Turned off the ScamSense team as their helper",
+          now2
+        );
+    }
     // A signed-out device can only come back with a real sign-in (Google, Outlook, or email + password).
     if (!ve && sessionState(req.uid) === false) return { error: "Please sign in again.", signin: true };
     u["Last active"] = now;
@@ -744,8 +762,19 @@ function saveEvents(req) {
    7. ALERTS — emails the owner and the person's trusted people right away
    ======================================================================== */
 
+function teamHelperOf(u) {
+  const p = String(u["Team helper"] || "").split(" | ");
+  return p[0] === "yes" ? { phone: p[1] || "", time: p[2] || "" } : null;
+}
 function dangerAlert(u, what) {
   if (!takeQuota("alert:" + u["User ID"], OWNER.MAX_ALERTS_PER_USER)) return;
+  // They asked the team to be their helper: say so, with how to reach them.
+  const th = teamHelperOf(u);
+  if (th)
+    what +=
+      ". ScamSense is their helper" +
+      (/^\+?[\d\s().-]{7,}$/.test(th.phone) ? ": call " + th.phone : "") +
+      (th.time ? " (best: " + th.time + ")" : "");
   const owner = OWNER.EMAIL || Session.getEffectiveUser().getEmail();
   const name = fullName(u) || "A ScamSense user";
   const family = String(u["Trusted people"] || "")

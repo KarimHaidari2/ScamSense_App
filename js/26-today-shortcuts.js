@@ -101,7 +101,10 @@ function homeHTML(rep) {
         "mail",
         tr("Your email", "Su correo"),
         esc(
-          `${tr(`${rep.items.length} emails`, `${rep.items.length} correos`)}${accountSummary(rep.items) ? " · " + accountSummary(rep.items) : ""}`
+          `${tr(`${rep.items.length} emails`, `${rep.items.length} correos`)}${(() => {
+            const n = rep.items.filter(i => i.ad).length;
+            return n ? " · " + tr(`${n} ads`, `${n} anuncios`) : "";
+          })()}${accountSummary(rep.items) ? " · " + accountSummary(rep.items) : ""}`
         )
       ) +
       row(
