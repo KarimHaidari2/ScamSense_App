@@ -28,8 +28,30 @@ function getToken(interactive) {
     const tc = google.accounts.oauth2.initTokenClient({
       client_id: c.clientId,
       scope: "https://www.googleapis.com/auth/gmail.readonly",
-      callback: r => {
+      callback: async r => {
         if (r.error) return reject(new Error("Google sign-in was cancelled or failed: " + r.error));
+        // Make sure this Gmail belongs to the person signed in to ScamSense.
+        if (typeof mailboxAllowed === "function") {
+          const box = await gmailAddress(r.access_token);
+          if (!(await mailboxAllowed(box, "Gmail"))) {
+            try {
+              google.accounts.oauth2.revoke(r.access_token, () => {});
+            } catch (e) {}
+            token = null;
+            S.set("connected", false);
+            S.del("gmail_box");
+            setStatus();
+            return reject(
+              new Error(
+                tr(
+                  "That Gmail wasn't connected. Tap Connect Gmail and choose your own account.",
+                  "Ese Gmail no se conectó. Toque Conectar Gmail y elija su propia cuenta."
+                )
+              )
+            );
+          }
+          if (box) S.set("gmail_box", box);
+        }
         token = r.access_token;
         tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
         const firstTime = !S.get("connected", false);
@@ -48,7 +70,11 @@ function getToken(interactive) {
           )
         )
     });
-    tc.requestAccessToken({ prompt: S.get("connected", false) && !interactive ? "" : "consent" });
+    // Connecting on purpose always shows Google's account chooser, so nobody gets someone else's Gmail by accident.
+    const hint = S.get("gmail_box", "") || (typeof myAcctEmail === "function" ? myAcctEmail() : "");
+    const opts = { prompt: S.get("connected", false) && !interactive ? "" : "select_account consent" };
+    if (hint) opts.hint = hint;
+    tc.requestAccessToken(opts);
   });
 }
 async function gfetch(path) {

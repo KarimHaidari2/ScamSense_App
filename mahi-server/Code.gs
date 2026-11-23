@@ -418,9 +418,18 @@ const dobText = v =>
         .replace(/^'/, "")
         .slice(0, 10);
 
-// Finds a person by this device's ID (their first device in column A, other devices in "Devices").
+// Finds a person by this device's ID. A device that signed in belongs to whoever it signed in as
+// (the Sessions sheet), even if it was once someone else's phone. Otherwise: their first device in
+// column A, other devices in "Devices".
 function findUser(uid) {
   const sh = sheet("Users");
+  try {
+    const s = sessionRows().find(x => x.device === uid);
+    if (s && s.uid && s.uid !== uid) {
+      const own = sh.getRange("A:A").createTextFinder(String(s.uid)).matchEntireCell(true).findNext();
+      if (own && own.getRow() > 1) return userAt(own.getRow());
+    }
+  } catch (e) {}
   let hit = sh.getRange("A:A").createTextFinder(uid).matchEntireCell(true).findNext();
   if (!hit) {
     const col = USER_COLS.indexOf("Devices") + 1;
@@ -494,11 +503,25 @@ function registerUser(req) {
   try {
     const now = new Date();
     let u = findUser(req.uid);
-    const ve = verifiedEmail(req);
+    let ve = verifiedEmail(req);
+    // This phone is signed in to an account with a different email, and connected someone else's
+    // (or a second) mailbox: that mailbox is only something to scan. It never changes who this
+    // account is, and it never moves the phone into another person's account.
+    if (
+      ve &&
+      u &&
+      u["Email verified"] === "yes" &&
+      u.Email &&
+      String(u.Email).toLowerCase() !== ve &&
+      sessionState(req.uid) !== false
+    ) {
+      if (findUserByEmail(ve)) acctEvent(u, req.uid, "Connected a mailbox that belongs to another ScamSense account (" + ve + ")", true);
+      ve = "";
+    }
     // Same person on another device: use their existing row and remember this device too.
     const same = ve && findUserByEmail(ve);
     if (same && (!u || same.row !== u.row)) {
-      if (u && u.row) {
+      if (u && u.row && u["Email verified"] !== "yes") {
         sheet("Users").deleteRow(u.row); // the extra row this device made earlier
         if (u.row < same.row) same.row--;
       }
@@ -2663,7 +2686,7 @@ function sessionStart(u, device, keep, label) {
   if (device !== u["User ID"]) {
     const sh2 = sheet("Users");
     const own = sh2.getRange("A:A").createTextFinder(device).matchEntireCell(true).findNext();
-    if (own && own.getRow() > 1 && own.getRow() !== u.row) {
+    if (own && own.getRow() > 1 && own.getRow() !== u.row && userAt(own.getRow())["Email verified"] !== "yes") {
       sh2.deleteRow(own.getRow());
       if (u.row > own.getRow()) u.row--;
     }
@@ -2907,11 +2930,18 @@ function authApi(req) {
       const ok = codeOrTicket(req, email, "signup");
       if (ok.error) return ok;
       ok.done();
-      let u = findUserByEmail(email) || findUser(req.uid);
+      let u = findUserByEmail(email);
+      if (!u) {
+        // This phone's earlier row is reused only if it isn't somebody else's real account.
+        const mine = findUser(req.uid);
+        if (mine && !(mine["Email verified"] === "yes" && mine.Email && String(mine.Email).toLowerCase() !== email))
+          u = mine;
+      }
       const isNew = !u;
       if (!u) {
+        const taken = !!sheet("Users").getRange("A:A").createTextFinder(req.uid).matchEntireCell(true).findNext();
         u = {
-          "User ID": req.uid,
+          "User ID": taken ? Utilities.getUuid().replace(/-/g, "") : req.uid,
           "First seen": new Date(),
           "Emails scanned": 0,
           "Scams caught": 0,

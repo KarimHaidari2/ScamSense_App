@@ -113,6 +113,14 @@ async function finishOutlookSignIn() {
       code_verifier: saved.verifier
     });
     const me = await msGet("me?$select=mail,userPrincipalName").catch(() => ({}));
+    if (
+      typeof mailboxAllowed === "function" &&
+      !(await mailboxAllowed(me.mail || me.userPrincipalName, "Outlook"))
+    ) {
+      disconnectOutlook();
+      go("today");
+      return;
+    }
     S.set("ms", Object.assign(S.get("ms", {}), { email: me.mail || me.userPrincipalName || "" }));
     setStatus();
     if (typeof registerSoon === "function") registerSoon();

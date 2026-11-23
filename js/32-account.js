@@ -88,6 +88,10 @@ async function registerUser() {
   try {
     const j = await serverPost(body);
     if (j && j.ok && !j.waiting) {
+      const before = (S.get("acct", null) || {}).email;
+      // A different person on this phone: forget which mailboxes the last person said were theirs.
+      if (before && j.email && String(before).toLowerCase() !== String(j.email).toLowerCase())
+        S.del("mailbox_ok");
       S.set("acct", {
         email: j.email,
         verified: j.verified,

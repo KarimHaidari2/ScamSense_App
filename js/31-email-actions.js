@@ -48,7 +48,9 @@ function getWriteToken() {
           )
         )
     });
-    tc.requestAccessToken({ prompt: S.get("gwrite", false) ? "" : "consent" });
+    const opts = { prompt: S.get("gwrite", false) ? "" : "consent" };
+    if (S.get("gmail_box", "")) opts.hint = S.get("gmail_box", "");
+    tc.requestAccessToken(opts);
   });
 }
 async function gsend(path, method, body) {

@@ -30,6 +30,22 @@ function signedIn(j) {
 
 /* Clears this person's information from this device, then shows the welcome screen. */
 function signOutLocal(reason) {
+  // Hand back the mailbox keys first, so the next person on this phone can't read this person's email.
+  let hadKey = false;
+  try {
+    hadKey = !!((typeof token !== "undefined" && token) || (typeof wtoken !== "undefined" && wtoken));
+  } catch (e) {}
+  try {
+    if (window.google && google.accounts && google.accounts.oauth2) {
+      if (typeof token !== "undefined" && token) google.accounts.oauth2.revoke(token, () => {});
+      if (typeof wtoken !== "undefined" && wtoken) google.accounts.oauth2.revoke(wtoken, () => {});
+    }
+  } catch (e) {}
+  try {
+    token = null;
+    wtoken = null;
+    if (typeof msAccess !== "undefined") msAccess = null;
+  } catch (e) {}
   const c = cfg();
   const keep = { lang: c.lang, mahiUrl: c.mahiUrl, theme: c.theme, textSize: c.textSize };
   try {
@@ -43,7 +59,63 @@ function signOutLocal(reason) {
   saveCfg(keep);
   S.set("signout_note", reason || "");
   location.hash = "";
-  location.reload();
+  // A moment for Google to take the key back, if there was one.
+  if (hadKey) setTimeout(() => location.reload(), 400);
+  else location.reload();
+}
+
+/* ----- Whose mailbox is this? -----
+   A ScamSense account only ever scans mailboxes its owner says are theirs. If the Gmail or Outlook that
+   connects has a different address than the account (say, a family member's phone that still remembers
+   someone else's Google sign-in), we ask first. "No" disconnects it right away. */
+function myAcctEmail() {
+  const a = S.get("acct", null) || {};
+  const s = S.get("session", null) || {};
+  return String(a.email || s.email || "").toLowerCase();
+}
+function mailboxAllowed(box, kind) {
+  box = String(box || "").toLowerCase();
+  const me = myAcctEmail();
+  const okList = S.get("mailbox_ok", []) || [];
+  if (!box || !me || box === me || okList.indexOf(box) >= 0) return Promise.resolve(true);
+  return new Promise(resolve => {
+    const m = document.createElement("div");
+    m.className = "onb onb-gate onb-about";
+    m.id = "mbox-ask";
+    m.innerHTML = `<div class="gate-box about-box" role="dialog" aria-modal="true" aria-labelledby="mb-h"><section class="gate-body">
+      <h1 id="mb-h">${tr("Is this your mailbox?", "¿Es su correo?")}</h1>
+      <p class="about-lead">${tr(
+        `You're signed in to ScamSense as <b>${esc(me)}</b>, but this ${esc(kind)} is <b>${esc(box)}</b>.`,
+        `Inició sesión en ScamSense como <b>${esc(me)}</b>, pero este ${esc(kind)} es <b>${esc(box)}</b>.`
+      )}</p>
+      <p class="about-lead">${tr(
+        'Only connect a mailbox that belongs to you. If this is someone else\'s, tap "No" and then choose your own account.',
+        'Conecte solo un correo que sea suyo. Si es de otra persona, toque "No" y elija su propia cuenta.'
+      )}</p>
+      <button class="gate-btn primary-btn" type="button" id="mb-yes">${tr("Yes, this mailbox is mine", "Sí, este correo es mío")}</button>
+      <button class="gate-demo" type="button" id="mb-no">${tr("No, disconnect it", "No, desconectarlo")}</button>
+    </section></div>`;
+    document.body.appendChild(m);
+    const done = yes => {
+      m.remove();
+      if (yes) S.set("mailbox_ok", okList.concat(box).slice(-5));
+      resolve(yes);
+    };
+    m.querySelector("#mb-yes").onclick = () => done(true);
+    m.querySelector("#mb-no").onclick = () => done(false);
+    setTimeout(() => m.querySelector("#mb-no").focus(), 30);
+  });
+}
+async function gmailAddress(tok) {
+  try {
+    const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+      headers: { Authorization: "Bearer " + tok }
+    });
+    if (!r.ok) return "";
+    return String((await r.json()).emailAddress || "").toLowerCase();
+  } catch (e) {
+    return "";
+  }
 }
 const SIGNOUT_NOTES = {
   out: () => tr("You're signed out.", "Cerró su sesión."),

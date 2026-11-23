@@ -5494,3 +5494,14 @@ nav.tabs [data-tab="settings"] {
 .gate-hero p b {
   color: #fff;
 }
+
+/* "Is this your mailbox?" */
+#mbox-ask .about-lead {
+  margin: 0 0 14px;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+#mbox-ask .gate-btn {
+  margin-top: 8px;
+}
