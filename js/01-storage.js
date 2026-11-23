@@ -188,6 +188,7 @@ function slimItem(it) {
     date: it.date,
     level: it.level,
     ad: it.ad, // a safe ad or newsletter (grouped in the email list)
+    autoMoved: it.autoMoved, // moved to Spam automatically (40-auto-protect.js)
     checkedAt: it.checkedAt,
     attachments: it.attachments,
     link: it.link,

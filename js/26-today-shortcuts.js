@@ -73,8 +73,11 @@ function homeStatus(rep) {
   const n = { scam: 0, warn: 0, safe: 0 };
   rep.items.forEach(i => n[i.level]++);
   const lv = n.scam ? "scam" : n.warn ? "warn" : "safe";
-  const title =
-    lv === "safe"
+  // Every scam already moved to Spam automatically: nothing for them to do.
+  const allMoved = n.scam > 0 && rep.items.filter(i => i.level === "scam").every(i => i.autoMoved);
+  const title = allMoved
+    ? tr("Scams moved to Spam for you. Nothing to do.", "Estafas movidas a Spam. No tiene que hacer nada.")
+    : lv === "safe"
       ? rep.source === "demo"
         ? tr("No scams in the demo inbox", "No hay estafas en la bandeja de prueba")
         : tr("No scams in your email today", "No hay estafas en su correo hoy")
@@ -150,7 +153,7 @@ function homeHTML(rep) {
     <button class="htile h-sos" data-go="scammed">${ic("sos")}<b>${t("scammed_card")}</b><span>${tr("Get help right now", "Reciba ayuda ahora")}</span></button>
   </div>
 
-  <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2>${typeof waitingBoxesHTML === "function" ? waitingBoxesHTML() : ""}<div class="group">${email}</div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2>${typeof waitingBoxesHTML === "function" ? waitingBoxesHTML() : ""}<div class="group">${typeof autoMovedHTML === "function" ? autoMovedHTML(rep) : ""}${email}</div></section>
   <section class="sect"><h2 class="sect-h">${tr("More", "Más")}</h2><div class="group">
     ${row('data-go="learn"', "spark", tr("Learn about scams", "Aprenda sobre estafas"), tr("Short lessons, one minute each.", "Lecciones cortas, de un minuto."))}
     ${row('data-go="monthly"', "bell", tr("This month", "Este mes"), tr(`${m.caught} scams caught · ${m.checked} emails scanned`, `${m.caught} estafas detectadas · ${m.checked} correos revisados`))}

@@ -211,6 +211,9 @@ function emailActionsHTML(it) {
     )}</p>`;
   const risky = it.level !== "safe";
   const cls = risky ? "btn danger" : "btn ghost";
+  // Moved automatically: say so, and offer to put it back.
+  if (it.autoMoved)
+    return `<p class="small" style="margin:8px 0 6px"><b>${tr("ScamSense moved this to Spam for you.", "ScamSense movió esto a Spam por usted.")}</b></p><div class="row email-acts"><button class="btn ghost" data-putback>${tr("Not a scam? Put it back", "¿No es estafa? Devolverlo")}</button></div>`;
   let h = `<div class="row email-acts">`;
   if (!it.inSpam && it.folder !== "Trash")
     h += `<button class="${cls}" data-tospam>${tr("Move to Spam", "Mover a Spam")}</button>`;
@@ -234,6 +237,17 @@ function emailActionsHTML(it) {
   return h;
 }
 function bindEmailActions(d, it, rerender) {
+  const pb = d.querySelector("[data-putback]");
+  if (pb)
+    pb.onclick = async () => {
+      pb.disabled = true;
+      try {
+        if (await putBack(it)) rerender && rerender();
+      } catch (e) {
+        toast(e.message);
+        pb.disabled = false;
+      }
+    };
   const run = async (btn, fn) => {
     btn.disabled = true;
     try {

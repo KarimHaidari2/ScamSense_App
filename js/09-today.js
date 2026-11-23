@@ -184,14 +184,14 @@ function itemHTML(it, idx) {
     <span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span>
     <span style="min-width:0"><span class="who">${esc(it.fromName || it.fromEmail || "")}</span>
       <span class="subj" style="display:block">${esc(it.subject || "")}</span>
-      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${riskPill(it)}${srcPill(it)}${it.folder ? `<span class="pill" style="background:var(--line);color:var(--muted)">${esc(fname(it.folder))}</span>` : ""}<span dir="auto">${it.level !== "safe" && kind ? esc(kind) : ""}</span></span></span>
+      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${riskPill(it)}${it.autoMoved ? `<span class="pill moved">${tr("Moved to Spam for you", "Movido a Spam")}</span>` : ""}${srcPill(it)}${it.folder ? `<span class="pill" style="background:var(--line);color:var(--muted)">${esc(fname(it.folder))}</span>` : ""}<span dir="auto">${it.level !== "safe" && kind ? esc(kind) : ""}</span></span></span>
   </button><div class="detail" hidden id="d${idx}"></div></article>`;
 }
 function detailHTML(it) {
   const ai = it.ai;
   const todo = ai && ai.what_to_do && ai.what_to_do.length ? ai.what_to_do : advice(it.level);
   let h = "";
-  if (it.inSpam) h += `<p class="small" style="margin:0">${t("in_spam")}</p>`;
+  if (it.inSpam && !it.autoMoved) h += `<p class="small" style="margin:0">${t("in_spam")}</p>`;
   else if (it.folder === "Trash") h += `<p class="small" style="margin:0">${t("in_trash")}</p>`;
   if (it.fromEmail)
     h += `<p class="small muted" style="margin:0">${t("from")} <b>${esc(it.fromEmail)}</b>${it.date ? ` · ${esc(fmtTime(it.date))}` : ""}</p>`;

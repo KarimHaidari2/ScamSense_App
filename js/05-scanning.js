@@ -207,4 +207,7 @@ async function finishScan(items, source) {
   S.set("history", hist.slice(-90));
   if (aiErr) toast(aiErr);
   renderToday();
+  // "Move scams to Spam for me" (40-auto-protect.js)
+  if (source !== "demo" && typeof autoMoveScams === "function")
+    autoMoveScams(fresh).then(n => n && renderToday());
 }

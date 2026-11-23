@@ -537,10 +537,11 @@ const LEAK_KINDS = [
     title: () => tr("Change these passwords", "Cambie estas contraseñas"),
     why: () =>
       tr(
-        "Your password leaked from the sites below. Start with your email and your bank if you ever used the same password there. Skip sites you no longer use.",
-        "Su contraseña se filtró en los sitios de abajo. Empiece por su correo y su banco si alguna vez usó la misma contraseña allí. Omita los sitios que ya no usa."
+        "Your password leaked from the sites below. The fastest way: Google Password Checkup (or on iPhone, Settings → Passwords → Security Recommendations) finds every weak or leaked password you saved and can change many of them for you. Start with your email and bank.",
+        "Su contraseña se filtró en los sitios de abajo. Lo más rápido: el Revisor de contraseñas de Google (o en iPhone, Ajustes → Contraseñas → Recomendaciones de seguridad) encuentra cada contraseña débil o filtrada que guardó y puede cambiar muchas por usted. Empiece por su correo y su banco."
       ),
-    sites: true
+    sites: true,
+    links: [["Google Password Checkup", "https://passwords.google.com/checkup"]]
   },
   {
     id: "contact",

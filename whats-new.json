@@ -3,6 +3,19 @@
   "items": [
     {
       "date": "2026-11-23",
+      "kind": "new",
+      "icon": "shield",
+      "en": {
+        "title": "ScamSense can move scams to Spam for you",
+        "text": "Turn on \"Move scams to Spam for me\" in Settings, under Email. When ScamSense is very sure an email is a scam, it moves it out of your inbox by itself. Not a scam? Put it back with one tap, and that sender won't be moved again."
+      },
+      "es": {
+        "title": "ScamSense puede mover estafas a Spam por usted",
+        "text": "Active \"Mover estafas a Spam por mí\" en Ajustes, en Correo. Cuando ScamSense está muy seguro de que un correo es estafa, lo saca de su bandeja por sí solo. ¿No es estafa? Devuélvalo con un toque, y ese remitente no se moverá otra vez."
+      }
+    },
+    {
+      "date": "2026-11-23",
       "kind": "better",
       "icon": "shield",
       "en": {

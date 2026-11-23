@@ -5753,3 +5753,14 @@ nav.tabs [data-tab="settings"] {
     margin-left: 0;
   }
 }
+
+/* Automatic protection */
+.pill.moved {
+  background: var(--safe-bg);
+  color: var(--safe);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.automoved {
+  background: var(--safe-bg);
+}

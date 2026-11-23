@@ -27,7 +27,11 @@ function getToken(interactive) {
     if (token && Date.now() < tokenExp - 60000) return resolve(token);
     const tc = google.accounts.oauth2.initTokenClient({
       client_id: c.clientId,
-      scope: "https://www.googleapis.com/auth/gmail.readonly",
+      // With "Move scams to Spam for me" on, one key both reads and moves (40-auto-protect.js).
+      scope: S.get("autoSpam", false)
+        ? "https://www.googleapis.com/auth/gmail.modify"
+        : "https://www.googleapis.com/auth/gmail.readonly",
+      include_granted_scopes: true,
       callback: async r => {
         if (r.error) return reject(new Error("Google sign-in was cancelled or failed: " + r.error));
         // Make sure this Gmail belongs to the person signed in to ScamSense.
@@ -54,6 +58,23 @@ function getToken(interactive) {
         }
         token = r.access_token;
         tokenExp = Date.now() + (r.expires_in || 3600) * 1000;
+        if (S.get("autoSpam", false)) {
+          const canMove =
+            !google.accounts.oauth2.hasGrantedAllScopes ||
+            google.accounts.oauth2.hasGrantedAllScopes(r, "https://www.googleapis.com/auth/gmail.modify");
+          if (canMove && typeof wtoken !== "undefined") {
+            wtoken = r.access_token; // the same key can move emails to Spam
+            wtokenExp = tokenExp;
+          } else if (!canMove) {
+            S.set("autoSpam", false);
+            toast(
+              tr(
+                "Google didn't give permission to move emails, so ScamSense will only warn you.",
+                "Google no dio permiso para mover correos, así que ScamSense solo le avisará."
+              )
+            );
+          }
+        }
         const firstTime = !S.get("connected", false);
         S.set("connected", true);
         if (firstTime && typeof serverEvent === "function") serverEvent({ t: "account", o: "gmail_on" });
