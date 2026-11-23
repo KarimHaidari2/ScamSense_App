@@ -5637,3 +5637,119 @@ nav.tabs [data-tab="settings"] {
   gap: 10px;
   padding: 4px 16px 16px;
 }
+
+/* Email leak result: the plan */
+.ci-plan {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 14px;
+  display: grid;
+  gap: 10px;
+}
+.ci-pstep {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.ci-pstep p {
+  margin: 6px 0 0 36px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.ci-pstephead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+.ci-pstephead input {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  accent-color: var(--safe);
+}
+.ci-num {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  font-weight: 800;
+  font-size: 0.85rem;
+  flex: none;
+}
+.ci-pstep.done {
+  background: var(--safe-bg);
+  border-color: transparent;
+}
+.ci-pstep.done b {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+.ci-pstep.done .ci-num {
+  background: var(--safe);
+}
+.ci-sitelist {
+  margin: 8px 0 0 36px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ci-sitelist li {
+  border: 1px solid var(--line);
+  border-radius: 99px;
+  padding: 3px 10px;
+  font-size: 0.9rem;
+}
+.ci-sitelist li span {
+  color: var(--muted);
+}
+.ci-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0 0 36px;
+}
+.ci-progress {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--safe);
+  margin-left: 6px;
+}
+.ci-watch {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--brand-soft);
+  margin: 6px 0 12px;
+  cursor: pointer;
+}
+.ci-watch input {
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  flex: none;
+}
+.ci-watch span span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+.ci-where summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: 8px 0;
+}
+@media (max-width: 420px) {
+  .ci-pstep p,
+  .ci-sitelist,
+  .ci-links {
+    margin-left: 0;
+  }
+}

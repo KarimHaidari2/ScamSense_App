@@ -3,6 +3,19 @@
   "items": [
     {
       "date": "2026-11-23",
+      "kind": "better",
+      "icon": "shield",
+      "en": {
+        "title": "Leaks now come with a plan",
+        "text": "When your email shows up in data leaks, ScamSense now gives you a short plan, most important first: which passwords to change, whether to freeze your credit, and what scammers might know. Tick each step off. Turn on \"Watch this email\" and it checks every month, telling you only about new leaks."
+      },
+      "es": {
+        "title": "Las filtraciones ahora traen un plan",
+        "text": "Cuando su correo aparece en filtraciones, ScamSense ahora le da un plan corto, lo más importante primero: qué contraseñas cambiar, si congelar su crédito y qué podrían saber los estafadores. Marque cada paso. Active \"Vigilar este correo\" y revisará cada mes, avisándole solo de filtraciones nuevas."
+      }
+    },
+    {
+      "date": "2026-11-23",
       "kind": "new",
       "icon": "user",
       "en": {

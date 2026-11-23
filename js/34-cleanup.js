@@ -469,6 +469,7 @@ async function runInfoCheck() {
     if (!j || !j.ok)
       throw new Error((j && j.error) || tr("Couldn't check right now.", "No se pudo revisar ahora."));
     const st = cleanupState();
+    if (!st.breach || st.breach.email !== j.email) st.leakDone = {}; // a different email: a fresh plan
     st.breach = {
       email: j.email,
       source: j.source,
@@ -511,28 +512,136 @@ function levelOf(res) {
   if (n >= 4 || (pw && n >= 2)) return ["high", tr("High", "Alto")];
   return ["mid", tr("Medium", "Medio")];
 }
+/* ----- Email leak result: a short personal plan, not a list of sites -----
+   Each leak lists what was exposed. We sort those into the few things a person can actually do,
+   most urgent first, with a checkbox for each, and fold the full list of sites away. */
+const LEAK_KINDS = [
+  {
+    id: "money",
+    test: /social security|\bssn\b|tax id|credit card|bank account|financial|payment/i,
+    title: () => tr("Freeze your credit (free)", "Congele su crédito (gratis)"),
+    why: () =>
+      tr(
+        "Your Social Security or money details were in a leak. A freeze stops anyone opening loans or cards in your name. It's free and you can lift it any time.",
+        "Su número de Seguro Social o datos de dinero estuvieron en una filtración. Congelar su crédito impide que abran préstamos o tarjetas a su nombre. Es gratis y puede quitarlo cuando quiera."
+      ),
+    links: [
+      ["Equifax", "https://www.equifax.com/personal/credit-report-services/credit-freeze/"],
+      ["Experian", "https://www.experian.com/freeze/center.html"],
+      ["TransUnion", "https://www.transunion.com/credit-freeze"]
+    ]
+  },
+  {
+    id: "pw",
+    test: /password/i,
+    title: () => tr("Change these passwords", "Cambie estas contraseñas"),
+    why: () =>
+      tr(
+        "Your password leaked from the sites below. Start with your email and your bank if you ever used the same password there. Skip sites you no longer use.",
+        "Su contraseña se filtró en los sitios de abajo. Empiece por su correo y su banco si alguna vez usó la misma contraseña allí. Omita los sitios que ya no usa."
+      ),
+    sites: true
+  },
+  {
+    id: "contact",
+    test: /phone|physical address|home address|\baddress(?!es)|birth|\bages?\b/i,
+    title: () => tr("Expect calls that know your details", "Espere llamadas que conocen sus datos"),
+    why: () =>
+      tr(
+        "Your phone number, home address or birthday leaked. Scammers use them to sound real. Knowing your details doesn't prove a caller is real: hang up and call back on a number you trust.",
+        "Su teléfono, dirección o cumpleaños se filtraron. Los estafadores los usan para parecer reales. Que sepan sus datos no prueba que sean reales: cuelgue y llame a un número de confianza."
+      ),
+    remove: true
+  },
+  {
+    id: "secq",
+    test: /security question|secret question|security answer/i,
+    title: () => tr("Change your security questions", "Cambie sus preguntas de seguridad"),
+    why: () =>
+      tr(
+        "Answers like your mother's maiden name leaked. Change them on your bank and email, or use made-up answers only you know.",
+        "Respuestas como el apellido de su madre se filtraron. Cámbielas en su banco y correo, o use respuestas inventadas que solo usted sepa."
+      )
+  },
+  {
+    id: "twostep",
+    always: true,
+    title: () =>
+      tr("Turn on 2-step verification for your email", "Active la verificación en 2 pasos en su correo"),
+    why: () =>
+      tr(
+        "Then a leaked password alone can't open your email. Your email is the key to all your other accounts.",
+        "Así una contraseña filtrada no basta para abrir su correo. Su correo es la llave de todas sus otras cuentas."
+      ),
+    links: [
+      ["Gmail", "https://myaccount.google.com/signinoptions/twosv"],
+      ["Outlook", "https://account.live.com/proofs/manage/additional"]
+    ]
+  }
+];
+function leakPlan(res) {
+  const all = res.breaches || [];
+  const has = re => all.filter(b => re.test((b.data || []).join(" ; ")));
+  return LEAK_KINDS.filter(k => k.always || has(k.test).length).map(k => {
+    const hits = k.always ? [] : has(k.test);
+    // Newest leaks first: those passwords are the most likely to still work.
+    const sites = hits
+      .slice()
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+      .map(b => ({ name: b.name, year: String(b.date || "").slice(0, 4) }));
+    return Object.assign({}, k, { sites });
+  });
+}
+function leakDone(id) {
+  return !!(cleanupState().leakDone || {})[id];
+}
 function showInfoPop(res) {
   if (!res) return;
   const n = res.breaches.length;
   const [lv, lvText] = levelOf(res);
   const when = shortDate(res.at || Date.now());
+  const st = cleanupState();
+  if (st.newLeaks) {
+    delete st.newLeaks; // they've seen it now
+    saveCleanup(st);
+  }
   const head = `<div class="ci-pop-head ${lv}">
     <p class="ci-level">${tr("Risk", "Riesgo")}: <b>${lvText}</b></p>
     <div class="ci-meter"><i></i></div>
     <h2 id="ci-pop-h">${n ? tr(`Your email was found in ${n} data ${n === 1 ? "leak" : "leaks"}`, `Su correo aparece en ${n} ${n === 1 ? "filtración" : "filtraciones"}`) : tr("Good news: no leaks found", "Buenas noticias: no hay filtraciones")}</h2>
     <p class="ci-email">${esc(res.email)}</p></div>`;
-  if (!n)
-    return openPop(
+  const watch = `<label class="ci-watch"><input type="checkbox" id="ci-watchbox" ${st.watch ? "checked" : ""}><span><b>${tr("Watch this email for me", "Vigilar este correo por mí")}</b><span>${tr("ScamSense checks again every month and tells you only if there's a new leak.", "ScamSense revisa cada mes y le avisa solo si hay una filtración nueva.")}</span></span></label>`;
+  if (!n) {
+    openPop(
       head +
-        `<p>${tr("This email isn't in any known data leak. Keep using a different password for each site, and turn on 2-step verification.", "Este correo no está en ninguna filtración conocida. Siga usando una contraseña distinta para cada sitio y active la verificación en 2 pasos.")}</p><p class="muted small">${tr(`Checked ${when} with ${esc(res.source)}.`, `Revisado ${when} con ${esc(res.source)}.`)}</p>`
+        `<p>${tr("This email isn't in any known data leak. Keep using a different password for each site, and turn on 2-step verification.", "Este correo no está en ninguna filtración conocida. Siga usando una contraseña distinta para cada sitio y active la verificación en 2 pasos.")}</p>${watch}<p class="muted small">${tr(`Checked ${when} with ${esc(res.source)}.`, `Revisado ${when} con ${esc(res.source)}.`)}</p>`
     );
-  const types = {};
-  res.breaches.forEach(b => (b.data || []).forEach(d => (types[d] = (types[d] || 0) + 1)));
-  const topTypes = Object.keys(types)
-    .sort((a, b) => types[b] - types[a])
-    .slice(0, 8);
+    bindLeakPop(res);
+    return;
+  }
+  const plan = leakPlan(res);
+  const done = plan.filter(k => leakDone(k.id)).length;
+  const steps = plan
+    .map(
+      (k, i) => `<li class="ci-pstep ${leakDone(k.id) ? "done" : ""}">
+      <label class="ci-pstephead"><input type="checkbox" data-leak="${k.id}" ${leakDone(k.id) ? "checked" : ""}><span class="ci-num">${i + 1}</span><b>${k.title()}</b></label>
+      <p>${k.why()}</p>
+      ${
+        k.sites && k.sites.length
+          ? `<ul class="ci-sitelist">${k.sites
+              .slice(0, 8)
+              .map(x => `<li>${esc(x.name)}${x.year ? ` <span>${esc(x.year)}</span>` : ""}</li>`)
+              .join(
+                ""
+              )}${k.sites.length > 8 ? `<li class="muted">${tr(`and ${k.sites.length - 8} more`, `y ${k.sites.length - 8} más`)}</li>` : ""}</ul>`
+          : ""
+      }
+      ${k.links ? `<div class="ci-links">${k.links.map(([l, u]) => `<a class="btn sm ghost" href="${u}" target="_blank" rel="noopener">${esc(l)}</a>`).join("")}</div>` : ""}
+      ${k.remove ? `<div class="ci-links"><button class="btn sm ghost" data-leakremove>${ic("eyeoff")}<span>${tr("Remove me from people-search sites", "Quitarme de sitios de búsqueda")}</span></button></div>` : ""}
+    </li>`
+    )
+    .join("");
   const cards = res.breaches
-    .slice(0, 15)
     .map(
       b =>
         `<li class="ci-bcard"><div class="ci-bline"><b>${esc(b.name)}</b>${b.date ? `<span>${esc(String(b.date).slice(0, 4))}</span>` : ""}</div>${
@@ -547,19 +656,78 @@ function showInfoPop(res) {
     .join("");
   openPop(
     head +
-      (topTypes.length
-        ? `<h3>${tr("What leaked", "Qué se filtró")}</h3><div class="ci-chips big">${topTypes.map(d => `<span class="${/password/i.test(d) ? "hot" : ""}">${esc(d)}</span>`).join("")}</div>`
-        : "") +
-      `<h3>${tr("Where", "Dónde")}</h3><ul class="ci-blist">${cards}</ul>${n > 15 ? `<p class="muted small">${tr(`And ${n - 15} more.`, `Y ${n - 15} más.`)}</p>` : ""}
-      <h3>${tr("What to do now", "Qué hacer ahora")}</h3>
-      <ol class="ci-todo">
-        <li>${tr("Change your password on those sites, and anywhere you used the same one.", "Cambie su contraseña en esos sitios y donde haya usado la misma.")}</li>
-        <li>${tr("Turn on 2-step verification for your email and bank.", "Active la verificación en 2 pasos en su correo y su banco.")}</li>
-        <li>${tr("Be extra careful with messages that mention these companies. Scammers use leaked details to sound real.", "Tenga cuidado con mensajes que mencionan estas empresas. Los estafadores usan datos filtrados para parecer reales.")}</li>
-      </ol>
-      <p class="muted small">${tr(`Checked ${when} with ${esc(res.source)}.`, `Revisado ${when} con ${esc(res.source)}.`)}</p>`
+      `<h3>${tr("Your plan", "Su plan")} <span class="ci-progress" id="ci-prog">${tr(`${done} of ${plan.length} done`, `${done} de ${plan.length} listos`)}</span></h3>
+      <p class="muted small" style="margin-top:-4px">${tr("Most important first. Tick each one when it's done.", "Lo más importante primero. Marque cada uno al terminarlo.")}</p>
+      <ol class="ci-plan">${steps}</ol>
+      ${watch}
+      <details class="ci-where"><summary>${tr(`See all ${n} leaks and what each one exposed`, `Ver las ${n} filtraciones y qué expuso cada una`)}</summary><ul class="ci-blist">${cards}</ul></details>
+      <p class="muted small">${tr(`Checked ${when} with ${esc(res.source)}. A leak means a company was hacked, not that you did anything wrong.`, `Revisado ${when} con ${esc(res.source)}. Una filtración significa que hackearon a una empresa, no que usted hizo algo mal.`)}</p>`
   );
+  bindLeakPop(res);
 }
+function bindLeakPop(res) {
+  const d = document.getElementById("ci-pop");
+  d.querySelectorAll("[data-leak]").forEach(
+    x =>
+      (x.onchange = () => {
+        const st = cleanupState();
+        st.leakDone = Object.assign({}, st.leakDone, { [x.dataset.leak]: x.checked });
+        saveCleanup(st);
+        x.closest(".ci-pstep").classList.toggle("done", x.checked);
+        const plan = leakPlan(res);
+        const n = plan.filter(k => leakDone(k.id)).length;
+        const pr = document.getElementById("ci-prog");
+        if (pr) pr.textContent = tr(`${n} of ${plan.length} done`, `${n} de ${plan.length} listos`);
+      })
+  );
+  const rm = d.querySelector("[data-leakremove]");
+  if (rm) rm.onclick = () => startRemoval();
+  const w = document.getElementById("ci-watchbox");
+  if (w)
+    w.onchange = () => {
+      const st = cleanupState();
+      st.watch = w.checked;
+      saveCleanup(st);
+      toast(
+        w.checked
+          ? tr("ScamSense will check this email every month.", "ScamSense revisará este correo cada mes.")
+          : tr("Stopped watching this email.", "Dejó de vigilar este correo.")
+      );
+    };
+}
+/* Monthly: if they asked us to watch their email, check again quietly and speak up only for new leaks. */
+async function leakWatchTick() {
+  const st = cleanupState();
+  if (!st.watch || !st.breach || !serverOn()) return;
+  if (Date.now() - (st.breach.checkedAt || st.breach.at || 0) < 30 * 864e5) return;
+  try {
+    const j = await serverPost({ mode: "breach", email: st.breach.email });
+    if (!j || !j.ok) return;
+    const known = new Set((st.breach.breaches || []).map(b => b.name));
+    const fresh = (j.breaches || []).filter(b => !known.has(b.name));
+    st.breach = {
+      email: j.email,
+      source: j.source,
+      breaches: j.breaches || [],
+      risk: j.risk || "",
+      at: Date.now()
+    };
+    if (fresh.length) {
+      st.newLeaks = fresh.map(b => b.name);
+      // New leaks may need the steps again.
+      st.leakDone = {};
+    }
+    saveCleanup(st);
+    if (fresh.length)
+      toast(
+        tr(
+          `New data leak found for ${j.email}: ${fresh.map(b => b.name).join(", ")}. Open "Is my info out there?" to see what to do.`,
+          `Nueva filtración para ${j.email}: ${fresh.map(b => b.name).join(", ")}. Abra "¿Mis datos están expuestos?" para ver qué hacer.`
+        )
+      );
+  } catch (e) {}
+}
+setTimeout(leakWatchTick, 8000);
 function showPhonePop(v) {
   openPop(`<div class="ci-pop-head mid"><h2 id="ci-pop-h">${tr("Phone check is coming soon", "La revisión por teléfono llega pronto")}</h2><p class="ci-email">${esc(v)}</p></div>
     <p>${tr("To show what's public about a phone number, ScamSense first has to text you a code, so nobody can look up someone else's number. We're adding this.", "Para mostrar lo que es público sobre un teléfono, ScamSense primero debe enviarle un código por texto, para que nadie busque el número de otra persona. Lo estamos agregando.")}</p>
@@ -694,6 +862,9 @@ function showPhoneResult(j) {
 
 /* For Home: a short line about this screen. */
 function cleanupLine() {
+  const nl = cleanupState().newLeaks;
+  if (nl && nl.length)
+    return tr(`New leak found: ${nl[0]}. See what to do`, `Nueva filtración: ${nl[0]}. Vea qué hacer`);
   if (CLEANUP_SITES.some(s => siteStatus(s) === "recheck"))
     return tr("Time to check some sites again", "Hora de revisar algunos sitios otra vez");
   return tr("See if your email or phone was leaked", "Vea si su correo o teléfono se filtró");
