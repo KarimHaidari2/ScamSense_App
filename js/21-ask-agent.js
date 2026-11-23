@@ -224,13 +224,21 @@ function liveHandoffText(summary) {
     (lines.length ? "\n\nTheir chat with Mahi:\n" + lines.join("\n") : "")
   ).slice(0, 3900);
 }
+// Before anything goes to the team, make sure the server knows who this is.
+const haveName = () => !!(cfg().name && cfg().lastName);
+async function knowWho() {
+  if (!S.get("acct", null) && typeof registerUser === "function") await registerUser();
+}
+let mahiAskName = null; // waiting for their name before connecting: { summary, urgent, first }
 async function liveConnect(summary, urgent) {
+  await knowWho();
   const j = await serverPost({
     mode: "support",
     action: "send",
     reason: urgent ? "scammed" : "person",
     text: liveHandoffText(summary),
-    name: cfg().name || ""
+    name: cfg().name || "",
+    lastName: cfg().lastName || ""
   });
   if (!j || !j.ok)
     throw new Error((j && j.error) || tr("Couldn't reach the team.", "No se pudo contactar al equipo."));
@@ -402,6 +410,25 @@ function renderHelper() {
     liveBar();
   };
   const liveStart = async (summary, quiet) => {
+    if (!mahiLive && !haveName()) {
+      mahiAskName = { summary, urgent: false, first: cfg().name || "" };
+      const ask = {
+        role: "assistant",
+        content: mahiAskName.first
+          ? tr(
+              `Before I connect you, what's your last name, ${mahiAskName.first}?`,
+              `Antes de conectarle, ¿cuál es su apellido, ${mahiAskName.first}?`
+            )
+          : tr(
+              "Before I connect you to a person, what's your first and last name?",
+              "Antes de conectarle con una persona, ¿cuál es su nombre y apellido?"
+            )
+      };
+      chatLog.push(ask);
+      add(ask);
+      inp.focus();
+      return;
+    }
     const wait = {
       role: "sys",
       content: tr(
@@ -443,9 +470,84 @@ function renderHelper() {
     chatLog.push(um);
     add(um);
     tools();
+    // Mahi asked for their name before connecting them to a person.
+    if (mahiAskName) {
+      const cap = w => w.charAt(0).toUpperCase() + w.slice(1);
+      const words = q
+        .replace(/^(my name is|my name's|i am|i'm|it's|it is|this is|me llamo|mi nombre es|soy)\s+/i, "")
+        .replace(/[.,!?]+/g, " ")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(cap);
+      let first = mahiAskName.first,
+        last = "";
+      if (first) last = words.join(" ");
+      else {
+        first = words[0] || "";
+        last = words.slice(1).join(" ");
+      }
+      const say = text => {
+        const m = { role: "assistant", content: text };
+        chatLog.push(m);
+        add(m);
+      };
+      if (!first) {
+        say(
+          tr(
+            "Sorry, I didn't catch that. What's your first and last name?",
+            "Perdón, no le entendí. ¿Cuál es su nombre y apellido?"
+          )
+        );
+      } else if (!last) {
+        mahiAskName.first = first;
+        saveCfg(Object.assign(cfg(), { name: first.slice(0, 30) }));
+        say(tr(`Thanks, ${first}! And your last name?`, `¡Gracias, ${first}! ¿Y su apellido?`));
+      } else {
+        saveCfg(Object.assign(cfg(), { name: first.slice(0, 30), lastName: last.slice(0, 30) }));
+        const pend = mahiAskName;
+        mahiAskName = null;
+        say(
+          tr(
+            `Thank you, ${first}. I'm connecting you to a person now.`,
+            `Gracias, ${first}. Le estoy conectando con una persona.`
+          )
+        );
+        try {
+          await registerUser();
+          await liveConnect(pend.summary, pend.urgent);
+          const m = {
+            role: "sys",
+            content: tr(
+              "Connecting you to a person on the ScamSense team… They'll answer right here.",
+              "Conectándole con una persona del equipo de ScamSense… Le responderán aquí mismo."
+            )
+          };
+          chatLog.push(m);
+          add(m);
+        } catch (e) {
+          say(
+            e.message ||
+              tr(
+                "I couldn't reach the team. Please try again.",
+                "No pude contactar al equipo. Intente de nuevo."
+              )
+          );
+        }
+        liveBar();
+      }
+      busy = false;
+      inp.focus();
+      return;
+    }
     if (mahiLive) {
       try {
-        const j = await serverPost({ mode: "support", action: "send", text: q, name: cfg().name || "" });
+        const j = await serverPost({
+          mode: "support",
+          action: "send",
+          text: q,
+          name: cfg().name || "",
+          lastName: cfg().lastName || ""
+        });
         if (!j || !j.ok) throw new Error((j && j.error) || "");
       } catch (e) {
         const m = {
@@ -1103,6 +1205,12 @@ async function runMahiTool(name, input, ui) {
     case "talk_to_team": {
       if (!serverOn())
         return { error: "Talking to the team needs the ScamSense server, which is off on this device." };
+      if (!mahiLive && !haveName()) {
+        mahiAskName = { summary: i.summary, urgent: !!i.urgent, first: cfg().name || "" };
+        return {
+          done: "Not connected yet: ScamSense doesn't know their name. In one short, friendly sentence, ask for their first and last name so you can connect them. The connection happens as soon as they answer."
+        };
+      }
       try {
         if (!mahiLive) await liveConnect(i.summary, i.urgent);
       } catch (e) {

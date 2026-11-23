@@ -62,6 +62,10 @@ async function registerUser() {
     mode: "register",
     name: c.name || "",
     lastName: c.lastName || "",
+    dob: c.dob || "",
+    country: c.country || "",
+    state: c.state || "",
+    zip: c.zip || "",
     email: c.email || "",
     lang: langCode(),
     reports: c.dailyReport !== false,
@@ -83,6 +87,7 @@ async function registerUser() {
     if (j && j.ok && !j.waiting) {
       S.set("acct", { email: j.email, verified: j.verified, owner: !!j.owner, at: Date.now() });
       flushServerEvents();
+      if (typeof aboutYouCheck === "function") aboutYouCheck(j);
     }
     return j;
   } catch (e) {
@@ -164,6 +169,7 @@ function accountHTML() {
         );
   return `<section class="sect"><h2 class="sect-h">${tr("Your account", "Su cuenta")}</h2><div class="group">
     <div class="grow col"><label for="uname" class="gl"><b>${tr("Your name", "Su nombre")}</b><span>${tr("Home says hello to you by first name. Your full name is shown to your trusted people in alerts.", "Inicio le saluda por su nombre. Su nombre completo aparece en las alertas a sus personas de confianza.")}</span></label><div class="namerow"><input id="uname" type="text" autocomplete="given-name" maxlength="30" placeholder="${esc(tr("First name", "Nombre"))}" aria-label="${esc(tr("First name", "Nombre"))}" value="${esc(c.name || "")}"><input id="ulname" type="text" autocomplete="family-name" maxlength="30" placeholder="${esc(tr("Last name", "Apellido"))}" aria-label="${esc(tr("Last name", "Apellido"))}" value="${esc(c.lastName || "")}"></div></div>
+    <button class="grow linkrow" id="aboutedit">${lead("user", "l-green")}<span class="gl"><b>${tr("Date of birth and where you live", "Fecha de nacimiento y dónde vive")}</b><span>${c.dob ? esc([new Date(c.dob + "T12:00").toLocaleDateString(), [c.state, c.zip].filter(Boolean).join(" "), c.country].filter(Boolean).join(" · ")) : tr("Not filled in yet", "Aún no completado")}</span></span>${ic("chev", "chev")}</button>
     <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>${tr("Your email", "Su correo")}</b><span>${emailLine}</span></span></div>
     <div class="grow">${lead("bell", "l-amber")}<span class="gl"><b>${tr("Daily report email", "Reporte diario por correo")}</b><span>${tr("Every morning: what ScamSense caught for you.", "Cada mañana: lo que ScamSense detectó para usted.")}</span></span>${switchHTML("drep", c.dailyReport !== false, "")}</div>
     <div class="grow">${lead("alert", "l-red")}<span class="gl"><b>${tr("Danger alerts", "Alertas de peligro")}</b><span>${tr("If you say you were scammed or already paid, your trusted people get an email right away.", "Si dice que le estafaron o que ya pagó, sus personas de confianza reciben un correo enseguida.")}</span></span>${switchHTML("dalert", c.dangerAlerts !== false, "")}</div>
@@ -176,6 +182,8 @@ function bindAccount() {
     if (el) el.addEventListener("change", fn);
   };
   on("uname", registerSoon);
+  const ab = document.getElementById("aboutedit");
+  if (ab) ab.onclick = () => showAboutYou(true);
   on("ulname", e => {
     saveCfg(Object.assign(cfg(), { lastName: e.target.value.trim().slice(0, 30) }));
     registerSoon();

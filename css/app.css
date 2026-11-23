@@ -5260,3 +5260,87 @@ nav.tabs [data-tab="settings"] {
 .pastlist button:focus-visible {
   outline: 3px solid var(--amber);
 }
+
+/* ----- About you (name, date of birth, where you live) ----- */
+.about-box {
+  max-width: 520px;
+}
+.about-box .gate-body {
+  text-align: left;
+}
+.about-box h1 {
+  font: 800 1.6rem var(--display);
+  margin: 0 0 6px;
+  color: var(--ink);
+}
+.about-box form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.about-box label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 700;
+  color: var(--ink);
+  flex: 1 1 0;
+  min-width: 0;
+}
+.about-box input,
+.about-box select {
+  font: 400 1.05rem var(--body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 12px;
+  min-height: 50px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.about-box input:focus-visible,
+.about-box select:focus-visible {
+  outline: 3px solid var(--amber);
+  outline-offset: 1px;
+}
+.about-box fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.about-box legend {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.about-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.about-row > label {
+  flex: 1 1 140px;
+}
+.about-row.three > label:first-child {
+  flex: 2 1 140px;
+}
+.about-row.three > label {
+  flex: 1 1 80px;
+}
+.about-err {
+  color: var(--scam);
+  font-weight: 700;
+  min-height: 1.2em;
+  margin: 0;
+}
+.about-box .primary-btn {
+  background: var(--brand);
+  color: var(--brand-ink);
+  border-color: var(--brand);
+  justify-content: center;
+}
+.onb-about {
+  z-index: 90;
+}

@@ -280,6 +280,10 @@ const USER_COLS = [
   "User ID",
   "First name",
   "Last name",
+  "Date of birth", // YYYY-MM-DD, from "About you" in the app
+  "Country",
+  "State",
+  "ZIP",
   "Email",
   "Email verified",
   "Gmail",
@@ -401,6 +405,13 @@ function addNewColumns(sh) {
       .setFontColor("#FFFFFF");
 }
 const fullName = u => [u["First name"], u["Last name"]].filter(Boolean).join(" ");
+// Date of birth as YYYY-MM-DD, even if Sheets turned it into a date.
+const dobText = v =>
+  v instanceof Date
+    ? Utilities.formatDate(v, Session.getScriptTimeZone(), "yyyy-MM-dd")
+    : String(v || "")
+        .replace(/^'/, "")
+        .slice(0, 10);
 
 // Finds a person by this device's ID (their first device in column A, other devices in "Devices").
 function findUser(uid) {
@@ -507,6 +518,16 @@ function registerUser(req) {
     }
     if (cleanText(req.name, 40)) u["First name"] = cleanText(req.name, 40);
     if (cleanText(req.lastName, 40)) u["Last name"] = cleanText(req.lastName, 40);
+    // About you: date of birth, country, state, ZIP (never a street address).
+    const dob = String(req.dob || "");
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dob)) {
+      const d = new Date(dob + "T12:00:00Z");
+      const age = (Date.now() - d) / (365.25 * 864e5);
+      if (!isNaN(d) && d.toISOString().slice(0, 10) === dob && age >= 13 && age < 120) u["Date of birth"] = "'" + dob;
+    }
+    if (cleanText(req.country, 60)) u.Country = cleanText(req.country, 60);
+    if (req.state !== undefined && cleanText(req.state, 40)) u.State = cleanText(req.state, 40);
+    if (/^[A-Za-z0-9 -]{3,10}$/.test(String(req.zip || "").trim())) u.ZIP = "'" + String(req.zip).trim();
     if (ve) {
       const firstTime = u["Email verified"] !== "yes";
       u.Email = ve;
@@ -533,7 +554,22 @@ function registerUser(req) {
     writeUser(u);
     if (welcome) sendWelcome(u);
     const isOwner = u["Email verified"] === "yes" && ownerEmails().indexOf(String(u.Email).toLowerCase()) >= 0;
-    return { ok: true, verified: u["Email verified"] === "yes", email: u.Email || "", owner: isOwner };
+    const dobOut = dobText(u["Date of birth"]);
+    return {
+      ok: true,
+      verified: u["Email verified"] === "yes",
+      email: u.Email || "",
+      owner: isOwner,
+      // So a second device doesn't have to ask again.
+      profile: {
+        first: u["First name"] || "",
+        last: u["Last name"] || "",
+        dob: dobOut,
+        country: u.Country || "",
+        state: u.State || "",
+        zip: String(u.ZIP || "").replace(/^'/, "")
+      }
+    };
   } finally {
     lock.releaseLock();
   }
@@ -1812,6 +1848,7 @@ function supportApi(req) {
   if (!okUid(req.uid)) return { error: "bad id" };
   const u = findUser(req.uid);
   const key = u ? u["User ID"] : req.uid;
+  if (u && key !== req.uid) linkCases(req.uid, u);
   const a = String(req.action || "poll");
   if (a === "poll") return supportPoll(key);
   if (a === "photo") {
@@ -1892,12 +1929,19 @@ function supportApi(req) {
     if (!c) {
       if (!takeQuota("supopen:" + key, SUPPORT.MAX_NEW_CASES_PER_DAY))
         return { error: "Please write in your open conversation." };
-      c = newCase(key, u, reason, req.name);
+      c = newCase(key, u, reason, [req.name, req.lastName].join(" "));
       isNew = true;
       addMessage(c, "system", "", REASONS[reason]);
     } else if (URGENT_REASONS.indexOf(reason) >= 0 && c.Priority !== "urgent") {
       c.Priority = "urgent";
       addMessage(c, "system", "", REASONS[reason]);
+    }
+    // A case that started before we knew who this is gets their real name as soon as we do.
+    const known = (u && fullName(u)) || cleanText([req.name, req.lastName].join(" "), 60);
+    if (known && (!c.Name || c.Name === "Someone (not signed in)")) {
+      c.Name = known;
+      if (u && u.Email) c.Email = u.Email;
+      saveCase(c);
     }
     if (c.Status === "waiting") c.Status = "open";
     let photo = "";
@@ -1913,6 +1957,17 @@ function supportApi(req) {
   }
   notifyTeam(c, isNew, text || (email ? "Shared an email: " + email.subject : photo ? "Sent a photo" : c.Reason));
   return supportPoll(key);
+}
+// Cases this phone started before it was linked to the person's account move onto that person.
+function linkCases(deviceId, u) {
+  allCases()
+    .filter(c => c["User ID"] === deviceId)
+    .forEach(c => {
+      c["User ID"] = u["User ID"];
+      if (!c.Name || c.Name === "Someone (not signed in)") c.Name = fullName(u) || c.Name;
+      if (!c.Email) c.Email = u.Email || "";
+      saveCase(c);
+    });
 }
 function supportPoll(key, caseId) {
   const list = casesOf(key);
@@ -2054,7 +2109,17 @@ function supportCounts() {
 }
 function ownerSupport(who, role, req) {
   const a = req.action;
-  if (a === "cases")
+  if (a === "cases") {
+    allCases()
+      .filter(c => !c.Name || c.Name === "Someone (not signed in)")
+      .forEach(c => {
+        const u = findUser(c["User ID"]);
+        if (u && fullName(u)) {
+          c.Name = fullName(u);
+          c.Email = c.Email || u.Email || "";
+          saveCase(c);
+        }
+      });
     return {
       ok: true,
       cases: allCases()
@@ -2067,6 +2132,7 @@ function ownerSupport(who, role, req) {
         }),
       counts: supportCounts()
     };
+  }
   if (a === "quick_list") return { ok: true, quick: quickList() };
   if (a === "case_photo") {
     if (!caseOfPhoto(req.id)) return { error: "That photo isn't available." };
@@ -2202,7 +2268,9 @@ function caseView(c) {
         family: String(u["Trusted people"] || ""),
         language: u.Language || "",
         lastActive: iso(u["Last active"]),
-        scams: +u["Scams caught"] || 0
+        scams: +u["Scams caught"] || 0,
+        dob: dobText(u["Date of birth"]),
+        place: [u.State, String(u.ZIP || "").replace(/^'/, ""), u.Country].filter(Boolean).join(" ")
       }
     : null;
   const others = casesOf(c["User ID"])

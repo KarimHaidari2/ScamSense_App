@@ -35,6 +35,35 @@ const esc = s =>
 const OWL = `<svg viewBox="0 0 120 130" aria-hidden="true"><polygon points="22,34 28,4 48,22" fill="#F5F5F2"/><polygon points="98,34 92,4 72,22" fill="#F5F5F2"/><rect x="20" y="14" width="80" height="108" rx="40" fill="#F5F5F2"/><path d="M30,70 C30,96 44,112 60,116 C76,112 90,96 90,70 Z" fill="#DADDE5"/><circle cx="45" cy="52" r="16" fill="#14213D"/><circle cx="75" cy="52" r="16" fill="#14213D"/><circle cx="45" cy="52" r="8.5" fill="#E0A93B"/><circle cx="75" cy="52" r="8.5" fill="#E0A93B"/><circle cx="45" cy="52" r="3.8" fill="#14213D"/><circle cx="75" cy="52" r="3.8" fill="#14213D"/><polygon points="54,70 66,70 60,82" fill="#E0A93B"/><polyline points="46,96 56,106 76,86" fill="none" stroke="#14213D" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 $("owl").innerHTML = OWL;
 
+// Date of birth and where they live (from "About you" in the app).
+const dobOf = u => {
+  const v = String(u["Date of birth"] || "").replace(/^'/, "");
+  const d = /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : v ? new Date(v).toISOString().slice(0, 10) : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
+};
+const ageOf = dob => {
+  if (!dob) return "";
+  const [y, m, d] = dob.split("-").map(Number);
+  const t = new Date();
+  return t.getFullYear() - y - (t.getMonth() + 1 < m || (t.getMonth() + 1 === m && t.getDate() < d) ? 1 : 0);
+};
+const bornText = dob =>
+  dob
+    ? new Date(dob + "T12:00").toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric"
+      }) + ` (age ${ageOf(dob)})`
+    : "";
+const placeOf = u =>
+  [
+    u.State,
+    String(u.ZIP || "").replace(/^'/, ""),
+    u.Country && u.Country !== "United States" ? u.Country : ""
+  ]
+    .filter(Boolean)
+    .join(" ");
+
 let token = "";
 let data = null; // the overview
 const people = {}; // person details, by user ID
@@ -513,7 +542,7 @@ function list(us, dateCol) {
   return `<ul class="plist">${us
     .map(
       u =>
-        `<li><button data-uid="${esc(u["User ID"])}"><span class="av">${esc(initials(u))}</span><span class="pl"><b>${esc(name(u))}</b><span>${esc(u.Email || "no email yet")}${u.Email && u["Email verified"] !== "yes" ? " · not confirmed" : ""}</span></span><span class="pr">${chip(u)}<small>${dateCol === "First seen" ? "joined " + ago(u["First seen"]) : ago(u["Last active"])}</small></span></button></li>`
+        `<li><button data-uid="${esc(u["User ID"])}"><span class="av">${esc(initials(u))}</span><span class="pl"><b>${esc(name(u))}</b><span>${esc(u.Email || "no email yet")}${u.Email && u["Email verified"] !== "yes" ? " · not confirmed" : ""}${placeOf(u) ? " · " + esc(placeOf(u)) : ""}${dobOf(u) ? " · age " + ageOf(dobOf(u)) : ""}</span></span><span class="pr">${chip(u)}<small>${dateCol === "First seen" ? "joined " + ago(u["First seen"]) : ago(u["Last active"])}</small></span></button></li>`
     )
     .join("")}</ul>`;
 }
@@ -632,7 +661,8 @@ function drawPerson(d) {
     <header class="doc-head">
       <span class="av big">${esc(initials(u))}</span>
       <div><h1>${esc(name(u))}</h1><p>${esc(u.Email || "No email yet")} ${u["Email verified"] === "yes" ? `<span class="chip c-active">confirmed</span>` : u.Email ? `<span class="chip c-quiet">not confirmed</span>` : ""} ${chip(u)}</p>
-      <p class="muted small">Joined ${when(u["First seen"])} · last active ${ago(u["Last active"])}</p></div>
+      <p class="muted small">${dobOf(u) ? "Born " + esc(bornText(dobOf(u))) + " · " : ""}${placeOf(u) ? "Lives in " + esc(placeOf(u)) + (u.Country === "United States" ? ", United States" : "") + " · " : ""}Joined ${when(u["First seen"])} · last active ${ago(u["Last active"])}</p>
+      ${!u["First name"] || !dobOf(u) ? `<p class="muted small">Hasn't filled in "About you" yet. The app asks them the next time they open it.</p>` : ""}</div>
     </header>
 
     <div class="actions"${data.role === "viewer" ? " hidden" : ""}>
@@ -1046,6 +1076,8 @@ function drawCase() {
         p
           ? `<h2>${esc(p.name || "No name")}</h2>
         <div class="kv"><span>Email</span><b>${esc(p.email || "—")} ${p.verified ? `<span class="chip c-active">confirmed</span>` : ""}</b></div>
+        <div class="kv"><span>Born</span><b>${esc(bornText(p.dob) || "—")}</b></div>
+        <div class="kv"><span>Lives in</span><b>${esc(p.place || "—")}</b></div>
         <div class="kv"><span>Language</span><b>${esc(p.language || "—")}</b></div>
         <div class="kv"><span>Last active</span><b>${ago(p.lastActive)}</b></div>
         <div class="kv"><span>Scams caught</span><b>${p.scams}</b></div>

@@ -132,6 +132,7 @@ function renderSupport() {
       .map(([r, q]) => `<button class="chip" data-r="${r}" data-q="${esc(q)}">${esc(q)}</button>`)
       .join("")}</div>
     <div id="suppending" hidden></div>
+    <div id="supname"></div>
     <div class="composer">
       <textarea id="supin" dir="auto" rows="1" placeholder="${esc(tr("Write to the ScamSense team…", "Escriba al equipo de ScamSense…"))}"></textarea>
       <button class="btn primary sendbtn" id="supgo" aria-label="${esc(tr("Send", "Enviar"))}">${ic("send")}</button>
@@ -188,6 +189,7 @@ function renderSupport() {
         inp.focus();
       })
   );
+  drawNameBox();
   document.getElementById("suppast").ontoggle = e => e.target.open && drawPastCases();
   drawShare();
   drawPending();
@@ -367,18 +369,51 @@ async function supportPoll() {
     );
   } catch (e) {}
 }
+/* No name yet? Ask before the first message, so the team knows who's writing. */
+function drawNameBox() {
+  const box = document.getElementById("supname");
+  if (!box) return;
+  const c = cfg();
+  box.innerHTML = haveName()
+    ? ""
+    : `<div class="sharebox"><p><b>${tr("To get started, please type your first and last name.", "Para empezar, escriba su nombre y apellido.")}</b></p><div class="namerow"><input id="supfirst" autocomplete="given-name" maxlength="30" placeholder="${esc(tr("First name", "Nombre"))}" aria-label="${esc(tr("First name", "Nombre"))}" value="${esc(c.name || "")}"><input id="suplast" autocomplete="family-name" maxlength="30" placeholder="${esc(tr("Last name", "Apellido"))}" aria-label="${esc(tr("Last name", "Apellido"))}" value="${esc(c.lastName || "")}"></div></div>`;
+}
 let supportBusy = false;
 async function supportSend(extra) {
   extra = extra || {};
   const inp = document.getElementById("supin");
   const text = (inp ? inp.value : "").trim();
   if (supportBusy || (!text && !supportPhoto && !extra.email)) return;
+  if (!haveName()) {
+    const f = document.getElementById("supfirst"),
+      l = document.getElementById("suplast");
+    const fv = f ? f.value.trim() : "",
+      lv = l ? l.value.trim() : "";
+    if (!fv || !lv) {
+      if (!f) drawNameBox();
+      toast(tr("Please type your first and last name first.", "Primero escriba su nombre y apellido."));
+      const empty = document.getElementById(fv ? "suplast" : "supfirst");
+      if (empty) empty.focus();
+      return;
+    }
+    saveCfg(Object.assign(cfg(), { name: fv.slice(0, 30), lastName: lv.slice(0, 30) }));
+    drawNameBox();
+    await registerUser();
+  }
+  await knowWho();
   stopListening();
   supportBusy = true;
   const btn = document.getElementById("supgo");
   btn.disabled = true;
   const reason = extra.reason || (supportCase && supportCase.status !== "closed" ? "" : supportReason);
-  const body = { mode: "support", action: "send", text, reason, name: cfg().name || "" };
+  const body = {
+    mode: "support",
+    action: "send",
+    text,
+    reason,
+    name: cfg().name || "",
+    lastName: cfg().lastName || ""
+  };
   if (supportPhoto) body.photo = supportPhoto;
   if (extra.email) body.email = extra.email;
   // Show it right away; the server's copy replaces it.
