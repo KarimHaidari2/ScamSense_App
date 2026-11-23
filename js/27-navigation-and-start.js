@@ -64,10 +64,14 @@ const Fab = (() => {
   function bounds() {
     const b = el();
     const nav = document.querySelector("nav.tabs");
-    const navH = nav ? innerHeight - nav.getBoundingClientRect().top : 70; // the bar floats above the bottom edge
+    const nr = nav ? nav.getBoundingClientRect() : null;
+    const navH = nr ? innerHeight - nr.top : 70; // the bar floats above the bottom edge
+    // On a wide screen the app is a centered column: keep the button beside it, not at the far window edge.
+    const colL = nr && nr.width ? Math.max(0, nr.left) : 0;
+    const colR = nr && nr.width ? Math.min(innerWidth, nr.right) : innerWidth;
     return {
-      minX: M,
-      maxX: innerWidth - b.offsetWidth - M,
+      minX: colL + M,
+      maxX: colR - b.offsetWidth - M,
       minY: 70,
       maxY: innerHeight - navH - b.offsetHeight - M
     };

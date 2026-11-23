@@ -2,6 +2,19 @@
   "note": "What's new in ScamSense. Newest first. Each item: date, kind (new | better | fixed), icon, en, es. The app shows a 'New' badge for items newer than the last time the person opened this page.",
   "items": [
     {
+      "date": "2026-11-23",
+      "kind": "better",
+      "icon": "user",
+      "en": {
+        "title": "Every country, and easy sign out",
+        "text": "About you now lists every country with its states or provinces, and checks your postal code. Settings shows who is signed in, with a Sign out button at the top and bottom. Connecting an email always asks which account, so you never see someone else's mailbox."
+      },
+      "es": {
+        "title": "Todos los países y cerrar sesión fácil",
+        "text": "Sobre usted ahora muestra todos los países con sus estados o provincias, y revisa su código postal. Ajustes muestra quién inició sesión, con un botón para cerrar sesión arriba y abajo. Al conectar un correo siempre pregunta qué cuenta, para que nunca vea el correo de otra persona."
+      }
+    },
+    {
       "date": "2026-11-22",
       "kind": "new",
       "icon": "lock",

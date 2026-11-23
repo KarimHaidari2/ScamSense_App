@@ -2130,6 +2130,11 @@ function supportFromDanger(u, kind) {
     if (!c) {
       c = newCase(key, u, kind);
       isNew = true;
+    } else {
+      // The same thing said again (another day, another device) while the case is still open:
+      // don't repeat it in the chat or ping the team twice.
+      const m = caseMessages(c["Case ID"], false).filter(x => x.from === "system").pop();
+      if (m && String(m.text).indexOf(REASONS[kind]) === 0) return;
     }
     c.Priority = "urgent";
     if (c.Status === "waiting") c.Status = "open";

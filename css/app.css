@@ -5124,6 +5124,7 @@ nav.tabs [data-tab="settings"] {
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  flex-direction: row; /* a phone rule turns .card into a column; this card stays a wrapping row */
   border: 1.5px solid var(--brand);
 }
 .teamcard div {

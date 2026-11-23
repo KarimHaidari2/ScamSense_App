@@ -134,7 +134,7 @@ function renderSupport() {
     <div id="suppending" hidden></div>
     <div id="supname"></div>
     <div class="composer">
-      <textarea id="supin" dir="auto" rows="1" placeholder="${esc(tr("Write to the ScamSense team…", "Escriba al equipo de ScamSense…"))}"></textarea>
+      <textarea id="supin" dir="auto" rows="1" placeholder="${esc(tr("Write a message…", "Escriba un mensaje…"))}"></textarea>
       <button class="btn primary sendbtn" id="supgo" aria-label="${esc(tr("Send", "Enviar"))}">${ic("send")}</button>
     </div>
     <div class="chattools">

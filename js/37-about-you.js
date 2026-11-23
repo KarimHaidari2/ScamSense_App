@@ -126,6 +126,39 @@ const ABOUT_COUNTRIES = [
 ];
 const isUS = country => /^(united states|usa|us|u\.s\.a?\.?)$/i.test(String(country || "").trim());
 
+/* Every country, its states or provinces, and what its postal codes look like (data/regions.json,
+   loaded the first time "About you" opens). c: [code, English name] · s: code → states · p: code → [pattern, flags] */
+let REGIONS = null;
+function loadRegions() {
+  if (REGIONS) return Promise.resolve(REGIONS);
+  return fetch("data/regions.json")
+    .then(r => (r.ok ? r.json() : null))
+    .then(j => (REGIONS = j && j.c ? j : null))
+    .catch(() => null);
+}
+const regionCode = name => {
+  if (!REGIONS || !name) return "";
+  const n = String(name).trim().toLowerCase();
+  const hit = REGIONS.c.find(([, en]) => en.toLowerCase() === n);
+  return hit ? hit[0] : isUS(name) ? "US" : "";
+};
+/* Country names in the app's language (Spanish, etc.), stored in English. */
+function countryLabel(code, en) {
+  try {
+    if (langCode() !== "en" && typeof Intl !== "undefined" && Intl.DisplayNames)
+      return new Intl.DisplayNames([langCode()], { type: "region" }).of(code) || en;
+  } catch (e) {}
+  return en;
+}
+function postalRule(code) {
+  const r = REGIONS && REGIONS.p[code];
+  try {
+    return r ? new RegExp(r[0], r[1]) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 /* Is anything still missing? */
 function aboutYouMissing(c) {
   c = c || cfg();
@@ -134,8 +167,7 @@ function aboutYouMissing(c) {
     c.lastName &&
     /^\d{4}-\d{2}-\d{2}$/.test(c.dob || "") &&
     c.country &&
-    (!isUS(c.country) || (c.state && /^\d{5}$/.test(c.zip || ""))) &&
-    (isUS(c.country) || c.zip)
+    (!isUS(c.country) || (c.state && /^\d{5}$/.test(c.zip || "")))
   );
 }
 
@@ -213,7 +245,7 @@ function showAboutYou(editing) {
               .join("")}</select></label>
           </div>
         </fieldset>
-        <label>${tr("Country", "País")}<input id="ab-country" list="ab-countries" autocomplete="country-name" maxlength="60" value="${esc(country)}"></label>
+        <label>${tr("Country", "País")}<span id="ab-cwrap"><input id="ab-country" list="ab-countries" autocomplete="country-name" maxlength="60" value="${esc(country)}"></span></label>
         <datalist id="ab-countries">${ABOUT_COUNTRIES.map(n => `<option value="${esc(n)}">`).join("")}</datalist>
         <div class="about-row" id="ab-where"></div>
         <p class="about-err" id="ab-err" role="alert"></p>
@@ -230,19 +262,62 @@ function showAboutYou(editing) {
     </section>
   </div>`;
   const where = () => {
-    const us = isUS(m.querySelector("#ab-country").value);
+    const ctryVal = m.querySelector("#ab-country").value;
+    const us = isUS(ctryVal);
+    const code = regionCode(ctryVal);
     const st = m.querySelector("#ab-state");
     const zp = m.querySelector("#ab-zip");
     const keepState = st ? st.value : c.state || "";
     const keepZip = zp ? zp.value : c.zip || "";
-    m.querySelector("#ab-where").innerHTML = us
-      ? `<label>${tr("State", "Estado")}<select id="ab-state" autocomplete="address-level1"><option value="">${tr("Choose…", "Elija…")}</option>${ABOUT_US_STATES.map(([k, n]) => `<option value="${k}" ${keepState === k ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>
-         <label>${tr("ZIP code", "Código postal")}<input id="ab-zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" value="${esc(keepZip)}"></label>`
-      : `<label>${tr("State or province", "Estado o provincia")}<input id="ab-state" autocomplete="address-level1" maxlength="40" value="${esc(keepState)}"></label>
-         <label>${tr("Postal code", "Código postal")}<input id="ab-zip" autocomplete="postal-code" maxlength="10" value="${esc(keepZip)}"></label>`;
+    const states = (!us && REGIONS && REGIONS.s[code]) || null;
+    const hasPostal = us || !REGIONS || !!postalRule(code);
+    let stateField;
+    if (us)
+      stateField = `<label>${tr("State", "Estado")}<select id="ab-state" autocomplete="address-level1"><option value="">${tr("Choose…", "Elija…")}</option>${ABOUT_US_STATES.map(([k, n]) => `<option value="${k}" ${keepState === k ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></label>`;
+    else if (states && states.length <= 80)
+      stateField = `<label>${tr("State or province", "Estado o provincia")}<select id="ab-state" autocomplete="address-level1"><option value="">${tr("Choose…", "Elija…")}</option>${(states.indexOf(
+        keepState
+      ) < 0 && keepState
+        ? [keepState]
+        : []
+      )
+        .concat(states)
+        .map(n => `<option ${keepState === n ? "selected" : ""}>${esc(n)}</option>`)
+        .join("")}</select></label>`;
+    else if (states)
+      stateField = `<label>${tr("State, province or county", "Estado, provincia o condado")}<input id="ab-state" list="ab-states" autocomplete="address-level1" maxlength="40" value="${esc(keepState)}" placeholder="${esc(tr("Start typing…", "Empiece a escribir…"))}"></label><datalist id="ab-states">${states.map(n => `<option value="${esc(n)}">`).join("")}</datalist>`;
+    else
+      stateField = `<label>${tr("State or province (if any)", "Estado o provincia (si hay)")}<input id="ab-state" autocomplete="address-level1" maxlength="40" value="${esc(keepState)}"></label>`;
+    const zipField = us
+      ? `<label>${tr("ZIP code", "Código postal")}<input id="ab-zip" inputmode="numeric" autocomplete="postal-code" maxlength="5" pattern="[0-9]{5}" value="${esc(keepZip)}"></label>`
+      : `<label>${hasPostal ? tr("Postal code", "Código postal") : tr("Postal code (if any)", "Código postal (si hay)")}<input id="ab-zip" autocomplete="postal-code" maxlength="10" value="${esc(keepZip)}"></label>`;
+    m.querySelector("#ab-where").innerHTML = stateField + zipField;
   };
   where();
+  // Once the full country list is here, the country box becomes a dropdown of every country.
+  loadRegions().then(R => {
+    if (!R || !m.isConnected) return;
+    const box = m.querySelector("#ab-country");
+    const cur = box.value || "United States";
+    let list = R.c.slice().sort((a, b) => countryLabel(a[0], a[1]).localeCompare(countryLabel(b[0], b[1])));
+    const us = list.find(x => x[0] === "US");
+    list = [us].concat(list.filter(x => x[0] !== "US"));
+    const known = list.some(([, en]) => en === cur) || isUS(cur);
+    m.querySelector("#ab-cwrap").innerHTML =
+      `<select id="ab-country" autocomplete="country-name">${known ? "" : `<option selected>${esc(cur)}</option>`}${list.map(([k, en]) => `<option value="${esc(en)}" ${en === cur || (k === "US" && isUS(cur)) ? "selected" : ""}>${esc(countryLabel(k, en))}</option>`).join("")}</select>`;
+    const dl = m.querySelector("#ab-countries");
+    if (dl) dl.remove();
+    m.querySelector("#ab-country").onchange = () => {
+      const s2 = m.querySelector("#ab-state"),
+        z2 = m.querySelector("#ab-zip");
+      if (s2) s2.value = "";
+      if (z2) z2.value = "";
+      where();
+    };
+    where();
+  });
   m.querySelector("#ab-country").oninput = where;
+  m.querySelector("#aboutform").addEventListener("input", () => (m.querySelector("#ab-err").textContent = ""));
   const close = () => m.remove();
   if (editing) m.querySelector("#ab-cancel").onclick = close;
   // Someone else's account on this phone: sign out here, then the welcome screen lets them
@@ -280,7 +355,22 @@ function showAboutYou(editing) {
     if (isUS(ctry) && !state) return err(tr("Please choose your state.", "Elija su estado."));
     if (isUS(ctry) && !/^\d{5}$/.test(zip))
       return err(tr("Please type your 5-digit ZIP code.", "Escriba su código postal de 5 dígitos."));
-    if (!isUS(ctry) && !zip) return err(tr("Please type your postal code.", "Escriba su código postal."));
+    if (!isUS(ctry)) {
+      const code = regionCode(ctry);
+      const rule = postalRule(code);
+      const hasStates = !!(REGIONS && REGIONS.s[code]);
+      if (hasStates && !state)
+        return err(tr("Please choose your state or province.", "Elija su estado o provincia."));
+      if ((rule || !REGIONS) && !zip)
+        return err(tr("Please type your postal code.", "Escriba su código postal."));
+      if (rule && !rule.test(zip.toUpperCase()) && !rule.test(zip))
+        return err(
+          tr(
+            "That postal code doesn't look right for this country. Please check it.",
+            "Ese código postal no parece correcto para este país. Revíselo."
+          )
+        );
+    }
     saveCfg(
       Object.assign(cfg(), {
         name: first.slice(0, 30),
@@ -288,7 +378,7 @@ function showAboutYou(editing) {
         dob,
         country: isUS(ctry) ? "United States" : ctry.slice(0, 60),
         state: state.slice(0, 40),
-        zip: zip.slice(0, 10)
+        zip: (isUS(ctry) ? zip : zip.toUpperCase()).slice(0, 10)
       })
     );
     close();

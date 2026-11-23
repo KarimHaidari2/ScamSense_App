@@ -350,6 +350,10 @@ main {
 }
 .cols > .card {
   margin-bottom: 0;
+  min-width: 0; /* a long email or place shortens with "…" instead of widening the page */
+}
+.cols {
+  grid-template-columns: minmax(0, 1fr);
 }
 .cols + .card,
 .cols + section {
@@ -357,7 +361,7 @@ main {
 }
 @media (min-width: 860px) {
   .cols {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     margin-bottom: 16px;
   }
 }
@@ -1325,4 +1329,16 @@ button.kind:focus-visible {
   border-radius: 12px;
   padding: 10px 12px;
   margin: 6px 0 12px;
+}
+
+/* Lists: the right-hand column (time, reason) never squeezes the name into a narrow strip */
+.pr {
+  max-width: 38%;
+  text-align: right;
+}
+.pr small {
+  overflow-wrap: anywhere;
+}
+.pl .tags .chip {
+  overflow: visible;
 }
