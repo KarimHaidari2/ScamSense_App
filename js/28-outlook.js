@@ -166,14 +166,33 @@ async function msTokenNow() {
 }
 async function msGet(path, method, body) {
   const tok = await msTokenNow();
-  const r = await fetch(MS_GRAPH + path, {
-    method: method || "GET",
-    headers: Object.assign(
-      { Authorization: "Bearer " + tok, Prefer: 'outlook.body-content-type="html"' },
-      body ? { "Content-Type": "application/json" } : {}
-    ),
-    body: body ? JSON.stringify(body) : undefined
-  });
+  let r;
+  // Outlook also says "slow down" (429) or hiccups (503/504) when many emails are read at once: try again.
+  for (let n = 0; ; n++) {
+    try {
+      r = await fetch(MS_GRAPH + path, {
+        method: method || "GET",
+        headers: Object.assign(
+          { Authorization: "Bearer " + tok, Prefer: 'outlook.body-content-type="html"' },
+          body ? { "Content-Type": "application/json" } : {}
+        ),
+        body: body ? JSON.stringify(body) : undefined
+      });
+    } catch (e) {
+      if (n < 4 && (!method || method === "GET")) {
+        await backoff(n);
+        continue;
+      }
+      throw e;
+    }
+    if ((r.status === 429 || r.status === 503 || r.status === 504) && n < 5) {
+      const ra = Number(r.headers.get("Retry-After"));
+      if (ra > 0 && ra < 30) await new Promise(res => setTimeout(res, ra * 1000));
+      else await backoff(n);
+      continue;
+    }
+    break;
+  }
   if (!r.ok) {
     const j = await r.json().catch(() => ({}));
     const err = new Error((j.error && j.error.message) || `Outlook error ${r.status}`);
@@ -269,7 +288,12 @@ async function collectOutlook() {
     msgs = msgs.concat((page.value || []).filter(m => !skip.has(m.parentFolderId)));
   }
   msgs = msgs.slice(0, c.max);
-  let done = 0;
+  // Emails already checked this week keep their result.
+  const seen = cachedResults("outlook");
+  const kept = msgs.filter(m => seen[m.id]).map(m => Object.assign({}, seen[m.id], { _cached: true }));
+  msgs = msgs.filter(m => !seen[m.id]);
+  let done = kept.length;
+  const total = kept.length + msgs.length;
   await pool(msgs, 4, async m => {
     if (m.hasAttachments) {
       try {
@@ -278,14 +302,23 @@ async function collectOutlook() {
       } catch (e) {}
     }
     done++;
-    renderToday({
-      progress: {
-        label: t("prog_read", { d: done, n: msgs.length }),
-        pct: 10 + (40 * done) / Math.max(1, msgs.length)
-      }
-    });
+    showProgress(t("prog_read", { d: done, n: total }), 10 + (40 * done) / Math.max(1, total));
   });
-  return msgs.map(m => parseOutlook(m, map));
+  let skipped = 0;
+  const out = kept.concat(
+    msgs
+      .map(m => {
+        try {
+          return parseOutlook(m, map);
+        } catch (e) {
+          skipped++;
+          return null;
+        }
+      })
+      .filter(Boolean)
+  );
+  out._skipped = skipped;
+  return out;
 }
 /* One email, in full (used when Mahi reads an email for someone). */
 async function outlookFullItem(id) {

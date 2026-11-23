@@ -5537,3 +5537,21 @@ nav.tabs [data-tab="settings"] {
 .whocard .grow .gl span {
   overflow-wrap: anywhere;
 }
+
+/* Scam risk percentage in the email list */
+.pill.risk {
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  background: transparent;
+  border: 1px solid currentColor;
+}
+.pill.risk-scam {
+  color: var(--scam);
+}
+.pill.risk-warn {
+  color: var(--warn);
+}
+.pill.risk-safe {
+  color: var(--safe);
+}

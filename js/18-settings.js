@@ -86,7 +86,7 @@ function renderSettings() {
     <div class="grow"><span class="gl"><b>${tr("Remember my key on this device", "Recordar mi clave en este dispositivo")}</b><span>${tr("Off is safer: you paste it again after closing the tab.", "Apagado es más seguro: la pega de nuevo al cerrar.")}</span></span>${switchHTML("remk", c.rememberKey !== false, "")}</div></div></div>
   <div class="subsect"><h3 class="sub-h">${tr("Daily scan", "Revisión diaria")}</h3><div class="group">
     <div class="grow"><label for="days" class="gl"><b>${t("set_days")}</b></label><select id="days" class="inline">${[1, 3, 7].map(d => `<option value="${d}" ${c.days === d ? "selected" : ""}>${d === 1 ? t("d24") : t("ddays", { n: d })}</option>`).join("")}</select></div>
-    <div class="grow"><label for="max" class="gl"><b>${t("set_max")}</b></label><select id="max" class="inline">${[50, 100, 200].map(d => `<option value="${d}" ${c.max === d ? "selected" : ""}>${d}</option>`).join("")}</select></div></div>
+    <div class="grow"><label for="max" class="gl"><b>${t("set_max")}</b></label><select id="max" class="inline">${[50, 100, 200, 500].map(d => `<option value="${d}" ${c.max === d ? "selected" : ""}>${d}</option>`).join("")}</select></div></div>
     <p class="footnote">${t("set_folders")}</p></div>
 <div class="group">
     <div class="grow col"><label for="cid" class="gl"><b>${t("set_cid")}</b></label><input id="cid" autocomplete="off" spellcheck="false" value="${esc(c.clientId)}"></div>

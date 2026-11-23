@@ -7,21 +7,58 @@
 let scanning = false;
 /* Scans every connected email account (Gmail, Outlook) and makes one Daily Safety Report.
    With nothing connected yet, it starts the Gmail sign-in. */
+/* Results are kept for a week, so the next scan only reads emails it hasn't seen. After a week
+   an email is checked again from scratch (that's the regular "full" re-check). */
+const RESULT_KEEP_DAYS = 7;
+function cachedResults(source) {
+  const rep = S.get("report", null);
+  const map = {};
+  if (!rep || rep.source === "demo") return map;
+  (rep.items || []).forEach(it => {
+    if (it.id && it.source === source && it.checkedAt && Date.now() - it.checkedAt < RESULT_KEEP_DAYS * 864e5)
+      map[it.id] = it;
+  });
+  return map;
+}
+/* Progress shows at most a few times a second; redrawing for every email slows phones down. */
+let lastProgress = 0;
+function showProgress(label, pct, force) {
+  const now = Date.now();
+  if (!force && now - lastProgress < 250) return;
+  lastProgress = now;
+  renderToday({ progress: { label, pct } });
+}
+/* Keep the phone's screen on during a long scan (a locked phone pauses the scan). */
+let scanWake = null;
+async function holdScreen(on) {
+  try {
+    if (on && navigator.wakeLock && !scanWake) scanWake = await navigator.wakeLock.request("screen");
+    if (!on && scanWake) {
+      await scanWake.release();
+      scanWake = null;
+    }
+  } catch (e) {
+    scanWake = null;
+  }
+}
 async function scanEmail() {
   if (scanning) return;
   scanning = true;
+  holdScreen(true);
   try {
     const useOutlook = outlookConnected();
     const useGmail = S.get("connected", false) || !useOutlook;
-    let items = [];
-    if (useGmail) items = items.concat(await collectGmail());
-    if (useOutlook) items = items.concat(await collectOutlook());
+    const g = useGmail ? await collectGmail() : [];
+    const o = useOutlook ? await collectOutlook() : [];
+    const items = g.concat(o);
+    items._skipped = (g._skipped || 0) + (o._skipped || 0);
     await finishScan(items, useGmail && useOutlook ? "mixed" : useOutlook ? "outlook" : "gmail");
   } catch (e) {
     toast(e.message);
     renderToday();
   } finally {
     scanning = false;
+    holdScreen(false);
   }
 }
 /* Reads recent Gmail from every folder: Inbox, Promotions, Social, Updates, Forums, archived, Spam and Trash.
@@ -31,37 +68,65 @@ async function collectGmail() {
   renderToday({ progress: { label: t("prog_connect"), pct: 5 } });
   await getToken(false);
   renderToday({ progress: { label: t("prog_find"), pct: 10 } });
-  const list = await gfetch(
-    `messages?maxResults=${Math.min(500, c.max)}&includeSpamTrash=true&q=${encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`)}`
-  );
-  const ids = (list.messages || []).map(m => m.id);
-  const items = [];
-  let done = 0;
-  await pool(ids, 5, async id => {
-    const m = await getGmailMessage(id);
-    items.push(parseGmail(m));
+  const q = encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`);
+  let ids = [];
+  let pageToken = "";
+  do {
+    const list = await gfetch(
+      `messages?maxResults=${Math.min(500, c.max - ids.length)}&includeSpamTrash=true&q=${q}${pageToken ? "&pageToken=" + pageToken : ""}`
+    );
+    ids = ids.concat((list.messages || []).map(m => m.id));
+    pageToken = list.nextPageToken || "";
+  } while (pageToken && ids.length < c.max);
+  ids = ids.slice(0, c.max);
+  // Emails already checked this week keep their result; only new ones are read.
+  const seen = cachedResults("gmail");
+  const items = ids.filter(id => seen[id]).map(id => Object.assign({}, seen[id], { _cached: true }));
+  const fresh = ids.filter(id => !seen[id]);
+  let done = items.length,
+    skipped = 0;
+  await pool(fresh, 4, async id => {
+    try {
+      items.push(parseGmail(await getGmailMessage(id)));
+    } catch (e) {
+      if (/sign-in expired|vencí/i.test(e.message)) throw e;
+      skipped++; // one email Gmail wouldn't give us doesn't stop the scan
+    }
     done++;
-    renderToday({
-      progress: {
-        label: t("prog_read", { d: done, n: ids.length }),
-        pct: 10 + (40 * done) / Math.max(1, ids.length)
-      }
-    });
+    showProgress(t("prog_read", { d: done, n: ids.length }), 10 + (40 * done) / Math.max(1, ids.length));
   });
+  if (skipped) items._skipped = skipped;
   return items;
 }
 async function finishScan(items, source) {
   const c = cfg();
   await loadDisposable();
-  items.forEach(it => {
-    it.local = analyze(it);
+  const skipped = items._skipped || 0;
+  const now = Date.now();
+  // Emails checked earlier this week already have their answer.
+  const fresh = items.filter(it => !it._cached);
+  fresh.forEach(it => {
+    try {
+      it.local = analyze(it);
+    } catch (e) {
+      // An email the rules can't read is shown as "be careful" rather than stopping the scan.
+      it.local = {
+        level: "warn",
+        score: 4,
+        reasons: [
+          tr("ScamSense couldn't read this email fully.", "ScamSense no pudo leer este correo por completo.")
+        ],
+        kind: ""
+      };
+    }
+    it.checkedAt = now;
   });
   // Proof that's hard to fake: sender history and how old the sender's address is.
   renderToday({ progress: { label: tr("Checking the senders…", "Revisando los remitentes…"), pct: 50 } });
-  await gatherEvidence(items);
+  await gatherEvidence(fresh);
   const wantsAI = aiOn();
   let aiList = wantsAI
-    ? items.filter(it => c.aiMode === "all" || it.local.score >= 2 || it.local.reasons.length)
+    ? fresh.filter(it => c.aiMode === "all" || it.local.score >= 2 || it.local.reasons.length)
     : [];
   // Through the Mahi server, check the riskiest 10 only (it has a daily limit for everyone).
   if (aiViaServer()) aiList = aiList.sort((a, b) => b.local.score - a.local.score).slice(0, 10);
@@ -77,12 +142,7 @@ async function finishScan(items, source) {
       }
     }
     done++;
-    renderToday({
-      progress: {
-        label: t("prog_ai", { d: done, n: aiList.length }),
-        pct: 50 + (50 * done) / Math.max(1, aiList.length)
-      }
-    });
+    showProgress(t("prog_ai", { d: done, n: aiList.length }), 50 + (50 * done) / Math.max(1, aiList.length));
   });
   items.forEach(it => {
     if (!it.ai && it._demoAI) {
@@ -90,14 +150,23 @@ async function finishScan(items, source) {
       it.ai.verdict = { safe: "safe", suspicious: "warn", scam: "scam" }[it.ai.verdict] || it.ai.verdict;
     }
   });
-  items.forEach(it => {
+  fresh.forEach(it => {
     it.level = finalLevel(it);
   });
   const order = { scam: 0, warn: 1, safe: 2 };
   items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
   const report = { at: Date.now(), source, days: c.days, ai: !!wantsAI, aiChecked: aiList.length, items };
   S.set("report", Object.assign({}, report, { items: report.items.map(slimItem) }));
-  if (source !== "demo" && typeof serverScanEvent === "function") serverScanEvent(items, source);
+  // The team's numbers count each email once, not again on every scan.
+  if (source !== "demo" && typeof serverScanEvent === "function" && fresh.length)
+    serverScanEvent(fresh, source);
+  if (skipped)
+    toast(
+      tr(
+        `${skipped} email${skipped === 1 ? "" : "s"} couldn't be read this time. They'll be checked on the next scan.`,
+        `${skipped} correo${skipped === 1 ? "" : "s"} no se pudo leer esta vez. Se revisará${skipped === 1 ? "" : "n"} en la próxima revisión.`
+      )
+    );
   const hist = S.get("history", []);
   const kinds = {};
   items

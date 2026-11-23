@@ -77,16 +77,60 @@ function getToken(interactive) {
     tc.requestAccessToken(opts);
   });
 }
+/* Waits a little longer after each try, with some randomness so many requests don't retry at once. */
+const backoff = n =>
+  new Promise(res => setTimeout(res, Math.min(8000, 600 * Math.pow(2, n)) + Math.random() * 400));
+/* One Gmail request. Gmail sometimes says "slow down" (429) or has a hiccup (5xx) when many emails are
+   read at once, and phones drop the connection for a moment: those are tried again instead of
+   stopping the whole scan. An expired sign-in is renewed once, quietly. */
 async function gfetch(path) {
-  const r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/" + path, {
-    headers: { Authorization: "Bearer " + token }
-  });
-  if (r.status === 401) {
-    token = null;
-    throw new Error("Google sign-in expired. Tap Scan again.");
+  let renewed = false;
+  for (let n = 0; ; n++) {
+    let r;
+    try {
+      r = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/" + path, {
+        headers: { Authorization: "Bearer " + token }
+      });
+    } catch (e) {
+      if (n < 4) {
+        await backoff(n);
+        continue;
+      }
+      throw new Error(
+        tr(
+          "Couldn't reach Gmail. Check your internet and try again.",
+          "No se pudo conectar con Gmail. Revise su internet e intente de nuevo."
+        )
+      );
+    }
+    if (r.status === 401) {
+      token = null;
+      if (!renewed) {
+        renewed = true;
+        try {
+          await getToken(false);
+          continue;
+        } catch (e) {}
+      }
+      throw new Error(
+        tr("Google sign-in expired. Tap Scan again.", "Su sesión de Google venció. Toque Revisar otra vez.")
+      );
+    }
+    let slowDown = r.status === 429 || r.status >= 500;
+    if (r.status === 403) {
+      const body = await r.text().catch(() => "");
+      slowDown = /rate ?limit|quota|concurrent/i.test(body);
+      if (!slowDown) throw new Error("Gmail error 403");
+    }
+    if (slowDown && n < 5) {
+      const ra = Number(r.headers.get("Retry-After"));
+      if (ra > 0 && ra < 30) await new Promise(res => setTimeout(res, ra * 1000));
+      else await backoff(n);
+      continue;
+    }
+    if (!r.ok) throw new Error("Gmail error " + r.status);
+    return r.json();
   }
-  if (!r.ok) throw new Error("Gmail error " + r.status);
-  return r.json();
 }
 function b64(s) {
   const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/"));
@@ -205,7 +249,7 @@ function parseGmail(m) {
     date: Number(m.internalDate) || Date.now(),
     text: (text || m.snippet || "").replace(/\s+/g, " ").slice(0, 6000),
     snippet: m.snippet || "",
-    links,
+    links: links.slice(0, 80),
     attachments: acc.attachments,
     auth: (H["authentication-results"] || "") + " " + (H["arc-authentication-results"] || ""),
     listUnsub: !!H["list-unsubscribe"]

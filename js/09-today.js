@@ -130,6 +130,27 @@ function explanation(it) {
   if (it.level === "safe") return it.local.trusted ? t("ex_trusted") : t("ex_none");
   return it.local.reasons[0] || t("ex_some");
 }
+/* Scam risk as a percentage, so people see how sure ScamSense is, not just a label.
+   It always sits inside the label's own range (Scam 75–99%, Be careful 40–74%, Safe 1–25%):
+   the AI's confidence places it within that range when the AI checked it; otherwise the rules' score does. */
+const RISK_BAND = { scam: [75, 99], warn: [40, 74], safe: [1, 25] };
+function riskPct(it) {
+  const band = RISK_BAND[it.level] || RISK_BAND.warn;
+  const clamp = x => Math.max(0, Math.min(1, x));
+  let f;
+  const ai = it.ai;
+  const aiLevel = ai && ({ safe: "safe", suspicious: "warn", scam: "scam" }[ai.verdict] || ai.verdict);
+  if (ai && aiLevel === it.level && ai.confidence != null) {
+    const c = clamp(Number(ai.confidence) / 100);
+    f = it.level === "safe" ? 1 - c : c;
+  } else {
+    const sc = Number((it.local && it.local.score) || 0);
+    f = it.level === "scam" ? clamp((sc - 8) / 8) : it.level === "warn" ? clamp((sc - 4) / 4) : clamp(sc / 4);
+  }
+  return Math.round(band[0] + f * (band[1] - band[0]));
+}
+const riskPill = it =>
+  `<span class="pill risk risk-${it.level}" title="${esc(tr("Scam risk", "Riesgo de estafa"))}">${tr(`${riskPct(it)}% risk`, `${riskPct(it)}% riesgo`)}</span>`;
 function itemHTML(it, idx) {
   const L = LV[it.level];
   const kind = (it.ai && it.ai.scam_type) || cap(it.local.kind || "");
@@ -137,7 +158,7 @@ function itemHTML(it, idx) {
     <span class="dot ${L.dot}" aria-hidden="true">${L.icon}</span>
     <span style="min-width:0"><span class="who">${esc(it.fromName || it.fromEmail || "")}</span>
       <span class="subj" style="display:block">${esc(it.subject || "")}</span>
-      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${srcPill(it)}${it.folder ? `<span class="pill" style="background:var(--line);color:var(--muted)">${esc(fname(it.folder))}</span>` : ""}<span dir="auto">${it.level !== "safe" && kind ? esc(kind) : ""}</span></span></span>
+      <span class="why" style="display:block"><span class="pill ${L.pill}">${L.word}</span>${riskPill(it)}${srcPill(it)}${it.folder ? `<span class="pill" style="background:var(--line);color:var(--muted)">${esc(fname(it.folder))}</span>` : ""}<span dir="auto">${it.level !== "safe" && kind ? esc(kind) : ""}</span></span></span>
   </button><div class="detail" hidden id="d${idx}"></div></article>`;
 }
 function detailHTML(it) {
@@ -148,7 +169,7 @@ function detailHTML(it) {
   else if (it.folder === "Trash") h += `<p class="small" style="margin:0">${t("in_trash")}</p>`;
   if (it.fromEmail)
     h += `<p class="small muted" style="margin:0">${t("from")} <b>${esc(it.fromEmail)}</b>${it.date ? ` · ${esc(fmtTime(it.date))}` : ""}</p>`;
-  h += `<div class="ai-box"><p class="label">${ai ? t("ai_expl") : t("ss_says")}</p><p dir="auto">${esc(explanation(it))}</p>${ai ? `<p class="small muted">${t("ai_conf", { n: esc(ai.confidence) })}</p>` : ""}</div>`;
+  h += `<div class="ai-box"><p class="label">${ai ? t("ai_expl") : t("ss_says")}</p><p dir="auto">${esc(explanation(it))}</p><p class="small muted">${tr(`Scam risk: ${riskPct(it)}%`, `Riesgo de estafa: ${riskPct(it)}%`)}${ai && ai.confidence != null ? ` · ${t("ai_conf", { n: esc(ai.confidence) })}` : ` · ${tr("from ScamSense's built-in checks", "según las revisiones de ScamSense")}`}</p></div>`;
   // AI warning signs first, then built-in ones the AI didn't already mention (same link or address).
   const quoted = r => ((r.match(/"([^"]+)"|\(([^)]+)\)/) || [])[1] || "").toLowerCase();
   const aiText = ((ai && ai.red_flags) || []).join(" ").toLowerCase();

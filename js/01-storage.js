@@ -186,6 +186,7 @@ function slimItem(it) {
     subject: it.subject,
     date: it.date,
     level: it.level,
+    checkedAt: it.checkedAt,
     attachments: it.attachments,
     link: it.link,
     local: it.local,

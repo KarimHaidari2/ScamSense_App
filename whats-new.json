@@ -4,6 +4,19 @@
     {
       "date": "2026-11-23",
       "kind": "better",
+      "icon": "mail",
+      "en": {
+        "title": "Bigger inboxes, and a scam risk %",
+        "text": "Scans now handle up to 500 emails. If Gmail or Outlook is busy, ScamSense waits and tries again instead of stopping, and emails checked this week aren't read again, so the next scan is quick. Every email now shows its scam risk as a percentage."
+      },
+      "es": {
+        "title": "Buzones más grandes y riesgo en %",
+        "text": "Las revisiones ahora aceptan hasta 500 correos. Si Gmail u Outlook están ocupados, ScamSense espera y lo intenta otra vez en lugar de detenerse, y los correos revisados esta semana no se vuelven a leer, así que la siguiente revisión es rápida. Cada correo muestra su riesgo de estafa en porcentaje."
+      }
+    },
+    {
+      "date": "2026-11-23",
+      "kind": "better",
       "icon": "user",
       "en": {
         "title": "Every country, and easy sign out",
