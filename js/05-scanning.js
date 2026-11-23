@@ -10,12 +10,18 @@ let scanning = false;
 /* Results are kept for a week, so the next scan only reads emails it hasn't seen. After a week
    an email is checked again from scratch (that's the regular "full" re-check). */
 const RESULT_KEEP_DAYS = 7;
-function cachedResults(source) {
+function cachedResults(source, box) {
   const rep = S.get("report", null);
   const map = {};
   if (!rep || rep.source === "demo") return map;
   (rep.items || []).forEach(it => {
-    if (it.id && it.source === source && it.checkedAt && Date.now() - it.checkedAt < RESULT_KEEP_DAYS * 864e5)
+    if (
+      it.id &&
+      it.source === source &&
+      (it.box || "") === (box || "") &&
+      it.checkedAt &&
+      Date.now() - it.checkedAt < RESULT_KEEP_DAYS * 864e5
+    )
       map[it.id] = it;
   });
   return map;
@@ -50,8 +56,11 @@ async function scanEmail() {
     const useGmail = S.get("connected", false) || !useOutlook;
     const g = useGmail ? await collectGmail() : [];
     const o = useOutlook ? await collectOutlook() : [];
-    const items = g.concat(o);
-    items._skipped = (g._skipped || 0) + (o._skipped || 0);
+    // Any other email addresses they added (39-more-mailboxes.js).
+    const x =
+      typeof collectExtraBoxes === "function" && (useGmail || useOutlook) ? await collectExtraBoxes() : [];
+    const items = g.concat(o, x);
+    items._skipped = (g._skipped || 0) + (o._skipped || 0) + (x._skipped || 0);
     await finishScan(items, useGmail && useOutlook ? "mixed" : useOutlook ? "outlook" : "gmail");
   } catch (e) {
     toast(e.message);
@@ -63,11 +72,16 @@ async function scanEmail() {
 }
 /* Reads recent Gmail from every folder: Inbox, Promotions, Social, Updates, Forums, archived, Spam and Trash.
    Skips only mail you sent and drafts. */
-async function collectGmail() {
+async function collectGmail(box) {
   const c = cfg();
-  renderToday({ progress: { label: t("prog_connect"), pct: 5 } });
-  await getToken(false);
-  renderToday({ progress: { label: t("prog_find"), pct: 10 } });
+  // box: an extra Gmail address (its key is already swapped in by withGmailBox).
+  if (!box) {
+    renderToday({ progress: { label: t("prog_connect"), pct: 5 } });
+    await getToken(false);
+  }
+  renderToday({
+    progress: { label: box ? tr(`Checking ${box}…`, `Revisando ${box}…`) : t("prog_find"), pct: 10 }
+  });
   const q = encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`);
   let ids = [];
   let pageToken = "";
@@ -80,7 +94,7 @@ async function collectGmail() {
   } while (pageToken && ids.length < c.max);
   ids = ids.slice(0, c.max);
   // Emails already checked this week keep their result; only new ones are read.
-  const seen = cachedResults("gmail");
+  const seen = cachedResults("gmail", box);
   const items = ids.filter(id => seen[id]).map(id => Object.assign({}, seen[id], { _cached: true }));
   const fresh = ids.filter(id => !seen[id]);
   let done = items.length,

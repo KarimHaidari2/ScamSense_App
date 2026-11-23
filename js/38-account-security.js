@@ -42,6 +42,9 @@ function signOutLocal(reason) {
     }
   } catch (e) {}
   try {
+    if (typeof revokeExtraBoxes === "function") revokeExtraBoxes();
+  } catch (e) {}
+  try {
     token = null;
     wtoken = null;
     if (typeof msAccess !== "undefined") msAccess = null;

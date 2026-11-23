@@ -38,16 +38,23 @@ function renderEmails() {
     return;
   }
   // With more than one inbox, people can look at one inbox at a time.
-  const srcs = [...new Set(rep.items.map(i => i.source).filter(x => SRC_NAME[x]))];
+  const keyOf = i => (typeof mailboxKey === "function" ? mailboxKey(i) : i.source);
+  const nameOf = i => (typeof mailboxLabel === "function" ? mailboxLabel(i) : SRC_NAME[i.source]);
+  const mine = rep.items.filter(i => SRC_NAME[i.source]);
+  const srcs = [...new Set(mine.map(keyOf))];
   if (!srcs.includes(acctFilter)) acctFilter = "all";
   const A =
     srcs.length > 1
       ? [
           ["all", tr("All inboxes", "Todos los buzones"), rep.items.length],
-          ...srcs.map(k => [k, SRC_NAME[k], rep.items.filter(i => i.source === k).length])
+          ...srcs.map(k => [
+            k,
+            esc(nameOf(mine.find(i => keyOf(i) === k))),
+            mine.filter(i => keyOf(i) === k).length
+          ])
         ]
       : [];
-  const base = rep.items.filter(i => acctFilter === "all" || i.source === acctFilter);
+  const base = rep.items.filter(i => acctFilter === "all" || keyOf(i) === acctFilter);
   const n = { scam: 0, warn: 0, safe: 0 };
   base.forEach(i => n[i.level]++);
   if (!["all", "scam", "warn", "safe"].includes(filter)) filter = "all";
@@ -116,14 +123,24 @@ function folderSummary(items) {
 /* Which inbox an email came from: a small Gmail or Outlook label. */
 const SRC_NAME = { gmail: "Gmail", outlook: "Outlook" };
 function srcPill(it) {
-  return SRC_NAME[it.source] ? `<span class="pill src src-${it.source}">${SRC_NAME[it.source]}</span>` : "";
+  if (!SRC_NAME[it.source]) return "";
+  // With more than one mailbox, name the address; otherwise just "Gmail" or "Outlook".
+  const many = typeof hasExtraBoxes === "function" && hasExtraBoxes();
+  const label = many && typeof mailboxLabel === "function" ? mailboxLabel(it) : SRC_NAME[it.source];
+  return `<span class="pill src src-${it.source}" title="${esc(SRC_NAME[it.source])}">${esc(label)}</span>`;
 }
 /* "Gmail 48 · Outlook 4" when more than one inbox was checked. */
 function accountSummary(items) {
   const n = {};
-  items.forEach(i => SRC_NAME[i.source] && (n[i.source] = (n[i.source] || 0) + 1));
+  const many = typeof hasExtraBoxes === "function" && hasExtraBoxes();
+  items.forEach(i => {
+    if (!SRC_NAME[i.source]) return;
+    const k = many && typeof mailboxLabel === "function" ? mailboxLabel(i) : SRC_NAME[i.source];
+    n[k] = (n[k] || 0) + 1;
+  });
   const keys = Object.keys(n);
-  return keys.length > 1 ? keys.map(k => `${SRC_NAME[k]} ${n[k]}`).join(" · ") : "";
+  if (keys.length > 3) return tr(`${keys.length} mailboxes`, `${keys.length} buzones`);
+  return keys.length > 1 ? keys.map(k => `${k} ${n[k]}`).join(" · ") : "";
 }
 function explanation(it) {
   if (it.ai && it.ai.explanation) return it.ai.explanation;

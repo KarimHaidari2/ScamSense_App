@@ -37,7 +37,7 @@ function randomText(n) {
 const sha256 = txt => crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
 
 /* ----- 1. Send the person to Microsoft's sign-in page ----- */
-async function connectOutlook(write) {
+async function connectOutlook(write, extra) {
   if (!outlookReady()) {
     toast(
       tr(
@@ -49,8 +49,15 @@ async function connectOutlook(write) {
   }
   const verifier = randomText(48),
     state = randomText(16);
-  const scope = write || (S.get("ms", null) || {}).write ? MS_WRITE_SCOPES : MS_SCOPES;
-  sessionStorage.setItem("ss_ms_pkce", JSON.stringify({ verifier, state, write: scope === MS_WRITE_SCOPES }));
+  const scope = !extra && (write || (S.get("ms", null) || {}).write) ? MS_WRITE_SCOPES : MS_SCOPES;
+  sessionStorage.setItem(
+    "ss_ms_pkce",
+    JSON.stringify(
+      extra
+        ? { verifier, state, write: false, extra: true } // another Outlook address (39-more-mailboxes.js)
+        : { verifier, state, write: scope === MS_WRITE_SCOPES }
+    )
+  );
   const q = new URLSearchParams({
     client_id: msClientId(),
     response_type: "code",
@@ -102,6 +109,24 @@ async function finishOutlookSignIn() {
         "Ese inicio de sesión no coincide. Intente de nuevo."
       )
     );
+    return;
+  }
+  if (saved.extra && typeof finishExtraOutlook === "function") {
+    try {
+      const email = await finishExtraOutlook(() =>
+        msTokenRequest({
+          grant_type: "authorization_code",
+          code: q.get("code"),
+          redirect_uri: msRedirect(),
+          code_verifier: saved.verifier
+        })
+      );
+      toast(tr(`${email} added. Checking it now…`, `${email} agregado. Revisándolo ahora…`));
+      go("today");
+      scanEmail();
+    } catch (e) {
+      toast(e.message);
+    }
     return;
   }
   try {
@@ -269,7 +294,7 @@ async function outlookFolders() {
   return { map, skip };
 }
 /* Reads recent mail from every folder except Sent, Drafts, and Outbox. */
-async function collectOutlook() {
+async function collectOutlook(box) {
   const c = cfg();
   renderToday({ progress: { label: tr("Connecting to Outlook…", "Conectando con Outlook…"), pct: 5 } });
   const { map, skip } = await outlookFolders();
@@ -289,7 +314,7 @@ async function collectOutlook() {
   }
   msgs = msgs.slice(0, c.max);
   // Emails already checked this week keep their result.
-  const seen = cachedResults("outlook");
+  const seen = cachedResults("outlook", box);
   const kept = msgs.filter(m => seen[m.id]).map(m => Object.assign({}, seen[m.id], { _cached: true }));
   msgs = msgs.filter(m => !seen[m.id]);
   let done = kept.length;

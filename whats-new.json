@@ -3,6 +3,19 @@
   "items": [
     {
       "date": "2026-11-23",
+      "kind": "new",
+      "icon": "mail",
+      "en": {
+        "title": "Check all your email addresses",
+        "text": "Have more than one email address? In Settings, under Email, tap Add Gmail or Add Outlook. Every scan then checks all of them, and each email shows which address it came to."
+      },
+      "es": {
+        "title": "Revise todas sus direcciones de correo",
+        "text": "¿Tiene más de una dirección de correo? En Ajustes, en Correo, toque Agregar Gmail o Agregar Outlook. Cada revisión las revisa todas, y cada correo muestra a qué dirección llegó."
+      }
+    },
+    {
+      "date": "2026-11-23",
       "kind": "better",
       "icon": "mail",
       "en": {

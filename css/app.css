@@ -5555,3 +5555,29 @@ nav.tabs [data-tab="settings"] {
 .pill.risk-safe {
   color: var(--safe);
 }
+
+/* Which mailbox an email came from: show the address as written, shortened if long */
+.pill.src {
+  text-transform: none;
+  letter-spacing: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+.xwait {
+  margin-bottom: 10px;
+}
+.xwait .btn {
+  margin: 4px 6px 0 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.xadd .xbtns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}

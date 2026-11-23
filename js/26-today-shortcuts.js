@@ -147,7 +147,7 @@ function homeHTML(rep) {
     <button class="htile h-sos" data-go="scammed">${ic("sos")}<b>${t("scammed_card")}</b><span>${tr("Get help right now", "Reciba ayuda ahora")}</span></button>
   </div>
 
-  <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2><div class="group">${email}</div></section>
+  <section class="sect"><h2 class="sect-h">${tr("Email", "Correo")}</h2>${typeof waitingBoxesHTML === "function" ? waitingBoxesHTML() : ""}<div class="group">${email}</div></section>
   <section class="sect"><h2 class="sect-h">${tr("More", "Más")}</h2><div class="group">
     ${row('data-go="learn"', "spark", tr("Learn about scams", "Aprenda sobre estafas"), tr("Short lessons, one minute each.", "Lecciones cortas, de un minuto."))}
     ${row('data-go="monthly"', "bell", tr("This month", "Este mes"), tr(`${m.caught} scams caught · ${m.checked} emails scanned`, `${m.caught} estafas detectadas · ${m.checked} correos revisados`))}
@@ -159,6 +159,7 @@ function homeHTML(rep) {
 function bindHome() {
   useHero(true);
   bindGo();
+  if (typeof bindWaitingBoxes === "function") bindWaitingBoxes(view);
   const box = document.getElementById("hbox");
   const check = (text, sample) => {
     checkDraft = text;

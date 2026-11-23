@@ -1028,6 +1028,20 @@ async function runMahiTool(name, input, ui) {
         } catch (e) {
           return { error: "Couldn't open that Outlook email: " + e.message };
         }
+      } else if (item.box && typeof withGmailBox === "function") {
+        try {
+          full = await withGmailBox(item.box, false, async () => parseGmail(await getGmailMessage(item.id)));
+        } catch (e) {
+          ui.actions.push({
+            label: tr(`Reconnect ${item.box}`, `Reconectar ${item.box}`),
+            primary: true,
+            run: () => checkWaitingBox(item.box)
+          });
+          return {
+            error:
+              "That mailbox's sign-in has expired. A Reconnect button is shown; ask the person to tap it and ask again."
+          };
+        }
       } else {
         if (!token) {
           ui.actions.push({

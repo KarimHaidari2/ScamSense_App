@@ -202,6 +202,13 @@ function markMoved(id, folder) {
 /* ----- Buttons inside an email's details ----- */
 function emailActionsHTML(it) {
   if (!["gmail", "outlook"].includes(it.source) || !it.fromEmail) return "";
+  // Emails from an extra mailbox: moving them needs that account's own permission, which ScamSense
+  // doesn't ask for yet. Say where to do it instead of showing buttons that would act on the wrong inbox.
+  if (it.box)
+    return `<p class="small muted" style="margin:8px 0 0">${tr(
+      `To move or block this one, open it in ${esc(it.box)}.`,
+      `Para mover o bloquear este correo, ábralo en ${esc(it.box)}.`
+    )}</p>`;
   const risky = it.level !== "safe";
   const cls = risky ? "btn danger" : "btn ghost";
   let h = `<div class="row email-acts">`;

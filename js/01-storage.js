@@ -178,6 +178,7 @@ function slimItem(it) {
   return {
     id: it.id,
     source: it.source,
+    box: it.box, // an extra mailbox's address (39-more-mailboxes.js)
     channel: it.channel,
     folder: it.folder,
     inSpam: it.inSpam,

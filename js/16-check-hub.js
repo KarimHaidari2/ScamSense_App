@@ -45,6 +45,7 @@ function emailAccountsHTML() {
   return `<div class="grow">${lead("mail", "l-red")}<span class="gl"><b>Gmail</b><span>${gmailOn ? tr("Connected · checks every folder", "Conectado · revisa todas las carpetas") : tr("Not connected", "No conectado")}</span></span>${gmailOn ? `<button class="btn sm ghost" id="gdisc">${tr("Disconnect", "Desconectar")}</button>` : `<button class="btn sm primary" id="gconn">${tr("Connect", "Conectar")}</button>`}</div>
     <div class="grow">${lead("mail", "l-blue")}<span class="gl"><b>Outlook, Hotmail, Live</b><span>${outlookOn ? (outlookCanWrite() ? tr("Connected · can move scams to Junk", "Conectado · puede mover estafas a Correo no deseado") : tr("Connected · read-only", "Conectado · solo lectura")) : outlookReady() ? tr("Not connected", "No conectado") : tr("Coming soon", "Próximamente")}</span></span>${outlookOn ? `<button class="btn sm ghost" id="odisc">${tr("Disconnect", "Desconectar")}</button>` : outlookReady() ? `<button class="btn sm primary" id="oconn">${tr("Connect", "Conectar")}</button>` : `<span class="badge">${tr("Soon", "Pronto")}</span>`}</div>
     <div class="grow">${lead("mail", "l-gray")}<span class="gl"><b>Yahoo, iCloud, AOL</b><span>${tr("Coming soon. For now, paste those emails into Check something.", "Próximamente. Por ahora, pegue esos correos en Revisar algo.")}</span></span><span class="badge">${tr("Soon", "Pronto")}</span></div>
+    ${typeof extraBoxesHTML === "function" ? extraBoxesHTML() : ""}
     ${anyOn ? `<div class="grow"><button class="btn primary" id="escan">${tr("Scan my email now", "Revisar mi correo ahora")}</button></div>` : ""}`;
 }
 function bindEmailAccounts(rerender) {
@@ -83,6 +84,7 @@ function bindEmailAccounts(rerender) {
     go("today");
     scanEmail();
   });
+  if (typeof bindExtraBoxes === "function") bindExtraBoxes(rerender);
 }
 
 /* ----- What kind of thing? Optional: each choice explains what to paste. Detection stays automatic. ----- */
