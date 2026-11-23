@@ -29,6 +29,7 @@
      8. Reports       the daily email to every user, and "email me"
      9. Owner         weekly summary, welcome email, follow-up, blocking
     11. Support       live help: cases, messages, photos, quick replies
+    12. Phone alerts  push notifications to the Owner app
    ======================================================================== */
 
 /* ========================================================================
@@ -70,6 +71,7 @@ function doPost(e) {
     if (req.mode === "phone_confirm") return json(phoneConfirm(req));
     if (req.mode === "owner") return json(ownerApi(req));
     if (req.mode === "support") return json(supportApi(req));
+    if (req.mode === "push_peek") return json(pushPeek(req));
     const messages = cleanMessages(req.messages);
     if (!messages.length) return json({ error: "No question received." });
     if (!takeOne()) return json({ error: "Mahi has answered a lot today. Please try again tomorrow." });
@@ -1018,6 +1020,13 @@ function ownerApi(req) {
   }
   if (/^(cases|case|case_photo|quick_list|reply|case_note|case_status|case_priority)$/.test(a))
     return ownerSupport(who, role, req);
+  if (a === "push_key") return { ok: true, key: vapidKeys().pub };
+  if (a === "push_save") return pushSave(who, req.sub, req.label);
+  if (a === "push_off") return pushRemove(who, req.endpoint);
+  if (a === "push_test") {
+    const n = pushTeam();
+    return n ? { ok: true, done: "Sent a test alert to " + n + (n === 1 ? " phone." : " phones.") } : { error: "No phones are signed up yet." };
+  }
   if (a === "quick_save") return role === "viewer" ? { error: "Viewers can't change quick replies." } : quickSave(req.quick);
   if (role === "viewer") return { error: "Viewers can look, but can't make changes." };
   const u = findUser(req.uid);
@@ -1888,6 +1897,19 @@ function supportFromDanger(u, kind) {
 function notifyTeam(c, isNew, preview, opt) {
   opt = opt || {};
   const cache = CacheService.getScriptCache();
+  // Phone alerts first: every new case and message (at most one every 20 seconds per case).
+  let pushed = 0;
+  const kp = "suppush:" + c["Case ID"];
+  if (isNew || !cache.get(kp)) {
+    cache.put(kp, "1", 20);
+    try {
+      pushed = pushTeam();
+    } catch (e) {
+      console.log("Phone alert error: " + e);
+    }
+  }
+  // Email only when no phone has alerts on (so you don't get both).
+  if (pushed) return;
   const k = "supnote:" + c["Case ID"];
   if (!isNew && cache.get(k)) return;
   cache.put(k, "1", SUPPORT.TEAM_EMAIL_EVERY_MIN * 60);
@@ -2096,4 +2118,219 @@ function quickSave(list) {
   if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 2).clearContent();
   sh.getRange(2, 1, rows.length, 2).setValues(rows);
   return { ok: true, quick: quickList(), done: "Saved quick replies" };
+}
+
+/* ========================================================================
+   12. PHONE ALERTS — push notifications to the Owner app
+   The team taps "Turn on phone alerts" in the Owner app (on iPhone: from the home-screen app).
+   When a case comes in, the server "taps" each phone through Apple's or Google's push service
+   (no message inside). The phone then asks this server, with its own secret device key, what's new,
+   and shows "URGENT · Maria — Said they were scammed". Tapping it opens the case.
+   Web Push needs an ES256 signature; Apps Script has no built-in one, so the P-256 math is below.
+   Run setupPush once (or it sets itself up the first time someone turns alerts on).
+   ======================================================================== */
+
+const PUSH_COLS = ["Email", "Device key", "Endpoint", "Added", "Last alert", "Device"];
+const pushSheet = () => supportSheet("Phone alerts", PUSH_COLS);
+
+function setupPush() {
+  const k = vapidKeys();
+  pushSheet();
+  console.log("Phone alerts are ready. Public key: " + k.pub);
+}
+
+/* ----- P-256 math (only for signing; keys never leave Script Properties) ----- */
+const P256 = {
+  p: BigInt("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff"),
+  n: BigInt("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551"),
+  G: [
+    BigInt("0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
+    BigInt("0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5")
+  ]
+};
+const u8 = b => Array.prototype.map.call(b, x => x & 255);
+const s8 = b => b.map(x => (x > 127 ? x - 256 : x));
+const bigOf = b => BigInt("0x" + (u8(b).map(x => x.toString(16).padStart(2, "0")).join("") || "0"));
+function bytesOf(x, len) {
+  const h = x.toString(16).padStart(len * 2, "0");
+  const out = [];
+  for (let i = 0; i < len; i++) out.push(parseInt(h.substr(i * 2, 2), 16));
+  return out;
+}
+const b64u = bytes => Utilities.base64EncodeWebSafe(s8(bytes)).replace(/=+$/, "");
+const strBytes = s => u8(Utilities.newBlob(s).getBytes());
+const sha256 = b => u8(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, s8(b)));
+const hmac256 = (key, msg) =>
+  u8(Utilities.computeHmacSignature(Utilities.MacAlgorithm.HMAC_SHA_256, s8(msg), s8(key)));
+const modp = a => {
+  a %= P256.p;
+  return a < 0n ? a + P256.p : a;
+};
+function inv(a, m) {
+  let r0 = ((a % m) + m) % m,
+    r1 = m,
+    s0 = 1n,
+    s1 = 0n;
+  while (r1) {
+    const q = r0 / r1;
+    [r0, r1] = [r1, r0 - q * r1];
+    [s0, s1] = [s1, s0 - q * s1];
+  }
+  return ((s0 % m) + m) % m;
+}
+function ecAdd(P, Q) {
+  if (!P) return Q;
+  if (!Q) return P;
+  let l;
+  if (P[0] === Q[0]) {
+    if (modp(P[1] + Q[1]) === 0n) return null;
+    l = modp((3n * P[0] * P[0] - 3n) * inv(2n * P[1], P256.p));
+  } else l = modp((Q[1] - P[1]) * inv(Q[0] - P[0], P256.p));
+  const x = modp(l * l - P[0] - Q[0]);
+  return [x, modp(l * (P[0] - x) - P[1])];
+}
+function ecMul(k, P) {
+  let R = null,
+    A = P;
+  while (k > 0n) {
+    if (k & 1n) R = ecAdd(R, A);
+    A = ecAdd(A, A);
+    k >>= 1n;
+  }
+  return R;
+}
+// RFC 6979: the signing number comes from the key and the message, so no randomness is needed.
+function rfc6979(d, h) {
+  const n = P256.n;
+  const x = bytesOf(d, 32),
+    hb = bytesOf(bigOf(h) % n, 32);
+  let V = new Array(32).fill(1),
+    K = new Array(32).fill(0);
+  K = hmac256(K, V.concat([0], x, hb));
+  V = hmac256(K, V);
+  K = hmac256(K, V.concat([1], x, hb));
+  V = hmac256(K, V);
+  for (;;) {
+    V = hmac256(K, V);
+    const k = bigOf(V);
+    if (k >= 1n && k < n) return k;
+    K = hmac256(K, V.concat([0]));
+    V = hmac256(K, V);
+  }
+}
+function es256(msgBytes, d) {
+  const n = P256.n;
+  const h = sha256(msgBytes);
+  const k = rfc6979(d, h);
+  const r = ecMul(k, P256.G)[0] % n;
+  const s = (inv(k, n) * ((bigOf(h) + r * d) % n)) % n;
+  return bytesOf(r, 32).concat(bytesOf(s, 32));
+}
+function vapidKeys() {
+  const p = PropertiesService.getScriptProperties();
+  let d = p.getProperty("VAPID_PRIVATE"),
+    pub = p.getProperty("VAPID_PUBLIC");
+  if (!d || !pub) {
+    const seed = strBytes([1, 2, 3, 4].map(() => Utilities.getUuid()).join("") + Date.now());
+    const k = (bigOf(sha256(seed)) % (P256.n - 1n)) + 1n;
+    const Q = ecMul(k, P256.G);
+    d = k.toString(16);
+    pub = b64u([4].concat(bytesOf(Q[0], 32), bytesOf(Q[1], 32)));
+    p.setProperty("VAPID_PRIVATE", d);
+    p.setProperty("VAPID_PUBLIC", pub);
+  }
+  return { d: BigInt("0x" + d), pub };
+}
+function vapidHeader(endpoint, keys) {
+  const aud = endpoint.match(/^https:\/\/[^/]+/)[0];
+  const enc = o => b64u(strBytes(JSON.stringify(o)));
+  const body =
+    enc({ typ: "JWT", alg: "ES256" }) +
+    "." +
+    enc({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: "mailto:" + OWNER.EMAIL });
+  return "vapid t=" + body + "." + b64u(es256(strBytes(body), keys.d)) + ", k=" + keys.pub;
+}
+
+/* ----- phones on the team ----- */
+function pushDevices() {
+  const sh = pushSheet();
+  const n = sh.getLastRow() - 1;
+  if (n < 1) return [];
+  return sh
+    .getRange(2, 1, n, PUSH_COLS.length)
+    .getValues()
+    .map((r, i) => ({ row: i + 2, email: r[0], key: r[1], endpoint: r[2] }))
+    .filter(x => x.endpoint);
+}
+// Sends a "tap" to every phone. Returns how many phones got it.
+function pushTeam() {
+  const devs = pushDevices();
+  if (!devs.length) return 0;
+  const keys = vapidKeys();
+  const ok = /^https:\/\/([a-z0-9-]+\.)*(push\.apple\.com|googleapis\.com|mozilla\.com|notify\.windows\.com|push\.services\.mozilla\.com)\//;
+  const list = devs.filter(x => ok.test(x.endpoint));
+  if (!list.length) return 0;
+  const res = UrlFetchApp.fetchAll(
+    list.map(x => ({
+      url: x.endpoint,
+      method: "post",
+      headers: { Authorization: vapidHeader(x.endpoint, keys), TTL: "86400", Urgency: "high" },
+      payload: "",
+      muteHttpExceptions: true
+    }))
+  );
+  let sent = 0;
+  const sh = pushSheet();
+  const gone = [];
+  res.forEach((r, i) => {
+    const c = r.getResponseCode();
+    if (c < 300) {
+      sent++;
+      sh.getRange(list[i].row, 5).setValue(new Date());
+    } else if (c === 404 || c === 410) gone.push(list[i].row);
+    else console.log("Phone alert failed (" + c + "): " + r.getContentText().slice(0, 200));
+  });
+  gone.sort((a, b) => b - a).forEach(row => sh.deleteRow(row));
+  return sent;
+}
+function pushSave(who, sub, label) {
+  const ep = String((sub && sub.endpoint) || "");
+  if (!/^https:\/\//.test(ep) || ep.length > 1000) return { error: "This phone didn't give a push address." };
+  const sh = pushSheet();
+  const key = Utilities.getUuid().replace(/-/g, "") + Utilities.getUuid().replace(/-/g, "");
+  const old = pushDevices().find(x => x.endpoint === ep);
+  const row = [who, key, ep, new Date(), "", cleanText(label, 80)];
+  if (old) sh.getRange(old.row, 1, 1, PUSH_COLS.length).setValues([row]);
+  else sh.appendRow(row);
+  return { ok: true, device: key, done: "Phone alerts are on for this device." };
+}
+function pushRemove(who, ep) {
+  const d = pushDevices().find(x => x.endpoint === String(ep || ""));
+  if (d) pushSheet().deleteRow(d.row);
+  return { ok: true, done: "Phone alerts are off for this device." };
+}
+// The phone asks what's new (it only has its own device key, not a sign-in).
+function pushPeek(req) {
+  const key = String(req.device || "");
+  if (!/^[a-f0-9]{64}$/.test(key)) return { error: "bad device" };
+  const dev = pushDevices().find(x => x.key === key);
+  if (!dev) return { error: "This phone isn't signed up for alerts." };
+  const email = String(dev.email).toLowerCase();
+  const isOwner = ownerEmails().indexOf(email) >= 0;
+  const t = isOwner ? null : teamFind(email);
+  if (!isOwner && !(t && t.Status === "active")) return { error: "Not on the team." };
+  const waiting = allCases()
+    .filter(c => c.Status !== "closed" && +c["Team unread"] > 0)
+    .sort((a, b) => new Date(b["Last update"]) - new Date(a["Last update"]));
+  const c = waiting[0];
+  if (!c)
+    return { ok: true, title: "ScamSense", body: "No new messages right now.", url: "owner.html#cases", tag: "ss-none" };
+  const more = waiting.length > 1 ? ` (+${waiting.length - 1} more)` : "";
+  return {
+    ok: true,
+    title: (c.Priority === "urgent" ? "🚨 URGENT · " : "") + c.Name + more,
+    body: String(c["Last message"] || c.Reason).slice(0, 180),
+    url: "owner.html#case/" + encodeURIComponent(c["Case ID"]),
+    tag: c["Case ID"]
+  };
 }

@@ -865,10 +865,9 @@ function drawCases() {
       ms(b["Last update"]) - ms(a["Last update"])
     );
   });
-  const canAlert = "Notification" in window && Notification.permission !== "granted";
   main.innerHTML = `<h1>Cases</h1>
   <p class="muted">People who asked for a person, said they were scammed, or sent you an email. Answer here: they see it in the app, and get an email if they're away.</p>
-  ${canAlert && !DEMO ? `<p><button class="btn" id="notifon">Turn on alerts on this device</button> <span class="muted small">Shows a pop-up while this page is open.</span></p>` : ""}
+  <div id="pushbox"></div>
   <div class="seg">${[
     ["open", "Open"],
     ["waiting", "Waiting"],
@@ -890,19 +889,14 @@ function drawCases() {
               )}</span><span class="pl"><b>${esc(c.Name)}</b><span>${esc(c["Last message"] || c.Reason)}</span><span class="tags">${caseChip(c)}</span></span><span class="pr">${ago(c["Last update"] || c.Opened)}<small>${esc(c.Reason)}</small></span></button></li>`
           )
           .join("")}</ul>`
-      : `<p class="muted">${caseFilter === "open" ? "No open cases. When someone needs help, it shows up here and you get an email." : "Nothing here."}</p>`
+      : `<p class="muted">${caseFilter === "open" ? "No open cases. When someone needs help, it shows up here and your phone gets an alert." : "Nothing here."}</p>`
   }</section>
   <details class="card" id="quickcard"><summary><b>Quick replies</b> <span class="muted small">ready-made answers you can send with one tap</span></summary><div id="quickedit"><p class="loading">Loading…</p></div></details>`;
   main
     .querySelectorAll("[data-f]")
     .forEach(b => (b.onclick = () => ((caseFilter = b.dataset.f), drawCases())));
   main.querySelectorAll("[data-case]").forEach(b => (b.onclick = () => go("case/" + b.dataset.case)));
-  if ($("notifon"))
-    $("notifon").onclick = () =>
-      Notification.requestPermission().then(p => {
-        toast(p === "granted" ? "Alerts are on for this device." : "Alerts weren't allowed.");
-        drawCases();
-      });
+  pushBox($("pushbox"));
   $("quickcard").ontoggle = () => $("quickcard").open && drawQuickEditor();
 }
 
@@ -1214,7 +1208,7 @@ async function watchCases() {
       news.forEach(c => {
         toast(`${c.Priority === "urgent" ? "🚨 " : ""}${c.Name}: ${c["Last message"] || c.Reason}`);
         try {
-          if ("Notification" in window && Notification.permission === "granted") {
+          if ("Notification" in window && Notification.permission === "granted" && !swReg) {
             const n = new Notification((c.Priority === "urgent" ? "URGENT · " : "") + c.Name, {
               body: c["Last message"] || c.Reason,
               tag: c["Case ID"]
@@ -1233,6 +1227,112 @@ async function watchCases() {
   } catch (e) {}
 }
 setInterval(watchCases, 30000);
+
+/* ----- Phone alerts (push notifications to this device) ----- */
+const PUSH_OK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+const IS_IOS =
+  /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const STANDALONE = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+let swReg = null;
+if (PUSH_OK && !DEMO)
+  navigator.serviceWorker
+    .register("owner-sw.js", { scope: "./owner.html" })
+    .then(r => (swReg = r))
+    .catch(() => {});
+if ("serviceWorker" in navigator)
+  navigator.serviceWorker.addEventListener("message", e => e.data && e.data.go && go(e.data.go));
+
+const keyBytes = b64 => {
+  const s = atob(b64.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64.length + 3) % 4));
+  return Uint8Array.from(s, c => c.charCodeAt(0));
+};
+async function pushSub() {
+  if (!PUSH_OK || DEMO) return null;
+  try {
+    const reg = swReg || (await navigator.serviceWorker.ready);
+    return await reg.pushManager.getSubscription();
+  } catch (e) {
+    return null;
+  }
+}
+async function pushBox(box) {
+  if (!box) return;
+  if (DEMO) {
+    box.innerHTML = `<p class="muted small">Phone alerts work on the real Owner app (not in the sample).</p>`;
+    return;
+  }
+  if (!PUSH_OK) {
+    box.innerHTML =
+      IS_IOS && !STANDALONE
+        ? `<div class="card warn"><b>Get alerts on this iPhone</b><p>In Safari, tap <b>Share</b> → <b>Add to Home Screen</b>. Then open <b>SS Owner</b> from your home screen and tap <b>Turn on phone alerts</b> here.</p></div>`
+        : `<p class="muted small">This browser can't show phone alerts. Try Chrome, or Safari on iPhone from the home screen.</p>`;
+    return;
+  }
+  const sub = await pushSub();
+  if (!box.isConnected) return; // the page was redrawn meanwhile
+  const on = sub && Notification.permission === "granted";
+  box.innerHTML = on
+    ? `<div class="pushon"><span>🔔 <b>Phone alerts are on</b> for this device. New cases and messages show up as a notification.</span><span class="row"><button class="btn" id="pushtest">Send a test alert</button><button class="btn" id="pushoff">Turn off</button></span></div>`
+    : `<div class="card pushask"><b>Get a notification for every new case</b><p class="muted small">Like a text: it shows on your phone's lock screen. Tap it to open the case and answer.</p><button class="btn primary" id="pushon">Turn on phone alerts</button></div>`;
+  if (on) {
+    box.querySelector("#pushtest").onclick = async () => {
+      try {
+        toast((await api({ action: "push_test" })).done);
+      } catch (e) {
+        toast(e.message);
+      }
+    };
+    box.querySelector("#pushoff").onclick = async () => {
+      try {
+        await api({ action: "push_off", endpoint: sub.endpoint });
+        await sub.unsubscribe();
+        toast("Phone alerts are off for this device.");
+      } catch (e) {
+        toast(e.message);
+      }
+      pushBox(box);
+    };
+  } else
+    box.querySelector("#pushon").onclick = async () => {
+      const b = box.querySelector("#pushon");
+      b.disabled = true;
+      b.textContent = "Turning on…";
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm !== "granted")
+          throw new Error(
+            "Notifications weren't allowed. Turn them on in your phone's Settings for SS Owner."
+          );
+        const reg = swReg || (await navigator.serviceWorker.ready);
+        const key = (await api({ action: "push_key" })).key;
+        const s = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: keyBytes(key)
+        });
+        const j = await api({
+          action: "push_save",
+          sub: s.toJSON(),
+          label:
+            (IS_IOS ? "iPhone" : /Android/.test(navigator.userAgent) ? "Android" : "Computer") +
+            " · " +
+            new Date().toLocaleDateString()
+        });
+        await (
+          await caches.open("ss-owner")
+        ).put(
+          "device",
+          new Response(JSON.stringify({ server: SERVER_URL, device: j.device }), {
+            headers: { "Content-Type": "application/json" }
+          })
+        );
+        toast(j.done);
+      } catch (e) {
+        toast(e.message || "Couldn't turn on alerts.");
+      }
+      pushBox(box);
+    };
+}
 
 /* ----- sample data (owner.html?demo) ----- */
 const DEMO_PHOTO =

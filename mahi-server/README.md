@@ -29,9 +29,11 @@ After pasting a new version of `Code.gs` that has this:
    "ScamSense Support Photos" folder and the Cases, Messages, and Quick replies tabs).
 2. Deploy a new version (below).
 
-Alerts to you: an email for every new case and new message (at most one every 10 minutes per case).
-Optional text to your phone for new and urgent cases: add Script Properties `OWNER_PHONE` (your number)
-and `TWILIO_FROM` (a Twilio phone number you own). Texts need Twilio's US texting registration (A2P 10DLC).
+Alerts to you: open the Owner page (on iPhone, the **SS Owner** home-screen app) → **Cases** →
+**Turn on phone alerts**. Every new case and message then shows up as a notification on that phone;
+tap it to open the case. The first time, the server makes its own push keys (Script Properties
+`VAPID_PUBLIC` and `VAPID_PRIVATE`, and a **Phone alerts** tab). Only while no phone has alerts on,
+you get an email instead (at most one every 10 minutes per case).
 
 ## Safety
 

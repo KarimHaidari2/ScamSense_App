@@ -32,6 +32,7 @@ Where to paste the code: https://script.google.com (open the script with the mat
 | `sendReportsNow` | Sends every user their daily report right now (for testing) |
 | `sendWeeklyNow` | Sends you this week's owner summary right now (it also comes every Monday at 8 AM) |
 | `setupSupport` | Run once (asks for Google Drive). Makes the **Cases**, **Messages**, and **Quick replies** tabs and the private photo folder for live help |
+| `setupPush` | Optional. Makes the phone-alert keys and the **Phone alerts** tab (it also happens by itself the first time you tap Turn on phone alerts) |
 | `writeServicesTab` | Adds or refreshes the **Services** tab in the dashboard: every outside service, why we use it, and what it costs |
 
 ## Daily Report: what to run
