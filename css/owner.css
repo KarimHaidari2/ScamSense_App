@@ -1175,3 +1175,95 @@ body[data-role="viewer"] .actions {
 .tscript p.mahi {
   color: var(--muted);
 }
+/* ----- Back, one step at a time ----- */
+.top .brand {
+  margin-right: auto;
+}
+.hback {
+  all: unset;
+  cursor: pointer;
+  font: 800 0.95rem var(--display);
+  color: #fff;
+  padding: 8px 12px 8px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.hback:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+.hback:focus-visible {
+  outline: 3px solid #e0a93b;
+}
+@media (max-width: 520px) {
+  .top:has(.hback:not([hidden])) .brand span:last-child {
+    display: none;
+  }
+}
+/* ----- Find a case ----- */
+.casefind {
+  margin: 0 0 12px;
+}
+.casefind input {
+  width: 100%;
+  font: inherit;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  padding: 11px 14px;
+}
+.tmsg a,
+.tnote a,
+.tsys a {
+  color: inherit;
+  font-weight: 800;
+}
+.row.keep {
+  flex-basis: 100%;
+}
+.btn.sm {
+  padding: 7px 12px;
+  font-size: 0.85rem;
+}
+.chk {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0;
+}
+/* ----- Print / save a case as PDF ----- */
+@media print {
+  .hback,
+  .row.keep,
+  #closebox,
+  .quickchips,
+  .threadcard textarea,
+  .threadcard label.sr,
+  .composer-row,
+  .threadcard > p.muted,
+  .personcard button,
+  #pushbox,
+  .casefind {
+    display: none !important;
+  }
+  .caselayout {
+    display: block;
+  }
+  .thread {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .tmsg.mine {
+    background: #eef1f7 !important;
+    color: #000 !important;
+    border-color: #ccd !important;
+  }
+  .tmsg,
+  .tnote,
+  .temail {
+    break-inside: avoid;
+  }
+  .personcard {
+    margin-top: 16px;
+  }
+}

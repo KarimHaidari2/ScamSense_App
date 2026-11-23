@@ -1018,7 +1018,7 @@ function ownerApi(req) {
     if (role !== "owner") return { error: "Only the owner can change the team." };
     return a === "team_add" ? teamAdd(who, req.email, req.role) : teamRemove(who, req.email);
   }
-  if (/^(cases|case|case_photo|quick_list|reply|case_note|case_status|case_priority)$/.test(a))
+  if (/^(cases|case|case_photo|quick_list|reply|case_note|case_status|case_priority|case_email)$/.test(a))
     return ownerSupport(who, role, req);
   if (a === "push_key") return { ok: true, key: vapidKeys().pub };
   if (a === "push_save") return pushSave(who, req.sub, req.label);
@@ -1820,6 +1820,60 @@ function supportApi(req) {
     if (!c || c["User ID"] !== key) return { error: "That photo isn't available." };
     return { ok: true, data: photoData(req.id) };
   }
+  // The person's own case numbers, newest first (for "Your past cases").
+  if (a === "history")
+    return {
+      ok: true,
+      cases: casesOf(key)
+        .reverse()
+        .slice(0, 30)
+        .map(pubCase)
+    };
+  // Look at one of their own cases by its number.
+  if (a === "view") return supportPoll(key, String(req.caseId || ""));
+  // The person ends the chat (the case closes; they keep the case number).
+  if (a === "end") {
+    const lock = LockService.getScriptLock();
+    lock.waitLock(15000);
+    try {
+      const c = openCaseOf(key);
+      if (c) {
+        c.Status = "closed";
+        c.Closed = new Date();
+        c.Outcome = c.Outcome || "Ended by the person";
+        c["Team unread"] = 0;
+        addMessage(c, "system", "", "The person ended the chat.");
+      }
+    } finally {
+      lock.releaseLock();
+    }
+    return supportPoll(key);
+  }
+  // The person comes back to an old case: it opens again, with all its history.
+  if (a === "reopen") {
+    const c = caseById(String(req.caseId || ""));
+    if (!c || c["User ID"] !== key) return { error: "That case number isn't one of yours." };
+    const lock = LockService.getScriptLock();
+    lock.waitLock(15000);
+    try {
+      const open = openCaseOf(key);
+      if (open && open["Case ID"] !== c["Case ID"]) {
+        open.Status = "closed";
+        open.Closed = new Date();
+        open.Outcome = open.Outcome || "Moved to case " + c["Case ID"];
+        addMessage(open, "system", "", "The person went back to case " + c["Case ID"] + ".");
+      }
+      if (c.Status === "closed") {
+        c.Status = "open";
+        c.Closed = "";
+        addMessage(c, "system", "", "The person came back to this case.");
+      }
+    } finally {
+      lock.releaseLock();
+    }
+    notifyTeam(c, false, c.Name + " came back to case " + c["Case ID"]);
+    return supportPoll(key, c["Case ID"]);
+  }
   if (a !== "send" && a !== "open") return { error: "Unknown action." };
   const text = String(req.text || "").slice(0, 4000).trim();
   const email = cleanSharedEmail(req.email);
@@ -1860,9 +1914,12 @@ function supportApi(req) {
   notifyTeam(c, isNew, text || (email ? "Shared an email: " + email.subject : photo ? "Sent a photo" : c.Reason));
   return supportPoll(key);
 }
-function supportPoll(key) {
+function supportPoll(key, caseId) {
   const list = casesOf(key);
-  const c = list.reverse().find(x => x.Status !== "closed") || list[0];
+  const c = caseId
+    ? list.find(x => x["Case ID"] === caseId)
+    : list.reverse().find(x => x.Status !== "closed") || list[0];
+  if (caseId && !c) return { error: "That case number isn't one of yours." };
   if (!c) return { ok: true, case: null, messages: [] };
   if (+c["Person unread"]) {
     c["Person unread"] = 0;
@@ -2067,6 +2124,10 @@ function ownerSupport(who, role, req) {
         addMessage(c, "note", who, s === "waiting" ? "Waiting for the person to answer" : "Opened the case again");
       }
       did = "Case " + c["Case ID"] + ": " + s;
+    } else if (a === "case_email") {
+      const r = emailCase(c, req.to === "person" ? "person" : "me", who);
+      if (r.error) return r;
+      did = r.done;
     } else if (a === "case_priority") {
       c.Priority = req.priority === "urgent" ? "urgent" : "normal";
       addMessage(c, "note", who, "Marked " + c.Priority);
@@ -2077,6 +2138,56 @@ function ownerSupport(who, role, req) {
   }
   ownerLog(who, did, findUser(c["User ID"]) || { "First name": c.Name, Email: c.Email });
   return Object.assign({ done: did }, caseView(caseById(c["Case ID"])));
+}
+// Emails the whole conversation. To the team: with team notes. To the person: without notes.
+function emailCase(c, to, who) {
+  const forPerson = to === "person";
+  let addr = who;
+  if (forPerson) {
+    const u = findUser(c["User ID"]);
+    if (!u || u["Email verified"] !== "yes" || !u.Email) return { error: "This person has no confirmed email." };
+    addr = u.Email;
+  }
+  const msgs = caseMessages(c["Case ID"], !forPerson);
+  const name1 = String(c.Name || "").split(" ")[0] || "Them";
+  const rows = msgs
+    .map(m => {
+      const t = Utilities.formatDate(new Date(m.t), Session.getScriptTimeZone(), "MMM d, h:mm a");
+      let who2 =
+        m.from === "owner"
+          ? "ScamSense team"
+          : m.from === "note"
+            ? "Team note"
+            : m.from === "system"
+              ? ""
+              : forPerson
+                ? "You"
+                : name1;
+      let body = esc(m.text || "");
+      if (m.from === "email" && m.email)
+        body = `<i>Shared an email</i><br>From: ${esc(m.email.from)}<br>Subject: ${esc(m.email.subject)}`;
+      if (m.photo) body += (body ? "<br>" : "") + "<i>(photo)</i>";
+      if (m.from === "system") return `<tr><td colspan="2" style="padding:6px 0;color:#5F6673;font-size:13px;text-align:center">${body} · ${t}</td></tr>`;
+      return `<tr><td style="padding:8px 10px 8px 0;vertical-align:top;font-weight:700;color:${m.from === "note" ? "#9A5B00" : "#111827"};white-space:nowrap">${esc(who2)}<div style="font-weight:400;font-size:12px;color:#5F6673">${t}</div></td><td style="padding:8px 0;vertical-align:top;font-size:15px;line-height:1.5;white-space:pre-wrap;color:#111827">${body}</td></tr>`;
+    })
+    .join("");
+  const head = forPerson ? "Your conversation with the ScamSense team" : "Case " + c["Case ID"] + ": " + c.Name;
+  MailApp.sendEmail({
+    to: addr,
+    replyTo: OWNER.EMAIL,
+    subject: (forPerson ? "Your ScamSense conversation, case " : "ScamSense case ") + c["Case ID"],
+    body: msgs.map(m => (m.from === "owner" ? "ScamSense team" : m.from) + ": " + (m.text || "")).join("\n"),
+    htmlBody: mailShell(
+      `<div style="padding:22px">
+        <div style="font-size:20px;font-weight:800;color:#111827">${esc(head)}</div>
+        <p style="font-size:14px;color:#5F6673;margin:6px 0 14px">Case number <b>${esc(c["Case ID"])}</b> · ${esc(c.Reason)}${c.Outcome && !forPerson ? " · " + esc(c.Outcome) : ""}</p>
+        <table style="width:100%;border-collapse:collapse">${rows}</table>
+        ${forPerson ? `<p style="font-size:14px;color:#5F6673;margin-top:16px">If you need help with this again, open ScamSense and give us your case number: <b>${esc(c["Case ID"])}</b>.</p>` : ""}
+      </div>`
+    ),
+    name: "ScamSense"
+  });
+  return { done: "Emailed case " + c["Case ID"] + (forPerson ? " to " + name1 : " to you") };
 }
 function caseView(c) {
   const o = {};

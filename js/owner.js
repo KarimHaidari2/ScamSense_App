@@ -315,12 +315,28 @@ function go(hash) {
   if (location.hash === "#" + hash) route();
   else location.hash = hash;
 }
+// Back, one step at a time (the iPhone home-screen app has no browser Back button).
+const navStack = [];
+function stepBack() {
+  if (navStack.length > 1) {
+    navStack.pop();
+    go(navStack[navStack.length - 1]);
+    return;
+  }
+  const tab = (location.hash.slice(1) || "overview").split("/")[0];
+  go(tab === "case" ? "cases" : tab === "person" ? "people" : "overview");
+}
+$("hback").onclick = stepBack;
 addEventListener("hashchange", route);
 document.querySelectorAll("#nav button").forEach(b => (b.onclick = () => go(b.dataset.tab)));
 function route() {
   if (!data) return;
   const h = location.hash.slice(1) || "overview";
   const [tab, arg] = h.split("/");
+  if (navStack[navStack.length - 2] === h) navStack.pop();
+  else if (navStack[navStack.length - 1] !== h) navStack.push(h);
+  if (navStack.length > 60) navStack.shift();
+  $("hback").hidden = h === "overview" && navStack.length < 2;
   document
     .querySelectorAll("#nav button")
     .forEach(b =>
@@ -820,6 +836,9 @@ function logTab() {
 let cases = null; // the latest list from the server
 let caseNow = null; // the open case page
 let caseFilter = "open";
+let caseQuery = ""; // search: a case number or a name
+const CASE_NO = /\bC\d{6}-[A-Z0-9]{4}\b/g;
+const linkCases = html => html.replace(CASE_NO, id => `<a href="#case/${id}">${id}</a>`);
 let casePhoto = ""; // a photo waiting to be sent
 let quick = null; // quick replies
 const casePhotos = {};
@@ -857,7 +876,11 @@ function drawCases() {
     closed: C.filter(c => c.Status === "closed"),
     all: C
   };
-  const list = groups[caseFilter].slice().sort((a, b) => {
+  const q = caseQuery.trim().toLowerCase();
+  const pool = q
+    ? C.filter(c => [c["Case ID"], c.Name, c.Email, c.Reason].join(" ").toLowerCase().includes(q))
+    : groups[caseFilter];
+  const list = pool.slice().sort((a, b) => {
     const u = x => (x.Status !== "closed" && x.Priority === "urgent" ? 1 : 0);
     return (
       u(b) - u(a) ||
@@ -868,6 +891,7 @@ function drawCases() {
   main.innerHTML = `<h1>Cases</h1>
   <p class="muted">People who asked for a person, said they were scammed, or sent you an email. Answer here: they see it in the app, and get an email if they're away.</p>
   <div id="pushbox"></div>
+  <div class="casefind"><label class="sr" for="casefind">Find a case</label><input id="casefind" type="search" autocomplete="off" placeholder="Find a case number (like C261122-7F3A) or a name" value="${esc(caseQuery)}"></div>
   <div class="seg">${[
     ["open", "Open"],
     ["waiting", "Waiting"],
@@ -889,12 +913,27 @@ function drawCases() {
               )}</span><span class="pl"><b>${esc(c.Name)}</b><span>${esc(c["Last message"] || c.Reason)}</span><span class="tags">${caseChip(c)}</span></span><span class="pr">${ago(c["Last update"] || c.Opened)}<small>${esc(c.Reason)}</small></span></button></li>`
           )
           .join("")}</ul>`
-      : `<p class="muted">${caseFilter === "open" ? "No open cases. When someone needs help, it shows up here and your phone gets an alert." : "Nothing here."}</p>`
+      : q
+        ? `<p class="muted">No case matches "${esc(caseQuery)}". For an older case, type the full case number and press Enter.</p>`
+        : `<p class="muted">${caseFilter === "open" ? "No open cases. When someone needs help, it shows up here and your phone gets an alert." : "Nothing here."}</p>`
   }</section>
   <details class="card" id="quickcard"><summary><b>Quick replies</b> <span class="muted small">ready-made answers you can send with one tap</span></summary><div id="quickedit"><p class="loading">Loading…</p></div></details>`;
   main
     .querySelectorAll("[data-f]")
-    .forEach(b => (b.onclick = () => ((caseFilter = b.dataset.f), drawCases())));
+    .forEach(b => (b.onclick = () => ((caseFilter = b.dataset.f), (caseQuery = ""), drawCases())));
+  const find = $("casefind");
+  find.oninput = () => {
+    caseQuery = find.value;
+    drawCases();
+    const f = $("casefind");
+    f.focus();
+    f.setSelectionRange(f.value.length, f.value.length);
+  };
+  find.onkeydown = e => {
+    if (e.key !== "Enter") return;
+    const id = (find.value.toUpperCase().match(CASE_NO) || [])[0];
+    if (id) go("case/" + id);
+  };
   main.querySelectorAll("[data-case]").forEach(b => (b.onclick = () => go("case/" + b.dataset.case)));
   pushBox($("pushbox"));
   $("quickcard").ontoggle = () => $("quickcard").open && drawQuickEditor();
@@ -1063,9 +1102,18 @@ function drawCaseHead() {
         : `<div class="actions">
       ${closed ? `<button class="btn" data-st="open">Open again</button>` : `<button class="btn" data-st="waiting" ${c.Status === "waiting" ? "disabled" : ""}>Waiting for them</button><button class="btn" data-pr="${c.Priority === "urgent" ? "normal" : "urgent"}">${c.Priority === "urgent" ? "Not urgent" : "Mark urgent"}</button><button class="btn primary" id="closebtn">Close case</button>`}
     </div>
+    <div class="row keep">
+      <button class="btn sm" id="cprint">🖨 Print / save as PDF</button>
+      <button class="btn sm" id="cmailme">✉ Email it to me</button>
+      ${caseNow.person && caseNow.person.verified ? `<button class="btn sm" id="cmailthem">✉ Email it to ${esc(String(c.Name).split(" ")[0])}</button>` : ""}
+    </div>
     <div id="closebox" class="card compose" hidden>
       <label for="outcome">What happened? (for your records)</label>
       <input id="outcome" placeholder="For example: bank stopped the payment, it was a real email, reported to the FTC">
+      <p class="muted small">The whole conversation is saved in the spreadsheet either way. Also:</p>
+      <label class="chk"><input type="checkbox" id="closeme"> Email me a copy (with team notes)</label>
+      ${caseNow.person && caseNow.person.verified ? `<label class="chk"><input type="checkbox" id="closethem"> Email ${esc(String(c.Name).split(" ")[0])} a copy (without notes)</label>` : ""}
+      <label class="chk"><input type="checkbox" id="closepdf"> Print / save as PDF</label>
       <div class="row"><button class="btn primary" id="closego">Close case</button><button class="btn" id="closeno">Cancel</button></div>
       <p class="muted small">${esc(c.Name)} sees "The ScamSense team closed this conversation" and can write again anytime.</p>
     </div>`
@@ -1082,9 +1130,20 @@ function drawCaseHead() {
       $("closebox").hidden = false;
       $("outcome").focus();
     };
+  $("cprint").onclick = () => printCase();
+  $("cmailme").onclick = () => caseAct({ action: "case_email", to: "me" }, $("cmailme"));
+  if ($("cmailthem"))
+    $("cmailthem").onclick = () => caseAct({ action: "case_email", to: "person" }, $("cmailthem"));
   if ($("closego")) {
-    $("closego").onclick = () =>
-      caseAct({ action: "case_status", status: "closed", outcome: $("outcome").value }, $("closego"));
+    $("closego").onclick = async () => {
+      const me = $("closeme").checked,
+        them = $("closethem") && $("closethem").checked,
+        pdf = $("closepdf").checked;
+      await caseAct({ action: "case_status", status: "closed", outcome: $("outcome").value }, $("closego"));
+      if (me) await caseAct({ action: "case_email", to: "me" }, $("cmailme"));
+      if (them && $("cmailthem")) await caseAct({ action: "case_email", to: "person" }, $("cmailthem"));
+      if (pdf) printCase();
+    };
     $("closeno").onclick = () => ($("closebox").hidden = true);
   }
 }
@@ -1099,9 +1158,9 @@ function drawThread() {
       : "";
   th.innerHTML = caseNow.messages
     .map(m => {
-      if (m.from === "system") return `<p class="tsys">${esc(m.text)} · ${when(m.t)}</p>`;
+      if (m.from === "system") return `<p class="tsys">${linkCases(esc(m.text))} · ${when(m.t)}</p>`;
       if (m.from === "note")
-        return `<div class="tnote"><b>Team note · ${esc(m.who)}</b><span>${esc(m.text)}</span>${time(m)}</div>`;
+        return `<div class="tnote"><b>Team note · ${esc(m.who)}</b><span>${linkCases(esc(m.text))}</span>${time(m)}</div>`;
       if (m.from === "email" && m.email) {
         const e = m.email;
         return `<div class="temail"><b>📧 ${esc(name1)} shared an email</b>
@@ -1131,7 +1190,7 @@ function drawThread() {
         }${time(m)}</div>`;
       }
       const mine = m.from === "owner";
-      return `<div class="tmsg ${mine ? "mine" : ""}"><b>${mine ? "You" + (m.who ? " · " + esc(m.who) : "") : esc(name1)}</b>${m.text ? `<span>${esc(m.text)}</span>` : ""}${photo(m)}${time(m)}</div>`;
+      return `<div class="tmsg ${mine ? "mine" : ""}"><b>${mine ? "You" + (m.who ? " · " + esc(m.who) : "") : esc(name1)}</b>${m.text ? `<span>${linkCases(esc(m.text))}</span>` : ""}${photo(m)}${time(m)}</div>`;
     })
     .join("");
   th.querySelectorAll("img[data-photo]").forEach(async img => {
@@ -1144,6 +1203,14 @@ function drawThread() {
     } catch (e) {}
   });
   th.scrollTop = th.scrollHeight;
+}
+// The browser's print window: choose "Save as PDF" to keep a file. Team notes are included.
+function printCase() {
+  document.body.classList.add("printing");
+  setTimeout(() => {
+    print();
+    document.body.classList.remove("printing");
+  }, 50);
 }
 function drawQuickChips() {
   const box = $("quickchips");

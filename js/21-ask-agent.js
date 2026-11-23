@@ -341,26 +341,53 @@ function renderHelper() {
   const liveBar = () => {
     const bar = document.getElementById("livebar");
     if (!bar) return;
+    const num =
+      mahiLive && mahiLive.caseId
+        ? ` <span class="small">${tr("Case", "Caso")} <b>${esc(mahiLive.caseId)}</b></span>`
+        : "";
     bar.innerHTML = mahiLive
-      ? `<div class="livebar"><span class="livedot ${mahiLive.joined ? "on" : ""}"></span><span>${mahiLive.joined ? tr("You're talking to a real person on the ScamSense team.", "Está hablando con una persona real del equipo de ScamSense.") : tr("Waiting for a person from the ScamSense team… You can leave this screen. We'll let you know when they answer.", "Esperando a una persona del equipo de ScamSense… Puede salir de esta pantalla. Le avisaremos cuando respondan.")}</span><span class="row"><button class="ctool" id="livephoto">${ic("camera")}<span>${tr("Send a photo", "Enviar una foto")}</span></button><button class="ctool" id="liveend">${tr("Back to Mahi", "Volver con Mahi")}</button></span></div>`
+      ? `<div class="livebar"><span class="livedot ${mahiLive.joined ? "on" : ""}"></span><span>${mahiLive.joined ? tr("You're talking to a real person on the ScamSense team.", "Está hablando con una persona real del equipo de ScamSense.") : tr("Waiting for a person from the ScamSense team… You can leave this screen. We'll let you know when they answer.", "Esperando a una persona del equipo de ScamSense… Puede salir de esta pantalla. Le avisaremos cuando respondan.")}${num}</span><span class="row"><button class="ctool" id="livephoto">${ic("camera")}<span>${tr("Send a photo", "Enviar una foto")}</span></button><button class="ctool" id="liveleave">${tr("Leave for now", "Salir por ahora")}</button><button class="ctool" id="liveend">${tr("End chat", "Terminar chat")}</button></span></div>`
       : "";
     inp.placeholder = mahiLive
       ? tr("Write to the ScamSense team…", "Escriba al equipo de ScamSense…")
       : tr("Type or tap the mic to talk…", "Escriba o toque el micrófono para hablar…");
     if (!mahiLive) return;
-    document.getElementById("livephoto").onclick = () => openSupport("person");
-    document.getElementById("liveend").onclick = () => {
-      mahiLive = null;
-      saveLive();
-      const m = {
-        role: "sys",
-        content: tr(
-          "You're back with Mahi. The team can still answer you in Settings → Talk to the ScamSense team.",
-          "Volvió con Mahi. El equipo aún puede responderle en Ajustes → Hable con el equipo de ScamSense."
-        )
-      };
+    const note = text => {
+      const m = { role: "sys", content: text };
       chatLog.push(m);
       add(m);
+    };
+    document.getElementById("livephoto").onclick = () => openSupport("person");
+    // Leave: the case stays open, and the team can still answer.
+    document.getElementById("liveleave").onclick = () => {
+      const id = mahiLive.caseId;
+      mahiLive = null;
+      saveLive();
+      note(
+        tr(
+          `You're back with Mahi. Your case ${id || ""} stays open: the team can still answer you in Settings → Talk to the ScamSense team.`,
+          `Volvió con Mahi. Su caso ${id || ""} sigue abierto: el equipo aún puede responderle en Ajustes → Hable con el equipo de ScamSense.`
+        )
+      );
+      liveBar();
+    };
+    // End: the case closes; they keep the case number.
+    document.getElementById("liveend").onclick = async () => {
+      const id = mahiLive.caseId;
+      try {
+        const j = await serverPost({ mode: "support", action: "end" });
+        if (!j || !j.ok) throw new Error();
+        mahiLive = null;
+        saveLive();
+        note(
+          tr(
+            `You ended the chat. Your case number is ${id}. Keep it: if you need help with this again, the team can find everything from today. Mahi is back to help.`,
+            `Terminó el chat. Su número de caso es ${id}. Guárdelo: si necesita ayuda con esto otra vez, el equipo puede encontrar todo lo de hoy. Mahi vuelve a ayudarle.`
+          )
+        );
+      } catch (e) {
+        note(tr("That didn't work. Try again.", "No funcionó. Intente de nuevo."));
+      }
       liveBar();
     };
   };

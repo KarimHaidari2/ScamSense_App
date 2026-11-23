@@ -14,6 +14,8 @@ let supportReason = "person"; // why this conversation started: person, scammed,
 let supportEmail = null; // an email the person chose to share (waits for "Share it")
 let supportPhoto = ""; // a photo waiting to be sent (data URL)
 const supportPhotoCache = {}; // photo id → picture, so each one downloads once
+let supportViewId = ""; // looking at one past case (by its case number)
+let supportFresh = false; // "Start a new chat": don't show the ended one
 
 /* Opens the conversation, optionally with a reason and an email to share. */
 function openSupport(reason, email) {
@@ -71,6 +73,24 @@ function systemText(s) {
       tr("You shared an email with the ScamSense team.", "Compartió un correo con el equipo de ScamSense.")
     ],
     [
+      /^The person ended the chat/,
+      tr(
+        "You ended this chat. Keep your case number so the team can find it later.",
+        "Usted terminó este chat. Guarde su número de caso para que el equipo lo encuentre después."
+      )
+    ],
+    [
+      /^The person came back to this case/,
+      tr(
+        "You came back to this case. The team can see everything from before.",
+        "Volvió a este caso. El equipo puede ver todo lo anterior."
+      )
+    ],
+    [
+      /^The person went back to case/,
+      s.replace(/^The person went back to case/, tr("You went back to case", "Volvió al caso"))
+    ],
+    [
       /^The ScamSense team closed/,
       tr(
         "The ScamSense team closed this conversation. If you need anything else, just write here.",
@@ -101,7 +121,8 @@ function renderSupport() {
   <section class="chat card">
     ${
       on
-        ? `<div class="chatlog" id="suplog" aria-live="polite"></div>
+        ? `<div id="supcase"></div>
+    <div class="chatlog" id="suplog" aria-live="polite"></div>
     <div id="supshare"></div>
     <div class="samples" id="supstart" hidden>${[
       ["scammed", tr("I think I was scammed", "Creo que me estafaron")],
@@ -119,7 +140,8 @@ function renderSupport() {
       <label class="ctool">${ic("camera")}<span>${tr("Add a photo", "Agregar una foto")}</span><input id="supfile" type="file" accept="image/*" hidden></label>
       ${canListenHere() ? `<button class="ctool" id="supmic" aria-pressed="false">${ic("mic")}<span>${tr("Say it", "Dígalo")}</span></button>` : ""}
     </div>
-    <p class="footnote small">${ic("lock")}<span>${tr("Only the ScamSense team sees this conversation. Never send a password, a full card number, or a code someone texted you.", "Solo el equipo de ScamSense ve esta conversación. Nunca envíe una contraseña, un número de tarjeta completo o un código que le enviaron.")}</span></p>`
+    <p class="footnote small">${ic("lock")}<span>${tr("Only the ScamSense team sees this conversation. Never send a password, a full card number, or a code someone texted you.", "Solo el equipo de ScamSense ve esta conversación. Nunca envíe una contraseña, un número de tarjeta completo o un código que le enviaron.")}</span></p>
+    <details class="pastcases" id="suppast"><summary>${tr("Your past cases", "Sus casos anteriores")}</summary><div id="suppastlist"><p class="small muted">${tr("Loading…", "Cargando…")}</p></div></details>`
         : `<p>${tr('Talking to the team needs the ScamSense server. Turn on "Your account" in Settings, or ask Mahi for now.', 'Hablar con el equipo necesita el servidor de ScamSense. Active "Su cuenta" en Ajustes, o pregúntele a Mahi por ahora.')}</p><button class="btn primary" data-go="helper">${tr("Ask Mahi", "Pregúntele a Mahi")}</button>`
     }
   </section>`;
@@ -166,9 +188,11 @@ function renderSupport() {
         inp.focus();
       })
   );
+  document.getElementById("suppast").ontoggle = e => e.target.open && drawPastCases();
   drawShare();
   drawPending();
   drawSupport();
+  drawCaseBar();
   supportPoll();
   clearInterval(supportTimer);
   supportTimer = setInterval(() => {
@@ -237,18 +261,110 @@ async function loadSupportPhoto(img) {
   } catch (e) {}
 }
 
+/* The case number, and what the person can do with this conversation. */
+function drawCaseBar() {
+  const box = document.getElementById("supcase");
+  if (!box) return;
+  const c = supportCase;
+  if (!c || supportFresh) {
+    box.innerHTML = "";
+    return;
+  }
+  const open = c.status !== "closed";
+  box.innerHTML = `<div class="casebar"><span>${tr("Case number", "Número de caso")} <b>${esc(c.id)}</b> · ${open ? tr("Open", "Abierto") : tr("Ended", "Terminado")}</span><span class="row">${
+    open
+      ? `<button class="ctool" id="supend">${tr("End chat", "Terminar chat")}</button>`
+      : `<button class="ctool" id="supagain">${tr("Continue this case", "Continuar este caso")}</button><button class="ctool" id="supnew">${tr("Start a new chat", "Empezar un chat nuevo")}</button>`
+  }</span></div><div id="supconfirm"></div>`;
+  if (open)
+    document.getElementById("supend").onclick = () => {
+      document.getElementById("supconfirm").innerHTML =
+        `<div class="sharebox"><p><b>${tr("End this chat?", "¿Terminar este chat?")}</b></p><p class="small">${tr("Your case number is", "Su número de caso es")} <b>${esc(c.id)}</b>. ${tr("If you need help with this again, tap Your past cases, or give the team this number.", "Si necesita ayuda con esto otra vez, toque Sus casos anteriores, o dele este número al equipo.")}</p><div class="row"><button class="btn primary sm" id="supendgo">${tr("End chat", "Terminar chat")}</button><button class="btn ghost sm" id="supendno">${tr("Keep talking", "Seguir hablando")}</button></div></div>`;
+      document.getElementById("supendno").onclick = () =>
+        (document.getElementById("supconfirm").innerHTML = "");
+      document.getElementById("supendgo").onclick = async () => {
+        try {
+          supportApply(await serverPost({ mode: "support", action: "end" }));
+          toast(tr("Chat ended. Your case number is ", "Chat terminado. Su número de caso es ") + c.id);
+        } catch (e) {
+          toast(tr("That didn't work. Try again.", "No funcionó. Intente de nuevo."));
+        }
+      };
+    };
+  else {
+    document.getElementById("supagain").onclick = async () => {
+      try {
+        const j = await serverPost({ mode: "support", action: "reopen", caseId: c.id });
+        if (!j.ok) throw new Error(j.error);
+        supportViewId = "";
+        supportDrawn = "";
+        supportApply(j);
+        document.getElementById("supin").focus();
+      } catch (e) {
+        toast(e.message || tr("That didn't work. Try again.", "No funcionó. Intente de nuevo."));
+      }
+    };
+    document.getElementById("supnew").onclick = () => {
+      supportFresh = true;
+      supportViewId = "";
+      supportMsgs = [];
+      supportDrawn = "";
+      drawSupport();
+      drawCaseBar();
+      document.getElementById("supin").focus();
+    };
+  }
+}
+async function drawPastCases() {
+  const box = document.getElementById("suppastlist");
+  try {
+    const j = await serverPost({ mode: "support", action: "history" });
+    if (!j.ok) throw new Error(j.error);
+    box.innerHTML = j.cases.length
+      ? `<ul class="pastlist">${j.cases
+          .map(
+            c =>
+              `<li><button data-case="${esc(c.id)}"><b>${esc(c.id)}</b><span>${esc(systemText(c.reason).split(".")[0])} · ${esc(new Date(c.opened).toLocaleDateString())} · ${c.status === "closed" ? tr("Ended", "Terminado") : tr("Open", "Abierto")}</span></button></li>`
+          )
+          .join("")}</ul>`
+      : `<p class="small muted">${tr("No past cases yet.", "Aún no hay casos anteriores.")}</p>`;
+    box.querySelectorAll("[data-case]").forEach(
+      b =>
+        (b.onclick = () => {
+          supportViewId = b.dataset.case;
+          supportFresh = false;
+          supportDrawn = "";
+          supportPoll();
+          document.getElementById("suppast").open = false;
+          document.getElementById("supcase").scrollIntoView({ behavior: "smooth", block: "start" });
+        })
+    );
+  } catch (e) {
+    box.innerHTML = `<p class="small muted">${tr("Couldn't load your past cases.", "No se pudieron cargar sus casos.")}</p>`;
+  }
+}
+
 function supportApply(j) {
   if (!j || !j.ok) return;
+  if (supportFresh && j.case && j.case.status === "closed") return; // they chose to start a new chat
+  supportFresh = false;
   supportCase = j.case;
   supportMsgs = j.messages || [];
   const lastTeam = [...supportMsgs].reverse().find(m => m.from === "owner");
   if (lastTeam && document.getElementById("suplog")) S.set("sup_seen", lastTeam.t);
   if (supportCase) S.set("sup_on", true);
   drawSupport();
+  drawCaseBar();
 }
 async function supportPoll() {
   try {
-    supportApply(await serverPost({ mode: "support", action: "poll" }));
+    supportApply(
+      await serverPost(
+        supportViewId
+          ? { mode: "support", action: "view", caseId: supportViewId }
+          : { mode: "support", action: "poll" }
+      )
+    );
   } catch (e) {}
 }
 let supportBusy = false;
@@ -278,6 +394,8 @@ async function supportSend(extra) {
     supportPhoto = "";
     if (extra.email) supportEmail = null;
     supportReason = "person";
+    supportViewId = ""; // the message went to their open (or a new) case
+    supportFresh = false;
     drawShare();
     drawPending();
     supportApply(j);

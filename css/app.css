@@ -5205,3 +5205,58 @@ nav.tabs [data-tab="settings"] {
   background: var(--safe);
   box-shadow: 0 0 0 4px rgba(46, 157, 90, 0.2);
 }
+.casebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 14px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 0.92rem;
+}
+.casebar .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+}
+#supconfirm .sharebox {
+  margin-bottom: 8px;
+}
+.pastcases {
+  margin-top: 10px;
+}
+.pastcases summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.pastlist {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.pastlist button {
+  all: unset;
+  box-sizing: border-box;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.pastlist button span {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+.pastlist button:focus-visible {
+  outline: 3px solid var(--amber);
+}
