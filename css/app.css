@@ -5505,3 +5505,34 @@ nav.tabs [data-tab="settings"] {
 #mbox-ask .gate-btn {
   margin-top: 8px;
 }
+
+/* About you: who's signed in, and a way out if it isn't them */
+.about-who {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, rgba(127, 127, 127, 0.25));
+  text-align: center;
+}
+.about-who p {
+  margin: 0 0 4px;
+  overflow-wrap: anywhere;
+}
+
+/* Settings: Sign out at the bottom */
+.signout-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 52px;
+  margin: 8px 0 18px;
+  font-size: 1.05rem;
+}
+.signout-bottom svg {
+  width: 20px;
+  height: 20px;
+}
+.whocard .grow .gl span {
+  overflow-wrap: anywhere;
+}

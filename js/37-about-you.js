@@ -164,7 +164,8 @@ function aboutYouCheck(j) {
 
 function showAboutYou(editing) {
   if (document.querySelector(".onb-about")) return;
-  if (!editing && document.querySelector(".onb")) return setTimeout(() => aboutYouMissing() && showAboutYou(false), 3000);
+  if (!editing && document.querySelector(".onb"))
+    return setTimeout(() => aboutYouMissing() && showAboutYou(false), 3000);
   // Never interrupt someone who is getting help: ask after they leave the chat.
   if (
     !editing &&
@@ -218,6 +219,12 @@ function showAboutYou(editing) {
         <p class="about-err" id="ab-err" role="alert"></p>
         <button class="gate-btn primary-btn" type="submit">${tr("Save and continue", "Guardar y continuar")}</button>
         ${editing ? `<button class="gate-demo" type="button" id="ab-cancel">${tr("Cancel", "Cancelar")}</button>` : ""}
+        ${
+          !editing && typeof myAcctEmail === "function" && myAcctEmail()
+            ? `<div class="about-who"><p>${tr("Signed in as", "Sesión iniciada como")} <b>${esc(myAcctEmail())}</b></p>
+          <button class="gate-demo" type="button" id="ab-switch">${tr("Not you? Sign in to a different account", "¿No es usted? Inicie sesión con otra cuenta")}</button></div>`
+            : ""
+        }
         <p class="gate-fine">${ic("lock")} ${tr("Only you and the ScamSense team see this. It's never sold or shared.", "Solo usted y el equipo de ScamSense lo ven. Nunca se vende ni se comparte.")} <a href="privacy.html" target="_blank" rel="noopener">${tr("Privacy Policy", "Política de privacidad")}</a></p>
       </form>
     </section>
@@ -238,6 +245,17 @@ function showAboutYou(editing) {
   m.querySelector("#ab-country").oninput = where;
   const close = () => m.remove();
   if (editing) m.querySelector("#ab-cancel").onclick = close;
+  // Someone else's account on this phone: sign out here, then the welcome screen lets them
+  // sign in to their own account or create one.
+  const sw = m.querySelector("#ab-switch");
+  if (sw)
+    sw.onclick = async () => {
+      sw.disabled = true;
+      try {
+        await authCall({ action: "logout" });
+      } catch (e) {}
+      signOutLocal("switch");
+    };
   m.querySelector("#aboutform").onsubmit = e => {
     e.preventDefault();
     const v = id => m.querySelector(id).value.trim();

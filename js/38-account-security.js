@@ -120,6 +120,11 @@ async function gmailAddress(tok) {
 const SIGNOUT_NOTES = {
   out: () => tr("You're signed out.", "Cerró su sesión."),
   all: () => tr("You're signed out on every device.", "Cerró su sesión en todos los dispositivos."),
+  switch: () =>
+    tr(
+      "Signed out. Now sign in to your own account, or create one.",
+      "Sesión cerrada. Ahora inicie sesión con su propia cuenta o cree una."
+    ),
   expired: () =>
     tr(
       "For your safety, please sign in again. ScamSense asks every 60 days.",
@@ -168,11 +173,25 @@ function securityHTML() {
     ${row("sec-delete", "alert", "l-red", tr("Delete my account", "Eliminar mi cuenta"), tr("Deletes your account and your information", "Elimina su cuenta y su información"))}
   </div></section>`;
 }
+/* Top of Settings: who is signed in on this phone, with a Sign out button right there. */
+function whoHTML() {
+  if (!S.get("onboarded", false)) return "";
+  const email = myAcctEmail();
+  const c = cfg();
+  const nm = [c.name, c.lastName].filter(Boolean).join(" ");
+  return `<section class="sect whocard"><div class="group"><div class="grow">
+    <span class="lead-ic l-green">${ic("user")}</span>
+    <span class="gl"><b>${esc(nm || email || tr("This phone", "Este teléfono"))}</b><span>${email ? tr("Signed in as ", "Sesión iniciada como ") + esc(email) : tr("Not signed in to an account yet", "Aún no ha iniciado sesión en una cuenta")}</span></span>
+    <button class="btn sm ghost" id="sec-out1">${tr("Sign out", "Cerrar sesión")}</button>
+  </div></div></section>`;
+}
 function bindSecurity() {
   const on = (id, fn) => {
     const el = document.getElementById(id);
     if (el) el.onclick = fn;
   };
+  on("sec-out1", () => confirmSignOut(false));
+  on("sec-out2", () => confirmSignOut(false));
   on("sec-pw", changePassword);
   on("sec-email", changeEmail);
   on("sec-out", () => confirmSignOut(false));
