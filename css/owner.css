@@ -1267,3 +1267,35 @@ body[data-role="viewer"] .actions {
     margin-top: 16px;
   }
 }
+/* Activity boxes open the list behind the number */
+button.kind {
+  border: 1.5px solid transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.kind:hover:not(:disabled) {
+  border-color: var(--line);
+}
+button.kind[aria-expanded="true"] {
+  border-color: var(--ink);
+}
+button.kind:disabled {
+  cursor: default;
+}
+button.kind:focus-visible {
+  outline: 3px solid #e0a93b;
+}
+.kinddetail {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.kinddetail h3 {
+  margin: 0 0 6px;
+  font: 800 1.05rem var(--display);
+}
+.kinddetail .fl small {
+  display: block;
+}

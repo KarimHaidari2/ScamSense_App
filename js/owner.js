@@ -436,23 +436,53 @@ function kindStats(rows) {
   });
   return st;
 }
+// Each box opens the list behind its number: who, when, and the result.
+const kindRows = {};
+let kindSeq = 0;
 function kindsHTML(rows, title) {
   const st = kindStats(rows);
-  return `<section class="card"><h2>${title}</h2><div class="kinds">${KINDS.map(([k, icon, label]) => {
-    const x = st[k];
-    const badWord =
-      k === "leak"
-        ? "found leaks"
-        : k === "phone"
-          ? "info public"
-          : k === "pay"
-            ? "already paid"
-            : k === "scammed"
-              ? ""
-              : "scams";
-    return `<div class="kind${x.n ? "" : " zero"}"><span class="ki" aria-hidden="true">${icon}</span><b>${x.n}</b><span>${label}</span>${x.bad && badWord ? `<small class="r-scam">${x.bad} ${x.bad === 1 && badWord === "scams" ? "scam" : badWord}</small>` : `<small>&nbsp;</small>`}</div>`;
-  }).join("")}</div></section>`;
+  const id = "k" + ++kindSeq;
+  kindRows[id] = rows;
+  return `<section class="card" data-kinds="${id}"><h2>${title}</h2><p class="muted small">Tap a box to see who, when, and what ScamSense found.</p><div class="kinds">${KINDS.map(
+    ([k, icon, label]) => {
+      const x = st[k];
+      const badWord =
+        k === "leak"
+          ? "found leaks"
+          : k === "phone"
+            ? "info public"
+            : k === "pay"
+              ? "already paid"
+              : k === "scammed"
+                ? ""
+                : "scams";
+      return `<button class="kind${x.n ? "" : " zero"}" data-kind="${k}" aria-expanded="false" ${x.n ? "" : "disabled"}><span class="ki" aria-hidden="true">${icon}</span><b>${x.n}</b><span>${label}</span>${x.bad && badWord ? `<small class="r-scam">${x.bad} ${x.bad === 1 && badWord === "scams" ? "scam" : badWord}</small>` : `<small>&nbsp;</small>`}</button>`;
+    }
+  ).join("")}</div><div class="kinddetail" hidden></div></section>`;
 }
+main.addEventListener("click", e => {
+  const b = e.target.closest("[data-kind]");
+  if (!b) return;
+  const sec = b.closest("[data-kinds]");
+  const box = sec.querySelector(".kinddetail");
+  const k = b.dataset.kind;
+  const open = b.getAttribute("aria-expanded") === "true";
+  sec.querySelectorAll("[data-kind]").forEach(x => x.setAttribute("aria-expanded", "false"));
+  if (open) {
+    box.hidden = true;
+    return;
+  }
+  b.setAttribute("aria-expanded", "true");
+  const label = (KINDS.find(x => x[0] === k) || [])[2] || "";
+  const list = (kindRows[sec.dataset.kinds] || [])
+    .filter(r => kindOf(r) === k)
+    .sort((x, y) => ms(y.Time) - ms(x.Time));
+  box.hidden = false;
+  box.innerHTML = `<h3>${esc(label)} <small class="muted">${list.length}</small></h3>
+    ${feed(list.slice(0, 100), true)}
+    <p class="muted small">ScamSense never stores the message, email, phone number, or call itself, only what kind it was and what ScamSense found. To see the actual message, ask the person to share it in a case.</p>`;
+  box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+});
 
 /* ----- Charts ----- */
 function barChart(title, rows, note) {
