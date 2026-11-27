@@ -55,6 +55,11 @@ const SS = {
    Paste its URL here so Mahi answers any question for everyone, with no key in the app. */
 const DEFAULT_MAHI_URL =
   "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
+/* Earlier server addresses: phones that saved one of these switch to the current one by themselves
+   (so moving the server to another Google account doesn't break anyone's app). */
+const OLD_MAHI_URLS = [
+  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec"
+].filter(u => u !== DEFAULT_MAHI_URL);
 const DEFAULT_CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleusercontent.com";
 const cfg = () => {
   const c = Object.assign(
@@ -71,7 +76,7 @@ const cfg = () => {
     S.get("cfg", {})
   );
   if (!c.clientId) c.clientId = DEFAULT_CLIENT_ID;
-  if (!c.mahiUrl) c.mahiUrl = DEFAULT_MAHI_URL;
+  if (!c.mahiUrl || OLD_MAHI_URLS.indexOf(c.mahiUrl) >= 0) c.mahiUrl = DEFAULT_MAHI_URL;
   if (!c.rememberKey) c.apiKey = SS.get("key");
   return c;
 };

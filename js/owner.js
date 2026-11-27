@@ -8,15 +8,40 @@
  */
 "use strict";
 
+/* The Mahi Server's address. When the server moves (a new deployment), put the new address in
+   CURRENT_SERVER_URL and the old one in OLD_SERVER_URLS; everything else follows. */
+const CURRENT_SERVER_URL =
+  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
+const OLD_SERVER_URLS = [].filter(u => u !== CURRENT_SERVER_URL);
 const SERVER_URL =
   (() => {
     try {
-      return JSON.parse(localStorage.getItem("ss_cfg") || "{}").mahiUrl || "";
+      const u = JSON.parse(localStorage.getItem("ss_cfg") || "{}").mahiUrl || "";
+      return OLD_SERVER_URLS.indexOf(u) >= 0 ? "" : u; // an old address: use the current one
     } catch (e) {
       return "";
     }
-  })() ||
-  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
+  })() || CURRENT_SERVER_URL;
+// Phone alerts ask the server what's new using a saved address: keep it pointing at the current server.
+if ("caches" in window)
+  caches
+    .open("ss-owner")
+    .then(c =>
+      c.match("device").then(
+        r =>
+          r &&
+          r.json().then(d => {
+            if (d && d.server && d.server !== SERVER_URL)
+              c.put(
+                "device",
+                new Response(JSON.stringify(Object.assign(d, { server: SERVER_URL })), {
+                  headers: { "Content-Type": "application/json" }
+                })
+              );
+          })
+      )
+    )
+    .catch(() => {});
 const CLIENT_ID = "848599932394-4vcu5c7lgkdbmlculansl4ae6u76k0ug.apps.googleusercontent.com";
 const DEMO = /[?&]demo\b/.test(location.search);
 const MS_CLIENT_ID = "1187ff8b-fa16-43d4-acb6-788bb696c627";
