@@ -2,6 +2,19 @@
   "note": "What's new in ScamSense. Newest first. Each item: date, kind (new | better | fixed), icon, en, es. The app shows a 'New' badge for items newer than the last time the person opened this page.",
   "items": [
     {
+      "date": "2026-11-26",
+      "kind": "new",
+      "icon": "refresh",
+      "en": {
+        "title": "Your email is checked by itself",
+        "text": "When you open ScamSense and your last check was more than 6 hours ago, it checks all your email accounts without you tapping. If Google needs you to tap once, Home shows \"Check for new emails\". Your daily report email now shows each email account on its own line, so you know which inbox got the scam."
+      },
+      "es": {
+        "title": "Su correo se revisa solo",
+        "text": "Cuando abre ScamSense y la última revisión fue hace más de 6 horas, revisa todas sus cuentas de correo sin que toque nada. Si Google necesita un toque, Inicio muestra \"Revisar correos nuevos\". Su reporte diario ahora muestra cada cuenta de correo en su propia línea, para que sepa qué bandeja recibió la estafa."
+      }
+    },
+    {
       "date": "2026-11-23",
       "kind": "new",
       "icon": "shield",

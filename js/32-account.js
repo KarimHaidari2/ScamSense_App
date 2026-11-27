@@ -150,10 +150,25 @@ async function flushServerEvents() {
 }
 
 /* After an email scan: only the counts (how many emails, how many scams), for the daily report. */
+/* One line per email account, so the daily report can say which inbox got what.
+   Only the person's own mailbox address is sent, never anything about the emails themselves. */
 function serverScanEvent(items, source) {
-  const n = { scam: 0, warn: 0 };
-  items.forEach(i => (n[i.level] = (n[i.level] || 0) + 1));
-  serverEvent({ t: "scan", src: source, n: items.length, s: n.scam || 0, w: n.warn || 0 });
+  const groups = {};
+  items.forEach(i => {
+    const box =
+      (typeof boxOf === "function" && boxOf(i)) ||
+      (typeof mainBoxEmail === "function" && mainBoxEmail(i.source)) ||
+      "";
+    const key = (i.source || source) + "|" + box;
+    const g = groups[key] || (groups[key] = { src: i.source || source, bx: box, n: 0, s: 0, w: 0 });
+    g.n++;
+    if (i.level === "scam") g.s++;
+    if (i.level === "warn") g.w++;
+  });
+  Object.keys(groups).forEach(k => {
+    const g = groups[k];
+    serverEvent({ t: "scan", src: g.src, bx: g.bx, n: g.n, s: g.s, w: g.w });
+  });
 }
 
 /* Mahi's "email me": sends a draft or summary to the person's own inbox. */

@@ -666,6 +666,8 @@ function cleanEv(x) {
     s: Math.max(0, Math.min(5000, +x.s || 0)),
     w: Math.max(0, Math.min(5000, +x.w || 0)),
     src: cleanText(x.src, 12),
+    // scans: which of the person's own email accounts was checked (shown in their daily report)
+    bx: /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(x.bx || "")) ? String(x.bx).toLowerCase().slice(0, 80) : "",
     at: at > Date.now() - 7 * 864e5 && at <= Date.now() + 60000 ? at : Date.now()
   };
 }
@@ -714,7 +716,7 @@ function saveEvents(req) {
             ? (e.n ? "name and address public" : "nothing confirmed")
             : e.l,
       e.k,
-      ""
+      e.t === "scan" && e.bx ? e.bx : ""
     ]);
     const sh = sheet("Activity");
     sh.getRange(sh.getLastRow() + 1, 1, rows.length, ACT_COLS.length).setValues(rows);
@@ -1548,6 +1550,24 @@ function userReportHTML(u, rows) {
     checks.filter(r => r[5] === "scam").length;
   const tile = (label, val) =>
     `<td width="33%" style="padding:5px"><div style="background:#fff;border:1px solid #E3E5EA;border-radius:12px;padding:12px"><div style="font-size:11px;font-weight:800;color:#5F6673;text-transform:uppercase">${label}</div><div style="font-size:26px;font-weight:800;color:#111827">${val}</div></div></td>`;
+  // With more than one email account: one line per account, so they know which inbox got what.
+  const boxes = {};
+  scans.forEach(r => {
+    const key = String(r[7] || "") || (r[4] === "outlook" ? "Outlook" : r[4] === "gmail" ? "Gmail" : "Email");
+    const b = boxes[key] || (boxes[key] = { n: 0, s: 0 });
+    b.n += +String(r[5]).split(" ")[0] || 0;
+    b.s += +String(r[5]).split(",")[1].trim().split(" ")[0] || 0;
+  });
+  const boxRows =
+    Object.keys(boxes).length > 1
+      ? Object.keys(boxes)
+          .sort((a, b) => boxes[b].s - boxes[a].s || boxes[b].n - boxes[a].n)
+          .map(
+            k =>
+              `<tr><td style="padding:8px 0;border-top:1px solid #E3E5EA;font-size:14px;color:#111827;word-break:break-all">${esc(k)}</td><td style="padding:8px 0 8px 10px;border-top:1px solid #E3E5EA;font-size:14px;text-align:right;white-space:nowrap;color:#5F6673">${boxes[k].n} checked</td><td style="padding:8px 0 8px 10px;border-top:1px solid #E3E5EA;font-size:14px;text-align:right;white-space:nowrap;font-weight:800;color:${boxes[k].s ? "#B42318" : "#1F7A3E"}">${boxes[k].s ? boxes[k].s + " scam" + (boxes[k].s === 1 ? "" : "s") : "all clear"}</td></tr>`
+          )
+          .join("")
+      : "";
   const list = rows
     .filter(r => r[3] !== "Scanned email")
     .slice(-12)
@@ -1564,6 +1584,7 @@ function userReportHTML(u, rows) {
       <div style="font-size:15px;color:#5F6673">Good morning${u["First name"] ? ", " + esc(u["First name"]) : ""}</div>
       <div style="font-size:24px;font-weight:800;color:#111827;margin-top:4px">${head}</div>
       <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin-top:14px;table-layout:fixed"><tr>${tile("Emails checked", emails)}${tile("Scams caught", scams)}${tile("Payments paused", pauses.length)}</tr></table>
+      ${boxRows ? `<div style="font-size:13px;font-weight:800;color:#5F6673;margin-top:18px">BY EMAIL ACCOUNT</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${boxRows}</table>` : ""}
       ${scams ? `<div style="background:#FDECEA;border-radius:12px;padding:12px 14px;margin-top:16px;font-size:15px;color:#7A1A12">Open ScamSense to see which emails and messages were scams, and what to do.</div>` : ""}
       ${list ? `<div style="font-size:13px;font-weight:800;color:#5F6673;margin-top:18px">IN THE APP</div><table role="presentation" width="100%" cellspacing="0" cellpadding="0">${list}</table>` : ""}
       ${!rows.length ? `<p style="font-size:15px;color:#111827">ScamSense didn't see anything new yesterday. Open the app to scan your email.</p>` : ""}

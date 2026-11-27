@@ -73,6 +73,11 @@ function homeStatus(rep) {
   const n = { scam: 0, warn: 0, safe: 0 };
   rep.items.forEach(i => n[i.level]++);
   const lv = n.scam ? "scam" : n.warn ? "warn" : "safe";
+  // Last check is old and nothing is waiting for them: offer the new check right here (41-auto-scan.js).
+  const due =
+    lv === "safe" && rep.source !== "demo" && typeof scanRowText === "function" ? scanRowText() : null;
+  if (due)
+    return `<button class="nw-status off" data-home="scan"><i>${ic("refresh")}</i><span><b>${esc(due.title)}</b><small>${esc(due.sub)}</small></span>${ic("chev", "chev")}</button>`;
   // Every scam already moved to Spam automatically: nothing for them to do.
   const allMoved = n.scam > 0 && rep.items.filter(i => i.level === "scam").every(i => i.autoMoved);
   const title = allMoved
@@ -110,12 +115,19 @@ function homeHTML(rep) {
           })()}${accountSummary(rep.items) ? " · " + accountSummary(rep.items) : ""}`
         )
       ) +
-      row(
-        'data-home="scan"',
-        "refresh",
-        rep.source === "demo" ? t("scan_my") : tr("Scan email again", "Revisar el correo otra vez"),
-        tr("Checks every folder for new scams", "Revisa todas las carpetas")
-      )
+      (() => {
+        const due = rep.source !== "demo" && typeof scanRowText === "function" ? scanRowText() : null;
+        return row(
+          'data-home="scan"' + (due ? " data-due" : ""),
+          "refresh",
+          due
+            ? due.title
+            : rep.source === "demo"
+              ? t("scan_my")
+              : tr("Scan email again", "Revisar el correo otra vez"),
+          due ? due.sub : tr("Checks every folder for new scams", "Revisa todas las carpetas")
+        );
+      })()
     : row(
         'data-home="scan"',
         "mail",

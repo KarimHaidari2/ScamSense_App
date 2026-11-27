@@ -5764,3 +5764,11 @@ nav.tabs [data-tab="settings"] {
 .automoved {
   background: var(--safe-bg);
 }
+/* Home: "Check for new emails" when the last check is old (41-auto-scan.js) */
+.grow[data-due] {
+  background: var(--brand-soft);
+  box-shadow: inset 4px 0 0 var(--brand);
+}
+.grow[data-due] .gl b {
+  font-weight: 800;
+}
