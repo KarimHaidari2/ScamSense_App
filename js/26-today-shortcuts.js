@@ -71,6 +71,9 @@ function homeHeadline(rep) {
 }
 /* Today's email status, shown as one tappable line in the navy panel. */
 function homeStatus(rep) {
+  // A new device: their email accounts from their other device are one tap away (42-new-device.js).
+  const nd = typeof newDeviceStatusHTML === "function" ? newDeviceStatusHTML() : "";
+  if (nd) return nd;
   if (!rep)
     return `<button class="nw-status off" data-home="connect"><i>${ic("mail")}</i><span><b>${tr("Let ScamSense watch your email", "Deje que ScamSense vigile su correo")}</b><small>${tr("Connect Gmail or Outlook, or try the demo", "Conecte Gmail u Outlook, o pruebe la demostración")}</small></span>${ic("chev", "chev")}</button>`;
   // Only what's still in the inbox (or other normal folders) needs them. Scams Gmail/Outlook already put in
@@ -235,6 +238,7 @@ function bindHome() {
         } else if (a === "scan") scanEmail();
         else if (a === "demo") loadDemo();
         else if (a === "connect") go("settings");
+        else if (a === "setupdev") showSetupDevice();
       })
   );
 }

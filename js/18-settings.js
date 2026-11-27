@@ -139,6 +139,9 @@ function renderSettings() {
     );
     setStatus();
   };
+  document
+    .getElementById("days")
+    .addEventListener("change", () => typeof registerSoon === "function" && registerSoon());
   view.querySelectorAll("input,select").forEach(x => {
     if (x.id !== "applock") x.onchange = save;
   });

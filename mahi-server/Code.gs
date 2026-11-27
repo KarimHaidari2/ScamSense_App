@@ -312,7 +312,8 @@ const USER_COLS = [
   "Blocked", // type "yes" to stop ScamSense for this person
   "Status", // "active" or "quiet 7+ days", updated every morning
   "Owner notes", // your own notes about this person (from the Owner dashboard)
-  "Password" // never the password itself: a salted, scrambled fingerprint (see 13. Accounts)
+  "Password", // never the password itself: a salted, scrambled fingerprint (see 13. Accounts)
+  "App setup" // which of their own email accounts they connected, and a few settings, so a new device is set up in one tap
 ];
 const ACT_COLS = ["Time", "User ID", "Name", "What", "Channel", "Result", "Scam type", "Details"];
 const ALERT_COLS = ["Time", "Name", "Email", "What happened", "Emailed to"];
@@ -591,6 +592,7 @@ function registerUser(req) {
         )
         .join("\n");
     // No one to ask? They can ask the ScamSense team to be their helper (Family screen).
+    if (req.setup && typeof req.setup === "object") u["App setup"] = cleanSetup(req.setup);
     if (req.teamHelp !== undefined) {
       const th = req.teamHelp;
       const was = String(u["Team helper"] || "").indexOf("yes") === 0;
@@ -631,7 +633,6 @@ function registerUser(req) {
       else acctEvent(fresh, req.uid, "Created an account with " + (req.gtoken ? "Google" : "Outlook"), true);
     } else if (fresh.row) sessionAdopt(fresh, req.uid);
     const isOwner = u["Email verified"] === "yes" && ownerEmails().indexOf(String(u.Email).toLowerCase()) >= 0;
-    const dobOut = dobText(u["Date of birth"]);
     return {
       ok: true,
       verified: u["Email verified"] === "yes",
@@ -640,14 +641,7 @@ function registerUser(req) {
       expires: sessionExpires(req.uid),
       hasPassword: !!u.Password,
       // So a second device doesn't have to ask again.
-      profile: {
-        first: u["First name"] || "",
-        last: u["Last name"] || "",
-        dob: dobOut,
-        country: u.Country || "",
-        state: u.State || "",
-        zip: String(u.ZIP || "").replace(/^'/, "")
-      }
+      profile: profileOf(u)
     };
   } finally {
     lock.releaseLock();
@@ -2926,15 +2920,18 @@ function pwPepper() {
 const hexOf = b => u8(b).map(x => x.toString(16).padStart(2, "0")).join("");
 const bytesOfHex = h => (String(h).match(/../g) || []).map(x => parseInt(x, 16));
 // PBKDF2-HMAC-SHA256 (one block), keyed with the secret pepper + the password.
+// PBKDF2-HMAC-SHA256 (one block). Works on Google's signed bytes the whole way and converts once at
+// the end, which makes signing in noticeably faster than converting on every round. Same result.
 function pwHash(pw, saltHex, iter) {
-  const P = strBytes(pwPepper() + "\u0000" + String(pw));
-  let u = hmac256(P, bytesOfHex(saltHex).concat([0, 0, 0, 1]));
+  const alg = Utilities.MacAlgorithm.HMAC_SHA_256;
+  const K = s8(strBytes(pwPepper() + "\u0000" + String(pw)));
+  let u = Utilities.computeHmacSignature(alg, s8(bytesOfHex(saltHex).concat([0, 0, 0, 1])), K);
   const t = u.slice();
   for (let i = 1; i < iter; i++) {
-    u = hmac256(P, u);
-    for (let j = 0; j < t.length; j++) t[j] ^= u[j];
+    u = Utilities.computeHmacSignature(alg, u, K);
+    for (let j = 0; j < 32; j++) t[j] ^= u[j];
   }
-  return hexOf(t);
+  return hexOf(u8(t));
 }
 function pwMake(pw) {
   const salt = Utilities.getUuid().replace(/-/g, "");
@@ -3169,7 +3166,8 @@ function authApi(req) {
       const exp = sessionStart(u, req.uid, ok.extra.keep !== false, deviceName(req));
       u["Last active"] = new Date();
       writeUser(findUserByEmail(email) || u);
-      acctMail(u.Email, "New sign-in to your ScamSense account", `Your account was just signed in on ${deviceName(req)}, ${Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MMM d 'at' h:mm a")}. If this was you, you're all set. If it wasn't, open ScamSense, tap Forgot password to set a new one, and we'll sign out every device.`);
+      // No separate "new sign-in" email here: they just got the code by email, which already says someone
+      // is signing in (sending a second email made signing in about a second slower).
       acctEvent(u, req.uid, "Signed in on " + deviceName(req), false);
       return { ok: true, signedIn: true, expires: exp, email, profile: profileOf(u) };
     }
@@ -3268,8 +3266,29 @@ function sessionExpires(device) {
   const s = sessionRows().find(x => x.device === device);
   return s ? iso(s.expires) : "";
 }
+/* Their own email addresses and a few settings, nothing about any email. */
+function cleanSetup(x) {
+  const okMail = e => /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(String(e || ""));
+  const boxes = [].concat(x.boxes || [])
+    .filter(b => b && (b.k === "gmail" || b.k === "outlook") && okMail(b.e))
+    .slice(0, 6)
+    .map(b => ({ k: b.k, e: String(b.e).toLowerCase().slice(0, 80), main: !!b.main }));
+  return JSON.stringify({
+    boxes,
+    days: [1, 3, 7].indexOf(+x.days) >= 0 ? +x.days : 1,
+    autoSpam: !!x.autoSpam
+  });
+}
+function setupOf(u) {
+  try {
+    return JSON.parse(u["App setup"] || "null");
+  } catch (e) {
+    return null;
+  }
+}
 function profileOf(u) {
   return {
+    setup: setupOf(u),
     first: u["First name"] || "",
     last: u["Last name"] || "",
     dob: dobText(u["Date of birth"]),

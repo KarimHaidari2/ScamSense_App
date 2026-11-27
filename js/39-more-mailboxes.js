@@ -18,6 +18,7 @@ const XTOK = {}; // extra Gmail keys, kept in memory only: email → { t, exp }
 const extraBoxes = () => S.get("xboxes", []) || [];
 function saveExtraBoxes(list) {
   S.set("xboxes", list.slice(0, MAX_EXTRA_BOXES));
+  if (typeof registerSoon === "function") registerSoon(); // remember the account list for other devices
 }
 /* Which mailbox an email came from: "" for the main Gmail/Outlook, else the extra mailbox's address. */
 const boxOf = it => it.box || "";
@@ -34,7 +35,7 @@ function mailboxLabel(it) {
 const hasExtraBoxes = () => extraBoxes().length > 0;
 
 /* ----- Adding another Gmail ----- */
-function addGmailBox() {
+function addGmailBox(hint) {
   return new Promise((resolve, reject) => {
     const c = cfg();
     if (!(window.google && google.accounts && google.accounts.oauth2))
@@ -96,7 +97,9 @@ function addGmailBox() {
         )
     });
     // Always show the account chooser: this is a different Google account than the main one.
-    tc.requestAccessToken({ prompt: "select_account consent" });
+    tc.requestAccessToken(
+      hint ? { prompt: "select_account consent", hint } : { prompt: "select_account consent" }
+    );
   });
 }
 /* A fresh key for one extra Gmail. Without a tap, Google may refuse to open its window. */
@@ -148,7 +151,7 @@ async function withGmailBox(email, interactive, fn) {
 }
 
 /* ----- Adding another Outlook (Microsoft sends people back to the app, see finishOutlookSignIn) ----- */
-function addOutlookBox() {
+function addOutlookBox(hint) {
   if (extraBoxes().length >= MAX_EXTRA_BOXES) {
     toast(
       tr(
@@ -158,7 +161,7 @@ function addOutlookBox() {
     );
     return;
   }
-  connectOutlook(false, true);
+  connectOutlook(false, true, hint);
 }
 /* Called by finishOutlookSignIn when the sign-in was for an extra mailbox: the main Outlook record
    is set aside while Microsoft's answer is stored, then the new one is moved to "xboxes". */

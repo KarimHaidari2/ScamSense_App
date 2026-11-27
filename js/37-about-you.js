@@ -190,6 +190,7 @@ function aboutYouCheck(j) {
       if (!c[k] && v) fill[k] = v;
     });
     if (Object.keys(fill).length) saveCfg(Object.assign(c, fill));
+    if (p.setup && typeof applySetup === "function") applySetup(p.setup);
   }
   if (aboutYouMissing() && S.get("acct", null)) showAboutYou(false);
 }
@@ -317,7 +318,10 @@ function showAboutYou(editing) {
     where();
   });
   m.querySelector("#ab-country").oninput = where;
-  m.querySelector("#aboutform").addEventListener("input", () => (m.querySelector("#ab-err").textContent = ""));
+  m.querySelector("#aboutform").addEventListener(
+    "input",
+    () => (m.querySelector("#ab-err").textContent = "")
+  );
   const close = () => m.remove();
   if (editing) m.querySelector("#ab-cancel").onclick = close;
   // Someone else's account on this phone: sign out here, then the welcome screen lets them

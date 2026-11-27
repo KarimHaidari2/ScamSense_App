@@ -5781,3 +5781,10 @@ nav.tabs [data-tab="settings"] {
 .protect-list li.opt .pl-tx {
   opacity: 0.8;
 }
+/* New-device setup: long addresses wrap instead of running into the button */
+.sd-list .gl {
+  min-width: 0;
+}
+.sd-list .gl b {
+  word-break: break-all;
+}

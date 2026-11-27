@@ -74,7 +74,9 @@ async function registerUser() {
     reports: c.dailyReport !== false,
     alerts: c.dangerAlerts !== false,
     family: S.get("helpers", []).map(h => ({ name: h.name, email: h.email, phone: h.phone })),
-    teamHelp: S.get("teamHelp", null) || undefined
+    teamHelp: S.get("teamHelp", null) || undefined,
+    // Which of their own email accounts are connected (addresses only), so a new device is set up in one tap.
+    setup: typeof setupToSend === "function" ? setupToSend() : undefined
   };
   try {
     if (typeof token !== "undefined" && token && Date.now() < tokenExp - 60000) body.gtoken = token;

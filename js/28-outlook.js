@@ -37,7 +37,7 @@ function randomText(n) {
 const sha256 = txt => crypto.subtle.digest("SHA-256", new TextEncoder().encode(txt));
 
 /* ----- 1. Send the person to Microsoft's sign-in page ----- */
-async function connectOutlook(write, extra) {
+async function connectOutlook(write, extra, hint) {
   if (!outlookReady()) {
     toast(
       tr(
@@ -69,6 +69,7 @@ async function connectOutlook(write, extra) {
     code_challenge_method: "S256",
     prompt: "select_account"
   });
+  if (hint) q.set("login_hint", hint); // the account they used on their other device
   location.href = `${MS_LOGIN}/authorize?${q}`;
 }
 

@@ -26,6 +26,7 @@ function bindAutoProtect(rerender) {
   const sw = document.getElementById("autosp");
   if (!sw) return;
   sw.onchange = async () => {
+    if (typeof registerSoon === "function") setTimeout(registerSoon, 1500);
     if (!sw.checked) {
       S.set("autoSpam", false);
       toast(tr("Turned off. ScamSense will only warn you.", "Desactivado. ScamSense solo le avisará."));
