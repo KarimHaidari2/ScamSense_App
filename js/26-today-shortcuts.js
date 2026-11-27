@@ -56,7 +56,10 @@ function isNight() {
 function homeHeadline(rep) {
   if (!rep) return tr("Let's keep you safe.", "Vamos a protegerle.");
   const n = { scam: 0, warn: 0, safe: 0 };
-  rep.items.forEach(i => n[i.level]++);
+  // Scams already in Spam or Trash (put there by Gmail/Outlook, or moved by ScamSense) need nothing from them.
+  rep.items
+    .filter(i => !(typeof awayAlready === "function" && awayAlready(i)) && !i.autoMoved)
+    .forEach(i => n[i.level]++);
   if (n.scam)
     return n.scam === 1
       ? tr("1 scam caught today.", "1 estafa detectada hoy.")
@@ -70,22 +73,34 @@ function homeHeadline(rep) {
 function homeStatus(rep) {
   if (!rep)
     return `<button class="nw-status off" data-home="connect"><i>${ic("mail")}</i><span><b>${tr("Let ScamSense watch your email", "Deje que ScamSense vigile su correo")}</b><small>${tr("Connect Gmail or Outlook, or try the demo", "Conecte Gmail u Outlook, o pruebe la demostración")}</small></span>${ic("chev", "chev")}</button>`;
+  // Only what's still in the inbox (or other normal folders) needs them. Scams Gmail/Outlook already put in
+  // Spam or Trash, and scams ScamSense moved for them, are counted apart.
+  const isAway = i => typeof awayAlready === "function" && awayAlready(i);
   const n = { scam: 0, warn: 0, safe: 0 };
-  rep.items.forEach(i => n[i.level]++);
+  rep.items.filter(i => !isAway(i) && !i.autoMoved).forEach(i => n[i.level]++);
+  const awayN = rep.items.filter(i => isAway(i) && i.level === "scam").length;
+  const movedN = rep.items.filter(i => i.autoMoved && i.level === "scam").length;
   const lv = n.scam ? "scam" : n.warn ? "warn" : "safe";
   // Last check is old and nothing is waiting for them: offer the new check right here (41-auto-scan.js).
   const due =
     lv === "safe" && rep.source !== "demo" && typeof scanRowText === "function" ? scanRowText() : null;
   if (due)
     return `<button class="nw-status off" data-home="scan"><i>${ic("refresh")}</i><span><b>${esc(due.title)}</b><small>${esc(due.sub)}</small></span>${ic("chev", "chev")}</button>`;
-  // Every scam already moved to Spam automatically: nothing for them to do.
-  const allMoved = n.scam > 0 && rep.items.filter(i => i.level === "scam").every(i => i.autoMoved);
-  const title = allMoved
-    ? tr("Scams moved to Spam for you. Nothing to do.", "Estafas movidas a Spam. No tiene que hacer nada.")
-    : lv === "safe"
+  const title =
+    lv === "safe"
       ? rep.source === "demo"
         ? tr("No scams in the demo inbox", "No hay estafas en la bandeja de prueba")
-        : tr("No scams in your email today", "No hay estafas en su correo hoy")
+        : movedN
+          ? tr(
+              "Scams moved to Spam for you. Nothing to do.",
+              "Estafas movidas a Spam. No tiene que hacer nada."
+            )
+          : awayN
+            ? tr(
+                `No scams in your inbox. ${awayN} already in Spam or Trash.`,
+                `No hay estafas en su bandeja. ${awayN} ya en Spam o Papelera.`
+              )
+            : tr("No scams in your email today", "No hay estafas en su correo hoy")
       : lv === "scam"
         ? n.scam === 1
           ? tr("Don't open it. Tap to see which one.", "No lo abra. Toque para ver cuál.")

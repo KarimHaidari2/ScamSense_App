@@ -298,7 +298,7 @@ async function collectOutlook(box) {
   const c = cfg();
   renderToday({ progress: { label: tr("Connecting to Outlook…", "Conectando con Outlook…"), pct: 5 } });
   const { map, skip } = await outlookFolders();
-  const since = new Date(Date.now() - c.days * 864e5).toISOString();
+  const since = new Date(Date.now() - scanDays() * 864e5).toISOString();
   const base = `me/messages?$top=${Math.min(100, c.max)}&$filter=receivedDateTime ge ${since}&$orderby=receivedDateTime desc`;
   let page;
   try {

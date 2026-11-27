@@ -17,6 +17,10 @@ function headlineOf(n) {
       ? plural(t("h_warn", { n: n.warn }), n.warn)
       : t("h_clear");
 }
+/* A risky email Gmail or Outlook already put in Spam or Trash on its own: nothing for them to do. */
+function awayAlready(it) {
+  return it.level !== "safe" && !it.autoMoved && (it.folder === "Spam" || it.folder === "Trash");
+}
 function renderToday(opt) {
   opt = opt || {};
   const c = cfg();
@@ -69,9 +73,11 @@ function renderEmails() {
     .filter(i => filter === "all" || i.level === filter)
     .sort((a, b) => rank[a.level] - rank[b.level]);
   // Safe ads and newsletters go in their own folded group at the end.
-  const real = picked.filter(i => !i.ad);
-  const ads = picked.filter(i => i.ad);
-  const shown = real.concat(ads);
+  // Scams already sitting in Spam or Trash go in their own folded group, so the list starts with what matters.
+  const away = picked.filter(awayAlready);
+  const real = picked.filter(i => !i.ad && !awayAlready(i));
+  const ads = picked.filter(i => i.ad && !awayAlready(i));
+  const shown = real.concat(away, ads);
   const dtxt = rep.days === 1 ? t("d24") : t("ddays", { n: rep.days });
   const aiNote =
     rep.source === "demo" && !rep.ai
@@ -82,10 +88,15 @@ function renderEmails() {
   view.innerHTML = `${pageHead(tr("Your emails", "Sus correos"), t("checked", { n: rep.items.length, d: dtxt }) + ".", "today")}
     ${A.length ? `<div class="seg wide acct" role="group" aria-label="${esc(tr("Inbox", "Buzón"))}">${A.map(([k, l, c]) => `<button data-a="${k}" aria-pressed="${acctFilter === k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>` : ""}
     <div class="seg wide" role="group">${F.map(([k, l, c]) => `<button data-f="${k}" aria-pressed="${filter === k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>
-    <div class="list" style="margin-top:12px">${real.length ? real.map((it, idx) => itemHTML(it, idx)).join("") : ads.length ? "" : `<div class="empty card">${tr("Nothing here.", "Nada aquí.")}</div>`}</div>
+    <div class="list" style="margin-top:12px">${real.length ? real.map((it, idx) => itemHTML(it, idx)).join("") : ads.length || away.length ? "" : `<div class="empty card">${tr("Nothing here.", "Nada aquí.")}</div>`}</div>
+    ${
+      away.length
+        ? `<details class="adgroup awaygroup"${real.length ? "" : " open"}><summary><span class="adg-ic">${ic("shield")}</span><span class="gl"><b>${tr(`Already in Spam or Trash (${away.length})`, `Ya en Spam o Papelera (${away.length})`)}</b><span>${tr("Your email already caught these. Don't open them. Nothing else to do.", "Su correo ya las atrapó. No las abra. No tiene que hacer nada más.")}</span></span>${ic("chev", "chev")}</summary><div class="list">${away.map((it, k) => itemHTML(it, real.length + k)).join("")}</div></details>`
+        : ""
+    }
     ${
       ads.length
-        ? `<details class="adgroup"${real.length ? "" : " open"}><summary><span class="adg-ic">${ic("mail")}</span><span class="gl"><b>${tr(`Ads and newsletters (${ads.length})`, `Anuncios y boletines (${ads.length})`)}</b><span>${tr("Checked too. Nothing risky found.", "También revisados. No se encontró nada riesgoso.")}</span></span>${ic("chev", "chev")}</summary><div class="list">${ads.map((it, k) => itemHTML(it, real.length + k)).join("")}</div></details>`
+        ? `<details class="adgroup"${real.length || away.length ? "" : " open"}><summary><span class="adg-ic">${ic("mail")}</span><span class="gl"><b>${tr(`Ads and newsletters (${ads.length})`, `Anuncios y boletines (${ads.length})`)}</b><span>${tr("Checked too. Nothing risky found.", "También revisados. No se encontró nada riesgoso.")}</span></span>${ic("chev", "chev")}</summary><div class="list">${ads.map((it, k) => itemHTML(it, real.length + away.length + k)).join("")}</div></details>`
         : ""
     }
     <p class="footnote" style="margin-top:12px">${ic("info")}<span>${aiNote}</span></p>`;

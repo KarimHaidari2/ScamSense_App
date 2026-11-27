@@ -20,7 +20,9 @@ function cachedResults(source, box) {
       it.source === source &&
       (it.box || "") === (box || "") &&
       it.checkedAt &&
-      Date.now() - it.checkedAt < RESULT_KEEP_DAYS * 864e5
+      Date.now() - it.checkedAt < RESULT_KEEP_DAYS * 864e5 &&
+      // ScamSense's own emails are always checked again (an older version could flag the new sender).
+      !OWN_SENDERS.includes(String(it.fromEmail || "").toLowerCase())
     )
       map[it.id] = it;
   });
@@ -53,6 +55,15 @@ async function holdScreen(on) {
   } catch (e) {
     scanWake = null;
   }
+}
+/* How many days back a scan reads: the setting, or longer if the last check was longer ago than that
+   (up to 7 days), so nothing that came in while the app was closed is missed. */
+function scanDays() {
+  const c = cfg();
+  const rep = S.get("report", null);
+  const last = rep && rep.source !== "demo" ? +rep.at || 0 : 0;
+  const since = last ? Math.ceil((Date.now() - last) / 864e5) : 0;
+  return Math.min(7, Math.max(c.days || 1, since));
 }
 async function scanEmail() {
   if (scanning) return;
@@ -89,7 +100,7 @@ async function collectGmail(box) {
   renderToday({
     progress: { label: box ? tr(`Checking ${box}…`, `Revisando ${box}…`) : t("prog_find"), pct: 10 }
   });
-  const q = encodeURIComponent(`newer_than:${c.days}d -in:sent -in:drafts -in:chats`);
+  const q = encodeURIComponent(`newer_than:${scanDays()}d -in:sent -in:drafts -in:chats`);
   let ids = [];
   let pageToken = "";
   do {
@@ -177,7 +188,7 @@ async function finishScan(items, source) {
   });
   const order = { scam: 0, warn: 1, safe: 2 };
   items.sort((a, b) => order[a.level] - order[b.level] || b.date - a.date);
-  const report = { at: Date.now(), source, days: c.days, ai: !!wantsAI, aiChecked: aiList.length, items };
+  const report = { at: Date.now(), source, days: scanDays(), ai: !!wantsAI, aiChecked: aiList.length, items };
   S.set("report", Object.assign({}, report, { items: report.items.map(slimItem) }));
   // The team's numbers count each email once, not again on every scan.
   if (source !== "demo" && typeof serverScanEvent === "function" && fresh.length)

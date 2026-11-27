@@ -77,9 +77,19 @@ async function aiCheck(item) {
     `Warning signs found by on-device checks: ${item.local.reasons.length ? item.local.reasons.join(" | ") : "none"}`
   );
   parts.push(`Message text:\n"""\n${(item.text || "").slice(0, 3500)}\n"""`);
-  const txt = aiViaServer()
-    ? await serverCheck(parts.join("\n"))
-    : await callClaude(AI_SYSTEM.replace("{LANG}", LANGS[langCode()].ai), parts.join("\n"), 700);
+  let txt;
+  if (aiViaServer()) txt = await serverCheck(parts.join("\n"));
+  else
+    try {
+      txt = await callClaude(AI_SYSTEM.replace("{LANG}", LANGS[langCode()].ai), parts.join("\n"), 700);
+    } catch (e) {
+      // An old AI key saved on this device stopped working: forget it and use the ScamSense server instead.
+      if (!(e.badKey && cfg().mahiUrl)) throw e;
+      const c2 = cfg();
+      c2.apiKey = "";
+      saveCfg(c2);
+      txt = await serverCheck(parts.join("\n"));
+    }
   const m = txt.match(/\{[\s\S]*\}/);
   if (!m && aiViaServer()) throw Object.assign(new Error("unreadable"), { quiet: true });
   if (!m)
@@ -127,7 +137,8 @@ async function callClaude(system, user, maxTokens) {
     try {
       msg = (await res.json()).error.message;
     } catch (e) {}
-    if (res.status === 401) throw new Error("The AI key wasn't accepted. Check it in Settings.");
+    if (res.status === 401)
+      throw Object.assign(new Error("The AI key wasn't accepted. Check it in Settings."), { badKey: true });
     if (res.status === 404)
       throw new Error(`The AI model "${c.model}" wasn't found. Pick another model in Settings.`);
     if (res.status === 400 && /credit/i.test(msg))

@@ -306,8 +306,13 @@ const BAD_TLD =
   /\.(xyz|top|info|click|live|shop|online|site|icu|ru|cn|buzz|cyou|rest|sbs|cfd|monster|zip|mov)$/;
 // ScamSense's own website. It's on GitHub's free hosting, but it's ours.
 const OWN_SITE = /^karimhaidari2\.github\.io$/;
-// The addresses ScamSense sends its own emails from (welcome, alerts). Only trusted when signed (DMARC pass).
-const OWN_SENDERS = ["karimhaidari321@gmail.com", "scamsense.karim@outlook.com"];
+// The addresses ScamSense sends its own emails from (welcome, alerts, daily reports). Only trusted when signed
+// (DMARC pass). karimhaidari321 sent them before Nov 26, 2026; kept so older reports are not flagged.
+const OWN_SENDERS = [
+  "scamsensesupport@gmail.com",
+  "scamsense.karim@outlook.com",
+  "karimhaidari321@gmail.com"
+];
 // A sender name that's only a role ("Package_Tracking", "MyParcel", "Storage Warning") and no company.
 const GENERIC_NAME =
   /^(my ?)?(package|parcel|shipment|shipping|delivery|tracking|order|storage|cloud|photos?|account|security)([\s_-]*(tracking|warning|alert|notice|update|status|center|centre|team|service|confirmation))*[\s\W]*$/iu;
