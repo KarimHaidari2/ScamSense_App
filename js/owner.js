@@ -1035,6 +1035,7 @@ function logTab() {
 /* ----- Cases: live help with people (chat, photos, shared emails, team notes) ----- */
 let cases = null; // the latest list from the server
 let caseNow = null; // the open case page
+const caseCache = {}; // cases opened before, shown instantly next time
 let caseFilter = "open";
 let caseQuery = ""; // search: a case number or a name
 const CASE_NO = /\bC\d{6}-[A-Z0-9]{4}\b/g;
@@ -1057,16 +1058,22 @@ function setCaseBadge(counts) {
 }
 
 async function casesTab() {
-  main.innerHTML = `<h1>Cases</h1><p class="loading">Loading…</p>`;
+  // Show the list we already have right away, then get the newest from the server.
+  if (cases) drawCases();
+  else main.innerHTML = `<h1>Cases</h1><p class="loading">Loading…</p>`;
   try {
     const j = await api({ action: "cases" });
+    if (location.hash !== "#cases") {
+      cases = j.cases;
+      return; // they moved on
+    }
+    const changed = JSON.stringify(j.cases) !== JSON.stringify(cases);
     cases = j.cases;
     setCaseBadge(j.counts);
+    if (changed || !main.querySelector("[data-f]")) drawCases();
   } catch (e) {
-    main.innerHTML = `<h1>Cases</h1><p class="err">${esc(e.message)}</p>`;
-    return;
+    if (!cases) main.innerHTML = `<h1>Cases</h1><p class="err">${esc(e.message)}</p>`;
   }
-  drawCases();
 }
 function drawCases() {
   const C = cases || [];
@@ -1239,15 +1246,33 @@ async function casePage(id) {
   clearInterval(casePoll);
   stopTalking();
   casePhoto = "";
-  main.innerHTML = `<button class="back" id="back">‹ Cases</button><p class="loading">Loading…</p>`;
-  $("back").onclick = () => go("cases");
-  try {
-    caseNow = await api({ action: "case", caseId: id });
-  } catch (e) {
-    main.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`);
-    return;
+  const here = () => location.hash === "#case/" + encodeURIComponent(id);
+  // Opened before? Show it right away, then get the newest from the server.
+  if (caseCache[id]) {
+    caseNow = caseCache[id];
+    drawCase();
+  } else {
+    main.innerHTML = `<button class="back" id="back">‹ Cases</button><p class="loading">Loading…</p>`;
+    $("back").onclick = () => go("cases");
   }
-  drawCase();
+  try {
+    const fresh = await api({ action: "case", caseId: id });
+    if (!here()) return;
+    const changed = JSON.stringify(fresh) !== JSON.stringify(caseCache[id]);
+    caseNow = caseCache[id] = fresh;
+    if (changed) {
+      if ($("thread")) {
+        drawCaseHead();
+        drawThread();
+      } else drawCase();
+    }
+  } catch (e) {
+    if (!caseCache[id]) {
+      main.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`);
+      return;
+    }
+    if (!here()) return;
+  }
   loadQuick()
     .then(drawQuickChips)
     .catch(() => {});
@@ -1263,7 +1288,8 @@ async function refreshCase() {
   const id = caseNow.case["Case ID"];
   try {
     const j = await api({ action: "case", caseId: id });
-    if (!caseNow || caseNow.case["Case ID"] !== id) return;
+    if (!caseNow || caseNow.case["Case ID"] !== id || caseNow.messages.some(m => m.sending)) return;
+    caseCache[id] = j;
     if (
       j.messages.length !== caseNow.messages.length ||
       j.case.Status !== caseNow.case.Status ||
@@ -1506,7 +1532,7 @@ function drawThread() {
         }${time(m)}</div>`;
       }
       const mine = m.from === "owner";
-      return `<div class="tmsg ${mine ? "mine" : ""}"><b>${mine ? "You" + (m.who ? " · " + esc(m.who) : "") : esc(name1)}</b>${m.text ? `<span>${linkCases(esc(m.text))}</span>` : ""}${photo(m)}${time(m)}</div>`;
+      return `<div class="tmsg ${mine ? "mine" : ""}"><b>${mine ? "You" + (m.who ? " · " + esc(m.who) : "") : esc(name1)}</b>${m.text ? `<span>${linkCases(esc(m.text))}</span>` : ""}${photo(m)}${m.sending ? "<small>Sending…</small>" : time(m)}</div>`;
     })
     .join("");
   th.querySelectorAll("img[data-photo]").forEach(async img => {
@@ -1556,9 +1582,20 @@ async function caseAct(body, btn, clear) {
   const old = btn.textContent;
   btn.disabled = true;
   btn.textContent = "Working…";
+  // A reply shows in the chat right away ("Sending…"); the server's copy replaces it.
+  const quick = body.action === "reply" && !body.photo;
+  let typed = "";
+  if (quick) {
+    typed = $("ctext").value;
+    caseNow.messages = caseNow.messages.concat({ from: "owner", text: body.text, t: "", sending: true });
+    $("ctext").value = "";
+    stopTalking();
+    drawThread();
+    btn.textContent = "Sending…";
+  }
   try {
     const j = await api(Object.assign({ caseId: caseNow.case["Case ID"] }, body));
-    caseNow = j;
+    caseNow = caseCache[j.case["Case ID"]] = j;
     toast(j.done || "Done");
     stopTalking();
     if (clear) {
@@ -1570,6 +1607,11 @@ async function caseAct(body, btn, clear) {
     drawThread();
   } catch (e) {
     toast(e.message);
+    if (quick) {
+      caseNow.messages = caseNow.messages.filter(m => !m.sending);
+      if (!$("ctext").value) $("ctext").value = typed; // give them their words back
+      drawThread();
+    }
   }
   btn.disabled = false;
   btn.textContent = old;
@@ -1602,6 +1644,7 @@ async function watchCases() {
   try {
     const j = await api({ action: "cases" });
     setCaseBadge(j.counts);
+    if (location.hash !== "#cases") cases = j.cases; // so the Cases screen opens instantly
     const fresh = j.cases.filter(c => c.Status !== "closed" && +c["Team unread"] > 0);
     const key = c => c["Case ID"] + ":" + c["Last update"];
     if (caseSeen) {

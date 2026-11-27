@@ -5772,3 +5772,8 @@ nav.tabs [data-tab="settings"] {
 .grow[data-due] .gl b {
   font-weight: 800;
 }
+/* Long email lists: the browser skips drawing emails that are off screen until you scroll to them. */
+.list > .item {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 110px;
+}

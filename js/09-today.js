@@ -21,6 +21,8 @@ function headlineOf(n) {
 function awayAlready(it) {
   return it.level !== "safe" && !it.autoMoved && (it.folder === "Spam" || it.folder === "Trash");
 }
+const FIRST_ITEMS = 40;
+let listRender = 0;
 function renderToday(opt) {
   opt = opt || {};
   const c = cfg();
@@ -88,7 +90,16 @@ function renderEmails() {
   view.innerHTML = `${pageHead(tr("Your emails", "Sus correos"), t("checked", { n: rep.items.length, d: dtxt }) + ".", "today")}
     ${A.length ? `<div class="seg wide acct" role="group" aria-label="${esc(tr("Inbox", "Buzón"))}">${A.map(([k, l, c]) => `<button data-a="${k}" aria-pressed="${acctFilter === k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>` : ""}
     <div class="seg wide" role="group">${F.map(([k, l, c]) => `<button data-f="${k}" aria-pressed="${filter === k}">${l} <span class="segn">${c}</span></button>`).join("")}</div>
-    <div class="list" style="margin-top:12px">${real.length ? real.map((it, idx) => itemHTML(it, idx)).join("") : ads.length || away.length ? "" : `<div class="empty card">${tr("Nothing here.", "Nada aquí.")}</div>`}</div>
+    <div class="list" id="mainlist" style="margin-top:12px">${
+      real.length
+        ? real
+            .slice(0, FIRST_ITEMS)
+            .map((it, idx) => itemHTML(it, idx))
+            .join("")
+        : ads.length || away.length
+          ? ""
+          : `<div class="empty card">${tr("Nothing here.", "Nada aquí.")}</div>`
+    }</div>
     ${
       away.length
         ? `<details class="adgroup awaygroup"${real.length ? "" : " open"}><summary><span class="adg-ic">${ic("shield")}</span><span class="gl"><b>${tr(`Already in Spam or Trash (${away.length})`, `Ya en Spam o Papelera (${away.length})`)}</b><span>${tr("Your email already caught these. Don't open them. Nothing else to do.", "Su correo ya las atrapó. No las abra. No tiene que hacer nada más.")}</span></span>${ic("chev", "chev")}</summary><div class="list">${away.map((it, k) => itemHTML(it, real.length + k)).join("")}</div></details>`
@@ -116,6 +127,22 @@ function renderEmails() {
       })
   );
   bindItems(shown);
+  // Long lists: show the first emails right away, add the rest just after the screen appears.
+  if (real.length > FIRST_ITEMS) {
+    const myRender = ++listRender;
+    setTimeout(() => {
+      const box = document.getElementById("mainlist");
+      if (!box || myRender !== listRender) return;
+      box.insertAdjacentHTML(
+        "beforeend",
+        real
+          .slice(FIRST_ITEMS)
+          .map((it, k) => itemHTML(it, FIRST_ITEMS + k))
+          .join("")
+      );
+      bindItems(shown);
+    }, 60);
+  }
 }
 const FOLDER_ES = {
   Inbox: "Recibidos",

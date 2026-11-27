@@ -1101,7 +1101,26 @@ function ownerEmails() {
     .filter(Boolean);
 }
 // Who is signed in on the Owner page? Google (an "email" sign-in made for ScamSense) or Microsoft.
+// Who signed in to the Owner app. Asking Google or Microsoft takes a moment, so the answer is kept
+// for 10 minutes per sign-in key (a fingerprint of the key, never the key itself).
 function ownerWho(req) {
+  const tok = String(req.gtoken || req.mstoken || "");
+  if (!tok) return "";
+  const ck = "who:" + sha(tok).slice(0, 40);
+  let cache = null;
+  try {
+    cache = CacheService.getScriptCache();
+    const hit = cache.get(ck);
+    if (hit) return hit;
+  } catch (e) {}
+  const who = ownerWhoNow(req);
+  if (who && cache)
+    try {
+      cache.put(ck, who, 600);
+    } catch (e) {}
+  return who;
+}
+function ownerWhoNow(req) {
   try {
     if (req.gtoken) {
       const r = UrlFetchApp.fetch(
