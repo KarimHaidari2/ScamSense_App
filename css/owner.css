@@ -1376,3 +1376,37 @@ button.kind:focus-visible {
 .pl .tags .chip {
   overflow: visible;
 }
+
+/* Case page: shows it updates by itself */
+.livemark {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+.livemark::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22a06b;
+  box-shadow: 0 0 0 3px rgba(34, 160, 107, 0.2);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .livemark::before {
+    animation: livepulse 2s ease-in-out infinite;
+  }
+}
+@keyframes livepulse {
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 160, 107, 0);
+  }
+}
+/* Mic button while listening */
+#cmic.on {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}

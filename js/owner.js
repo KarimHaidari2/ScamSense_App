@@ -1156,6 +1156,43 @@ async function drawQuickEditor() {
 }
 
 let casePoll = null;
+/* ----- Speak instead of typing (like Mahi's mic in the customer app) ----- */
+const CAN_TALK = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+let talking = null;
+function dictate(box, btn) {
+  if (talking) return talking.stop();
+  const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new R();
+  rec.lang = navigator.language || "en-US";
+  rec.interimResults = true;
+  rec.continuous = true; // keeps listening through pauses until they tap Stop
+  const before = box.value ? box.value.trim() + " " : "";
+  const label = btn.querySelector("span");
+  rec.onresult = e => {
+    let txt = "";
+    for (const r of e.results) txt += r[0].transcript;
+    box.value = before + txt;
+  };
+  rec.onend = () => {
+    talking = null;
+    btn.classList.remove("on");
+    btn.setAttribute("aria-pressed", "false");
+    label.textContent = "Speak";
+    box.focus();
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed") toast("Please allow the microphone to speak your reply.");
+  };
+  try {
+    rec.start();
+    talking = rec;
+    btn.classList.add("on");
+    btn.setAttribute("aria-pressed", "true");
+    label.textContent = "Listening… tap to stop";
+  } catch (e) {
+    toast("The microphone isn't available right now.");
+  }
+}
 async function casePage(id) {
   clearInterval(casePoll);
   casePhoto = "";
@@ -1171,19 +1208,73 @@ async function casePage(id) {
   loadQuick()
     .then(drawQuickChips)
     .catch(() => {});
-  casePoll = setInterval(async () => {
+  casePoll = setInterval(() => {
     if (!$("thread") || location.hash !== "#case/" + encodeURIComponent(id)) return clearInterval(casePoll);
-    if (document.hidden) return;
-    try {
-      const j = await api({ action: "case", caseId: id });
-      if (j.messages.length !== caseNow.messages.length || j.case.Status !== caseNow.case.Status) {
-        caseNow = j;
-        drawThread();
-        drawCaseHead();
-      }
-    } catch (e) {}
-  }, 8000);
+    if (!document.hidden) refreshCase();
+  }, 5000);
 }
+/* Checks the open case for new messages. Runs every 5 seconds, and right away when the app comes
+   back to the screen or a phone alert arrives. */
+async function refreshCase() {
+  if (!caseNow || !$("thread")) return;
+  const id = caseNow.case["Case ID"];
+  try {
+    const j = await api({ action: "case", caseId: id });
+    if (!caseNow || caseNow.case["Case ID"] !== id) return;
+    if (
+      j.messages.length !== caseNow.messages.length ||
+      j.case.Status !== caseNow.case.Status ||
+      j.case.Priority !== caseNow.case.Priority
+    ) {
+      caseNow = j;
+      drawThread();
+      drawCaseHead();
+    }
+    liveMark();
+  } catch (e) {}
+}
+/* "Live · updated 12:04:31" under the case title, so it's clear the page updates by itself. */
+function liveMark() {
+  const el = $("livemark");
+  if (el)
+    el.textContent =
+      "Live · updated " +
+      new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" });
+}
+/* Brings whatever page is open up to date, without a full reload. */
+let refreshing = false;
+async function refreshNow() {
+  if (refreshing || document.hidden || !token) return;
+  refreshing = true;
+  try {
+    const h = location.hash || "#overview";
+    if (/^#case\//.test(h)) await refreshCase();
+    else {
+      await watchCases();
+      // Overview and People: get fresh numbers, but never redraw while they're typing.
+      const typing = document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+      if (!typing && /^#(overview|people|alerts)?$/.test(h)) {
+        const fresh = await api({ action: "overview" });
+        data = fresh;
+        Object.keys(people).forEach(k => delete people[k]);
+        const y = scrollY;
+        route();
+        requestAnimationFrame(() => scrollTo(0, y)); // stay where they were reading
+      }
+    }
+  } catch (e) {
+  } finally {
+    refreshing = false;
+  }
+}
+// Coming back to the app (unlocking the phone, switching tabs) updates it at once.
+document.addEventListener("visibilitychange", () => !document.hidden && refreshNow());
+addEventListener("focus", () => refreshNow());
+addEventListener("online", () => refreshNow());
+// Lists and numbers also update every minute while the app is open.
+setInterval(() => {
+  if (!/^#case\//.test(location.hash || "")) refreshNow();
+}, 60000);
 function drawCase() {
   const p = caseNow.person;
   const ro = data.role === "viewer";
@@ -1202,6 +1293,7 @@ function drawCase() {
         <textarea id="ctext" rows="3" placeholder="Write to ${esc((p && p.name.split(" ")[0]) || "them")}… or tap a quick reply above"></textarea>
         <div class="row composer-row">
           <label class="btn">📷 Photo<input id="cfile" type="file" accept="image/*" hidden></label>
+          ${CAN_TALK ? `<button class="btn" id="cmic" aria-pressed="false" title="Speak your reply instead of typing">🎤 <span>Speak</span></button>` : ""}
           <button class="btn" id="cnote" title="Only the ScamSense team sees notes">Save as team note</button>
           <button class="btn primary" id="csend">Send to ${esc((p && p.name.split(" ")[0]) || "them")}</button>
         </div>
@@ -1238,6 +1330,7 @@ function drawCase() {
   drawThread();
   if (ro) return;
   const t = $("ctext");
+  if ($("cmic")) $("cmic").onclick = () => dictate(t, $("cmic"));
   $("csend").onclick = () =>
     caseAct({ action: "reply", text: t.value, photo: casePhoto || undefined }, $("csend"), true);
   $("cnote").onclick = () => caseAct({ action: "case_note", text: t.value }, $("cnote"), true);
@@ -1263,7 +1356,8 @@ function drawCaseHead() {
   const closed = c.Status === "closed";
   $("casehead").innerHTML = `<div><h1>${esc(c.Name)}</h1>
     <p>${esc(c.Reason)} ${caseChip(c)}</p>
-    <p class="muted small">Case ${esc(c["Case ID"])} · opened ${when(c.Opened)}${c.Closed ? " · closed " + when(c.Closed) : ""}${c.Outcome ? " · " + esc(c.Outcome) : ""}</p></div>
+    <p class="muted small">Case ${esc(c["Case ID"])} · opened ${when(c.Opened)}${c.Closed ? " · closed " + when(c.Closed) : ""}${c.Outcome ? " · " + esc(c.Outcome) : ""}</p>
+    <p class="livemark" id="livemark" aria-live="off">Live</p></div>
     ${
       ro
         ? ""
@@ -1480,7 +1574,7 @@ async function watchCases() {
     if (location.hash === "#cases" && main.querySelector("[data-f]")) drawCases();
   } catch (e) {}
 }
-setInterval(watchCases, 30000);
+setInterval(() => !document.hidden && watchCases(), 15000);
 
 /* ----- Phone alerts (push notifications to this device) ----- */
 const PUSH_OK = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
@@ -1495,7 +1589,11 @@ if (PUSH_OK && !DEMO)
     .then(r => (swReg = r))
     .catch(() => {});
 if ("serviceWorker" in navigator)
-  navigator.serviceWorker.addEventListener("message", e => e.data && e.data.go && go(e.data.go));
+  navigator.serviceWorker.addEventListener("message", e => {
+    if (!e.data) return;
+    if (e.data.go) go(e.data.go);
+    if (e.data.refresh) refreshNow(); // a phone alert arrived while the app is open
+  });
 
 const keyBytes = b64 => {
   const s = atob(b64.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((b64.length + 3) % 4));

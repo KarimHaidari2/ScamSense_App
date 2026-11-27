@@ -450,12 +450,18 @@ function renderHelper() {
     liveBar();
     tools();
   };
-  helperLive = { start: liveStart };
+  helperLive = { start: liveStart, tick: () => liveTick() };
   clearInterval(renderHelper.timer);
   renderHelper.timer = setInterval(() => {
     if (!document.getElementById("chatlog")) return clearInterval(renderHelper.timer);
     if (!document.hidden) liveTick();
-  }, 6000);
+  }, 5000);
+  // Back to the app with a person on the line: check for their reply right away.
+  if (!renderHelper.onVisible) {
+    renderHelper.onVisible = () =>
+      !document.hidden && document.getElementById("chatlog") && helperLive && helperLive.tick && helperLive.tick();
+    document.addEventListener("visibilitychange", renderHelper.onVisible);
+  }
   let busy = false;
   let spoke = false; // asked by voice? then Mahi answers out loud too
   const send = async q => {

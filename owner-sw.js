@@ -50,7 +50,19 @@ async function showAlert() {
   });
 }
 
-self.addEventListener("push", e => e.waitUntil(showAlert()));
+self.addEventListener("push", e =>
+  e.waitUntil(
+    Promise.all([
+      showAlert(),
+      // If the Owner app is open, tell it to update right away.
+      self.clients
+        .matchAll({ type: "window", includeUncontrolled: true })
+        .then(list =>
+          list.filter(c => /owner\.html/.test(c.url)).forEach(c => c.postMessage({ refresh: true }))
+        )
+    ])
+  )
+);
 
 self.addEventListener("notificationclick", e => {
   e.notification.close();

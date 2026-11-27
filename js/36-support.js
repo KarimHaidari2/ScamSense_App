@@ -200,7 +200,7 @@ function renderSupport() {
   supportTimer = setInterval(() => {
     if (!document.getElementById("suplog")) return clearInterval(supportTimer);
     if (!document.hidden) supportPoll();
-  }, 8000);
+  }, 5000);
 }
 
 /* The email waiting to be shared: the person decides. */
@@ -499,3 +499,10 @@ async function supportCheck() {
 setTimeout(supportCheck, 4000);
 setInterval(supportCheck, 90000);
 document.addEventListener("visibilitychange", () => document.hidden || supportCheck());
+
+/* Coming back to the app (unlocking the phone, switching tabs): show the team's new messages at once. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (document.getElementById("suplog")) supportPoll();
+  else if (typeof supportCheck === "function") supportCheck();
+});
