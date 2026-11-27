@@ -152,16 +152,64 @@ const chip = u => {
 };
 
 /* ----- talking to the server ----- */
+/* This device's own random key. A new device must enter a code from email once (then trusted 90 days). */
+function ownerDevice() {
+  try {
+    let d = localStorage.getItem("own_dev");
+    if (!d) {
+      const a = new Uint8Array(16);
+      crypto.getRandomValues(a);
+      d = Array.from(a, x => x.toString(16).padStart(2, "0")).join("");
+      localStorage.setItem("own_dev", d);
+    }
+    return d;
+  } catch (e) {
+    return "";
+  }
+}
+function ownerDeviceName() {
+  const ua = navigator.userAgent;
+  const kind = /iPhone/.test(ua)
+    ? "iPhone"
+    : /iPad/.test(ua)
+      ? "iPad"
+      : /Android/.test(ua)
+        ? "Android phone"
+        : /Mac/.test(ua)
+          ? "Mac"
+          : /Windows/.test(ua)
+            ? "Windows computer"
+            : "computer";
+  const app = /Edg\//.test(ua)
+    ? "Edge"
+    : /Chrome\//.test(ua)
+      ? "Chrome"
+      : /Safari\//.test(ua)
+        ? "Safari"
+        : /Firefox\//.test(ua)
+          ? "Firefox"
+          : "browser";
+  return kind + " · " + app;
+}
 async function api(body) {
   if (DEMO) return demoApi(body);
   const r = await fetch(SERVER_URL, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify(
-      Object.assign({ mode: "owner" }, provider === "ms" ? { mstoken: token } : { gtoken: token }, body)
+      Object.assign(
+        { mode: "owner", dev: ownerDevice(), devName: ownerDeviceName() },
+        provider === "ms" ? { mstoken: token } : { gtoken: token },
+        body
+      )
     )
   });
   const j = await r.json();
+  if (j && j.needDevice && body.action === "device_send" && !j.error) return j;
+  if (j && j.needDevice && body.action !== "device_check" && body.action !== "device_send") {
+    showDeviceCode(j, j.sent ? "" : j.error || "");
+    throw new Error("");
+  }
   if (j && j.signin) {
     signOut(true);
     throw new Error(j.error);
@@ -259,7 +307,7 @@ function showCode(email, msg) {
         headers: { "Content-Type": "text/plain;charset=utf-8" },
         body: JSON.stringify(
           Object.assign(
-            { mode: "owner", action: "join", code },
+            { mode: "owner", action: "join", code, dev: ownerDevice() },
             provider === "ms" ? { mstoken: token } : { gtoken: token }
           )
         )
@@ -276,6 +324,49 @@ function showCode(email, msg) {
     if (e.key === "Enter") go2();
   };
   $("jout").onclick = () => signOut();
+}
+/* A new device: "We sent a code to sc•••@gmail.com". */
+function showDeviceCode(info, msg) {
+  $("nav").hidden = true;
+  main.innerHTML = `<section class="gate">
+    <div class="gate-owl">${OWL}</div>
+    <h1>New device</h1>
+    <p>You're signed in as <b>${esc(info.email)}</b>. For your safety, this device needs a code once.</p>
+    <p>We sent a 6-digit code to <b>${esc(info.sentTo)}</b>.</p>
+    ${msg ? `<p class="err">${esc(msg)}</p>` : ""}
+    <label class="sr" for="dcode">Code from the email</label>
+    <input id="dcode" class="codebox" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456">
+    <button class="btn primary big" id="dgo">Continue</button>
+    <p class="small"><button class="linkbtn" id="dagain">Send a new code</button> · <button class="linkbtn" id="dout">Use a different account</button></p>
+  </section>`;
+  $("dcode").focus();
+  const go2 = async () => {
+    const code = $("dcode").value.replace(/\D/g, "");
+    if (code.length < 6) return $("dcode").focus();
+    $("dgo").disabled = true;
+    try {
+      const j = await api({ action: "device_check", code });
+      if (j.trusted) return load();
+    } catch (e) {
+      return showDeviceCode(info, e.message || "That didn't work.");
+    }
+  };
+  $("dgo").onclick = go2;
+  $("dcode").oninput = () => $("dcode").value.replace(/\D/g, "").length === 6 && go2();
+  $("dcode").onkeydown = e => {
+    if (e.key === "Enter") go2();
+  };
+  $("dagain").onclick = async () => {
+    $("dagain").disabled = true;
+    try {
+      const j = await api({ action: "device_send" });
+      toast(j.sent ? "A new code is on its way." : "Please wait a minute, then ask again.");
+    } catch (e) {
+      if (e.message) return showDeviceCode(info, e.message);
+    }
+    $("dagain").disabled = false;
+  };
+  $("dout").onclick = () => signOut();
 }
 function signIn() {
   if (!window.google || !google.accounts || !google.accounts.oauth2) {

@@ -278,7 +278,11 @@ const OWNER = {
   REPORT_HOUR: 8, // daily reports go out around this hour (the script's time zone)
   APP_URL: "https://karimhaidari2.github.io/ScamSense_App/",
   MAX_EMAILS_PER_USER: 10, // "email me" emails per person per day
-  MAX_ALERTS_PER_USER: 3 // danger alerts per person per day
+  MAX_ALERTS_PER_USER: 3, // danger alerts per person per day
+  // Signing in to the Owner app on a new device: the owner's code goes to this separate inbox, so a stolen
+  // Outlook sign-in alone isn't enough. Team members get their code at their own email.
+  DEVICE_CODE_EMAIL: "scamsensesupport@gmail.com",
+  DEVICE_TRUST_DAYS: 90
 };
 const USER_COLS = [
   "User ID",
@@ -1139,6 +1143,25 @@ function ownerWhoNow(req) {
   return "";
 }
 
+/* Devices that signed in to the Owner app with a code. Kept as fingerprints, never the device key itself. */
+const devKey = (who, dev) => "odev:" + sha(String(who) + "|" + String(dev)).slice(0, 40);
+function deviceTrusted(who, dev) {
+  if (!dev) return false;
+  const until = +PropertiesService.getScriptProperties().getProperty(devKey(who, dev)) || 0;
+  return until > Date.now();
+}
+function trustDevice(who, dev) {
+  if (!/^[a-z0-9]{16,64}$/i.test(String(dev || ""))) return;
+  PropertiesService.getScriptProperties().setProperty(
+    devKey(who, dev),
+    String(Date.now() + OWNER.DEVICE_TRUST_DAYS * 864e5)
+  );
+}
+function maskEmail(e) {
+  const [u, d] = String(e || "").split("@");
+  return d ? u.slice(0, 2) + "•••@" + d : "";
+}
+
 function ownerApi(req) {
   const who = ownerWho(req);
   if (!who) return { error: "Please sign in again.", signin: true };
@@ -1155,11 +1178,46 @@ function ownerApi(req) {
       return { ok: false, pending: true, email: who, error: "Your request is waiting for the owner's approval." };
     if (m.Status !== "active") {
       if (a !== "join") return { ok: false, needCode: true, email: who, error: "Enter the code from your invite email." };
-      return teamJoin(m, req.code, who);
+      const joined = teamJoin(m, req.code, who);
+      if (joined.joined) trustDevice(who, req.dev); // the invite code already proved it's them on this device
+      return joined;
     }
     role = m.Role === "Admin" ? "admin" : "viewer";
   }
   if (a === "join") return { ok: true, joined: true };
+  // A device that hasn't signed in before needs a 6-digit code first.
+  if (!deviceTrusted(who, req.dev)) {
+    const dest = role === "owner" ? OWNER.DEVICE_CODE_EMAIL || who : who;
+    const gate = { ok: false, needDevice: true, email: who, sentTo: maskEmail(dest) };
+    if (!/^[a-z0-9]{16,64}$/i.test(String(req.dev || "")))
+      return Object.assign(gate, { error: "Please refresh the page and sign in again." });
+    if (a === "device_check") {
+      const ok = codeCheck(dest, "owner_device", String(req.code || "").replace(/\D/g, ""));
+      if (ok.error) return Object.assign(gate, { error: ok.error });
+      trustDevice(who, req.dev);
+      ownerLog(who, "Signed in on a new device: " + cleanText(req.devName, 60), null);
+      if (role === "owner")
+        acctMail(
+          OWNER.EMAIL,
+          "New device signed in to ScamSense Owner",
+          "Someone just signed in to the ScamSense Owner app on a new device (" +
+            cleanText(req.devName, 60) +
+            ") with the code. If this wasn't you, change your Microsoft password right away."
+        );
+      return { ok: true, trusted: true };
+    }
+    // Send a code once (and again only when they ask, at most once a minute).
+    const sentKey = "odsent:" + sha(who + "|" + req.dev).slice(0, 40);
+    const cache = CacheService.getScriptCache();
+    if (!cache.get(sentKey) || (a === "device_send" && !cache.get(sentKey + ":again"))) {
+      const sent = codeSend(dest, "owner_device");
+      if (sent.error) return Object.assign(gate, { error: sent.error });
+      cache.put(sentKey, "1", ACCT.CODE_MIN * 60);
+      cache.put(sentKey + ":again", "1", 60);
+      return Object.assign(gate, { sent: true });
+    }
+    return gate;
+  }
   if (a === "overview") return Object.assign(ownerOverview(who), { role, team: role === "owner" ? teamList() : [] });
   if (a === "person") return Object.assign(ownerPerson(req.uid), { role });
   if (/^team_(add|remove|approve|deny)$/.test(a)) {
@@ -2898,7 +2956,11 @@ const PURPOSE_WORDS = {
   login: ["Your ScamSense sign-in code", "Use this code to finish signing in to ScamSense."],
   reset: ["Reset your ScamSense password", "Use this code to set a new password."],
   delete: ["Confirm deleting your ScamSense account", "Use this code only if you want to delete your account."],
-  email_change: ["Confirm your new email for ScamSense", "Use this code to change your ScamSense email to this address."]
+  email_change: ["Confirm your new email for ScamSense", "Use this code to change your ScamSense email to this address."],
+  owner_device: [
+    "ScamSense Owner: new device code",
+    "Someone is signing in to the ScamSense Owner app on a new device. Use this code only if it's you."
+  ]
 };
 const cleanEmail = e => {
   const v = String(e || "")
