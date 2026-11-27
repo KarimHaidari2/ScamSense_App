@@ -5777,3 +5777,7 @@ nav.tabs [data-tab="settings"] {
   content-visibility: auto;
   contain-intrinsic-size: auto 110px;
 }
+/* Settings: the optional PIN step is quieter than the steps that count */
+.protect-list li.opt .pl-tx {
+  opacity: 0.8;
+}

@@ -12,18 +12,42 @@ function renderSettings() {
     pinOn = !!S.get("lock", null),
     helpersN = S.get("helpers", []).length,
     aiOn = !!(c.apiKey || c.mahiUrl);
-  /* "Your protection": four safety steps, each one tap away from being turned on. */
-  const steps = [
-    [gmailOn || outlookOn, "mail", tr("Your email is checked", "Su correo se revisa"), "connect"],
-    [pinOn, "lock", tr("The app is locked with a PIN", "La app tiene un PIN"), "pin"],
-    [helpersN > 0, "user", tr("A trusted person is added", "Hay una persona de confianza"), "family"],
+  /* "Your protection": the safety steps, each one tap away from being turned on.
+     [on, icon, words when on, what the button does, words when off, optional]
+     The PIN is optional: the phone's own lock already protects the app, and a forgotten PIN locks
+     people out, so it doesn't count toward the score. */
+  const allSteps = [
+    [
+      gmailOn || outlookOn,
+      "mail",
+      tr("Your email is checked", "Su correo se revisa"),
+      "connect",
+      tr("Let ScamSense check your email", "Deje que ScamSense revise su correo")
+    ],
+    [
+      helpersN > 0,
+      "user",
+      tr("A trusted person is added", "Hay una persona de confianza"),
+      "family",
+      tr("Add a trusted person", "Agregue una persona de confianza")
+    ],
     [
       aiOn,
       "spark",
       tr("Mahi's smart answers are on", "Las respuestas inteligentes de Mahi están activas"),
-      "ai"
+      "ai",
+      tr("Turn on Mahi's smart answers", "Active las respuestas inteligentes de Mahi")
+    ],
+    [
+      pinOn,
+      "lock",
+      tr("The app is locked with a PIN", "La app tiene un PIN"),
+      "pin",
+      tr("Lock the app with a PIN (optional)", "Ponga un PIN a la app (opcional)"),
+      true
     ]
   ];
+  const steps = allSteps.filter(x => !x[5]);
   const done = steps.filter(x => x[0]).length;
   view.innerHTML = `${heroHead(t("tab_settings"), tr("Your email, your safety steps, and how the app looks.", "Su correo, sus pasos de seguridad y cómo se ve la app."))}
   ${typeof whoHTML === "function" ? whoHTML() : ""}
@@ -31,10 +55,10 @@ function renderSettings() {
     <div class="protect-top"><div class="ring" style="--p:${done / steps.length}"><b>${done}/${steps.length}</b></div>
       <div><h2>${done === steps.length ? tr("You're fully protected", "Está totalmente protegido") : tr("Your protection", "Su protección")}</h2>
       <p>${tr(`${done} of ${steps.length} safety steps are on.`, `${done} de ${steps.length} pasos de seguridad activos.`)}</p></div></div>
-    <ul class="protect-list">${steps
+    <ul class="protect-list">${allSteps
       .map(
-        ([on, icn, label, fix]) =>
-          `<li class="${on ? "on" : ""}"><span class="pl-ic">${ic(on ? "check" : icn)}</span><span class="pl-tx">${label}</span>${on ? "" : `<button class="btn sm primary" data-fix="${fix}">${tr("Turn on", "Activar")}</button>`}</li>`
+        ([on, icn, label, fix, offLabel, optional]) =>
+          `<li class="${on ? "on" : optional ? "opt" : ""}"><span class="pl-ic">${ic(on ? "check" : icn)}</span><span class="pl-tx">${on ? label : offLabel}</span>${on ? "" : `<button class="btn sm ${optional ? "ghost" : "primary"}" data-fix="${fix}">${optional ? tr("Set up", "Configurar") : fix === "family" ? tr("Add", "Agregar") : tr("Turn on", "Activar")}</button>`}</li>`
       )
       .join("")}</ul></section>
 
