@@ -1159,13 +1159,21 @@ let casePoll = null;
 /* ----- Speak instead of typing (like Mahi's mic in the customer app) ----- */
 const CAN_TALK = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 let talking = null;
+const stopTalking = () => talking && talking.stop();
+/* A closed case shows "This case is closed" with a button to open it again, instead of the reply box. */
+function syncComposer() {
+  const closed = caseNow && caseNow.case.Status === "closed";
+  if ($("composer")) $("composer").hidden = closed;
+  if ($("caseclosed")) $("caseclosed").hidden = !closed;
+  if (closed) stopTalking();
+}
 function dictate(box, btn) {
   if (talking) return talking.stop();
   const R = window.SpeechRecognition || window.webkitSpeechRecognition;
   const rec = new R();
   rec.lang = navigator.language || "en-US";
   rec.interimResults = true;
-  rec.continuous = true; // keeps listening through pauses until they tap Stop
+  rec.continuous = false; // stops by itself when they stop talking (or tap again to stop sooner)
   const before = box.value ? box.value.trim() + " " : "";
   const label = btn.querySelector("span");
   rec.onresult = e => {
@@ -1188,13 +1196,14 @@ function dictate(box, btn) {
     talking = rec;
     btn.classList.add("on");
     btn.setAttribute("aria-pressed", "true");
-    label.textContent = "Listening… tap to stop";
+    label.textContent = "Listening…";
   } catch (e) {
     toast("The microphone isn't available right now.");
   }
 }
 async function casePage(id) {
   clearInterval(casePoll);
+  stopTalking();
   casePhoto = "";
   main.innerHTML = `<button class="back" id="back">‹ Cases</button><p class="loading">Loading…</p>`;
   $("back").onclick = () => go("cases");
@@ -1287,7 +1296,12 @@ function drawCase() {
         ${
           ro
             ? `<p class="muted small">Viewers can read cases, but can't answer.</p>`
-            : `<div class="quickchips" id="quickchips"></div>
+            : `<div class="caseclosed" id="caseclosed" hidden>
+          <p><b>This case is closed.</b> If they write again, you get a new case and an alert.</p>
+          <button class="btn primary" id="reopen">Open the chat again</button>
+        </div>
+        <div id="composer">
+        <div class="quickchips" id="quickchips"></div>
         <div id="cpending" hidden></div>
         <label class="sr" for="ctext">Your message</label>
         <textarea id="ctext" rows="3" placeholder="Write to ${esc((p && p.name.split(" ")[0]) || "them")}… or tap a quick reply above"></textarea>
@@ -1297,7 +1311,8 @@ function drawCase() {
           <button class="btn" id="cnote" title="Only the ScamSense team sees notes">Save as team note</button>
           <button class="btn primary" id="csend">Send to ${esc((p && p.name.split(" ")[0]) || "them")}</button>
         </div>
-        <p class="muted small">Team notes are your investigation record: what you checked, who you called, what you found. The person never sees them.</p>`
+        <p class="muted small">Team notes are your investigation record: what you checked, who you called, what you found. The person never sees them.</p>
+        </div>`
         }
       </section>
       <aside class="card personcard">${
@@ -1329,6 +1344,8 @@ function drawCase() {
   drawCaseHead();
   drawThread();
   if (ro) return;
+  if ($("reopen"))
+    $("reopen").onclick = () => caseAct({ action: "case_status", status: "open" }, $("reopen"));
   const t = $("ctext");
   if ($("cmic")) $("cmic").onclick = () => dictate(t, $("cmic"));
   $("csend").onclick = () =>
@@ -1352,6 +1369,7 @@ function drawCase() {
 }
 function drawCaseHead() {
   const c = caseNow.case;
+  setTimeout(syncComposer, 0); // the reply box follows the case's status
   const ro = data.role === "viewer";
   const closed = c.Status === "closed";
   $("casehead").innerHTML = `<div><h1>${esc(c.Name)}</h1>
@@ -1508,6 +1526,7 @@ async function caseAct(body, btn, clear) {
     const j = await api(Object.assign({ caseId: caseNow.case["Case ID"] }, body));
     caseNow = j;
     toast(j.done || "Done");
+    stopTalking();
     if (clear) {
       $("ctext").value = "";
       casePhoto = "";

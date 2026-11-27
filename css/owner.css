@@ -1410,3 +1410,22 @@ button.kind:focus-visible {
   border-color: #b42318;
   color: #fff;
 }
+
+/* A closed case: no reply box, just a way to open it again */
+.caseclosed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 14px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+.caseclosed[hidden] {
+  display: none;
+}
+.caseclosed p {
+  margin: 0;
+}
