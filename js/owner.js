@@ -367,9 +367,16 @@ async function finishMs() {
   }
   return true;
 }
+/* Forget which screen was open, so the next sign-in starts on Home. */
+function clearScreen() {
+  try {
+    history.replaceState(null, "", location.pathname + location.search);
+  } catch (e) {}
+}
 function signOut(expired) {
   token = "";
   data = null;
+  clearScreen();
   try {
     sessionStorage.removeItem("own_t");
   } catch (e) {}
@@ -2205,5 +2212,10 @@ function demoApi(body) {
       return load();
     }
   } catch (e) {}
-  finishMs().then(handled => handled || showSignIn());
+  finishMs().then(handled => {
+    if (handled) return;
+    // Not signed in: start on Home after signing in (a case link from an email is kept above).
+    clearScreen();
+    showSignIn();
+  });
 })();
