@@ -11,8 +11,10 @@
 /* The Mahi Server's address. When the server moves (a new deployment), put the new address in
    CURRENT_SERVER_URL and the old one in OLD_SERVER_URLS; everything else follows. */
 const CURRENT_SERVER_URL =
-  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
-const OLD_SERVER_URLS = [].filter(u => u !== CURRENT_SERVER_URL);
+  "https://script.google.com/macros/s/AKfycbz_Lw2GX89fmcu1Dq2T_ueiPwPD8-JkvKHiCmqDqlkY01GmiR7Cw9wE5iV1GIgUWnZg/exec";
+const OLD_SERVER_URLS = [
+  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec" // before the move to scamsensesupport@gmail.com (Nov 26, 2026)
+].filter(u => u !== CURRENT_SERVER_URL);
 const SERVER_URL =
   (() => {
     try {

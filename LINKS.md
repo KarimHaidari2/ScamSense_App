@@ -70,7 +70,7 @@ Pick the function from the menu at the top of the script editor and click **Run*
 | What | Value |
 |---|---|
 | Microsoft app (client) ID | `1187ff8b-fa16-43d4-acb6-788bb696c627` |
-| Mahi server link | https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec |
+| Mahi server link | https://script.google.com/macros/s/AKfycbz_Lw2GX89fmcu1Dq2T_ueiPwPD8-JkvKHiCmqDqlkY01GmiR7Cw9wE5iV1GIgUWnZg/exec |
 
 ## Guides
 

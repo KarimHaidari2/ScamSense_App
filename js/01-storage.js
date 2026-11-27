@@ -54,7 +54,7 @@ const SS = {
 /* Mahi server: a Google Apps Script web app that holds the AI key (see mahi-server/README.md).
    Paste its URL here so Mahi answers any question for everyone, with no key in the app. */
 const DEFAULT_MAHI_URL =
-  "https://script.google.com/macros/s/AKfycbwXjtRfbMG2_8y8R9Wje6ddxmZDuPMnsDsFfHlqjw5n_v1-_ey2I4B3URS8cw04QpYn/exec";
+  "https://script.google.com/macros/s/AKfycbz_Lw2GX89fmcu1Dq2T_ueiPwPD8-JkvKHiCmqDqlkY01GmiR7Cw9wE5iV1GIgUWnZg/exec";
 /* Earlier server addresses: phones that saved one of these switch to the current one by themselves
    (so moving the server to another Google account doesn't break anyone's app). */
 const OLD_MAHI_URLS = [
