@@ -749,7 +749,19 @@ async function personPage(uid) {
   const base = data.users.find(u => u["User ID"] === uid);
   // Show what we have right away, then always ask the server for their newest details.
   if (people[uid]) drawPerson(people[uid]);
-  else {
+  else if (base) {
+    // First visit: draw what the list already knows right away; their activity fills in a moment later.
+    drawPerson({
+      person: base,
+      activity: [],
+      alerts: [],
+      phoneChecksUsed: "…",
+      phoneChecksMax: "…",
+      preview: true
+    });
+    const h = main.querySelector(".doc-head h1");
+    if (h) h.insertAdjacentHTML("afterend", `<p class="livemark" id="pupd">Getting the newest details…</p>`);
+  } else {
     main.innerHTML = `<button class="back" id="back">‹ People</button><p class="loading">Loading ${esc(base ? name(base) : "")}…</p>`;
     $("back").onclick = () => go("people");
   }
@@ -765,7 +777,8 @@ async function personPage(uid) {
       if (typing !== null && $("note")) $("note").value = typing;
     }
   } catch (e) {
-    if (!people[uid]) main.innerHTML += `<p class="err">${esc(e.message)}</p>`;
+    if ($("pupd")) $("pupd").textContent = "Couldn't get the newest details: " + e.message;
+    else if (!people[uid]) main.insertAdjacentHTML("beforeend", `<p class="err">${esc(e.message)}</p>`);
   }
 }
 /* "yes | (918) 555-0100 | morning" → "Yes · call (918) 555-0100 · mornings" with a tap-to-call link. */
