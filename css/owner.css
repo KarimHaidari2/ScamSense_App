@@ -1236,9 +1236,38 @@ body[data-role="viewer"] .actions {
 }
 .chk {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
-  margin: 4px 0;
+  margin: 0;
+  padding: 12px 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+/* Checkboxes keep their own size (".compose input" makes text boxes full width) */
+.compose .chk input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  flex: none;
+  accent-color: var(--brand);
+}
+.chk small {
+  font-weight: 400;
+  color: var(--muted);
+  margin-left: 4px;
+}
+.chkgroup {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  margin: 4px 0 14px;
+  overflow: hidden;
+}
+.chkgroup .chk + .chk {
+  border-top: 1px solid var(--line);
+}
+.chkgroup .chk:hover {
+  background: var(--surface-2, rgba(127, 127, 127, 0.06));
 }
 /* ----- Print / save a case as PDF ----- */
 @media print {

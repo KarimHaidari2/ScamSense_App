@@ -118,7 +118,9 @@ function statusOf(u) {
 const chip = u => {
   const [c, t] = statusOf(u);
   // People who asked the ScamSense team to be their helper (no family to call).
-  const helps = /^yes/.test(String(u["Team helper"] || "")) ? `<span class="chip c-helper">We're their helper</span>` : "";
+  const helps = /^yes/.test(String(u["Team helper"] || ""))
+    ? `<span class="chip c-helper">We're their helper</span>`
+    : "";
   return `<span class="chip c-${c}">${t}</span>${helps}`;
 };
 
@@ -1277,9 +1279,11 @@ function drawCaseHead() {
       <label for="outcome">What happened? (for your records)</label>
       <input id="outcome" placeholder="For example: bank stopped the payment, it was a real email, reported to the FTC">
       <p class="muted small">The whole conversation is saved in the spreadsheet either way. Also:</p>
-      <label class="chk"><input type="checkbox" id="closeme"> Email me a copy (with team notes)</label>
-      ${caseNow.person && caseNow.person.verified ? `<label class="chk"><input type="checkbox" id="closethem"> Email ${esc(String(c.Name).split(" ")[0])} a copy (without notes)</label>` : ""}
-      <label class="chk"><input type="checkbox" id="closepdf"> Print / save as PDF</label>
+      <div class="chkgroup">
+        <label class="chk"><input type="checkbox" id="closeme"><span>Email me a copy <small>with team notes</small></span></label>
+        ${caseNow.person && caseNow.person.verified ? `<label class="chk"><input type="checkbox" id="closethem"><span>Email ${esc(String(c.Name).split(" ")[0])} a copy <small>without team notes</small></span></label>` : ""}
+        <label class="chk"><input type="checkbox" id="closepdf"><span>Print or save as PDF</span></label>
+      </div>
       <div class="row"><button class="btn primary" id="closego">Close case</button><button class="btn" id="closeno">Cancel</button></div>
       <p class="muted small">${esc(c.Name)} sees "The ScamSense team closed this conversation" and can write again anytime.</p>
     </div>`
